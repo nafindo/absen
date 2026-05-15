@@ -628,7 +628,7 @@
 
     <!-- Stat Card -->
     <div class="card">
-      <div class="card-title">Rekap Bulan Ini <span style="font-size:13px;color:var(--text-secondary);font-weight:600;">Mei 2026</span></div>
+      <div class="card-title">Rekap Bulan Ini <span id="statBulanLabel" style="font-size:13px;color:var(--text-secondary);font-weight:600;">-</span></div>
       <div class="stat-grid">
         <div class="stat-item">
           <div class="stat-number" id="statHadir" style="color:var(--success);">0</div>
@@ -636,14 +636,14 @@
           <div class="stat-bar"><div class="stat-bar-fill" id="barHadir" style="width:0%;background:var(--success);"></div></div>
         </div>
         <div class="stat-item">
-          <div class="stat-number" id="statIzin" style="color:var(--primary);">0</div>
-          <div class="stat-label">Izin</div>
-          <div class="stat-bar"><div class="stat-bar-fill" id="barIzin" style="width:0%;background:var(--primary);"></div></div>
+          <div class="stat-number" id="statAlpa" style="color:var(--text);">0</div>
+          <div class="stat-label">Alpa</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="barAlpa" style="width:0%;background:var(--text);"></div></div>
         </div>
         <div class="stat-item">
-          <div class="stat-number" id="statCuti" style="color:var(--warning);">0</div>
-          <div class="stat-label">Sisa Cuti</div>
-          <div class="stat-bar"><div class="stat-bar-fill" id="barCuti" style="width:0%;background:var(--warning);"></div></div>
+          <div class="stat-number" id="statTelat" style="color:var(--danger);">0</div>
+          <div class="stat-label">Terlambat</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="barTelat" style="width:0%;background:var(--danger);"></div></div>
         </div>
       </div>
     </div>
@@ -773,7 +773,7 @@
   <!-- TAB: DATA ABSENSI -->
   <div class="tab-content" id="tabData">
     <div class="card" style="margin-top: 12px;">
-      <div class="card-title">Rekap Absensi <span style="font-size:13px;color:var(--text-secondary);font-weight:600;">Mei 2026</span></div>
+      <div class="card-title">Rekap Absensi <span id="dataBulanLabel" style="font-size:13px;color:var(--text-secondary);font-weight:600;">-</span></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
         <div class="text-center">
           <div style="font-size:22px;font-weight:800;color:var(--success);" id="dataHadir">0</div>
@@ -1516,7 +1516,11 @@ async function onTokoChange() {
     if (res.success && Array.isArray(res.data)) {
       state.shiftList = res.data;
       shiftSel.innerHTML = '<option value="">Pilih...</option>';
-      res.data.forEach(s => { shiftSel.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${s.Jam_Masuk||'--:--'} - ${s.Jam_Pulang||'--:--'})</option>`; });
+      res.data.forEach(s => {
+        const jm = formatTimeFromResponse(s.Jam_Masuk);
+        const jp = formatTimeFromResponse(s.Jam_Pulang);
+        shiftSel.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${jm} - ${jp})</option>`;
+      });
       if (state.user.shiftDefault) { const ex = res.data.some(s => s.ID_Shift === state.user.shiftDefault); if (ex) shiftSel.value = state.user.shiftDefault; }
       updateShiftInfo();
     }
@@ -1545,6 +1549,12 @@ function updateDate() {
   const now = new Date();
   const opt = { weekday:'long', day:'numeric', month:'long', year:'numeric' };
   document.getElementById('shiftTanggal').textContent = now.toLocaleDateString('id-ID', opt);
+  const bulanOpt = { month:'long', year:'numeric' };
+  const bulanLabel = document.getElementById('statBulanLabel');
+  const dataBulanLabel = document.getElementById('dataBulanLabel');
+  const bulanStr = now.toLocaleDateString('id-ID', bulanOpt);
+  if (bulanLabel) bulanLabel.textContent = bulanStr;
+  if (dataBulanLabel) dataBulanLabel.textContent = bulanStr;
 }
 
 // ==================== TOKO CARD INFO ====================
@@ -1568,8 +1578,39 @@ function updateTokoCardInfo() {
 }
 
 // ==================== ABSEN ====================
-function checkAbsenStatus() {
-  state.absenStatus = 'belum_masuk';
+async function checkAbsenStatus() {
+  if (!state.user || !state.user.id) { state.absenStatus = 'belum_masuk'; updateButtonVisibility(); return; }
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const res = await apiCall('getAbsenHariIni', { idKaryawan: state.user.id, tanggal: today });
+    if (res.success && res.data) {
+      const d = res.data;
+      if (d.jamPulang) {
+        state.absenStatus = 'sudah_pulang';
+        document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.jamMasuk);
+        document.getElementById('statusMasuk').className = 'ok';
+        document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(d.jamPulang);
+        document.getElementById('statusPulang').className = 'ok';
+      } else if (d.jamMasuk) {
+        state.absenStatus = 'sudah_masuk';
+        document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.jamMasuk);
+        document.getElementById('statusMasuk').className = 'ok';
+        document.getElementById('statusPulang').textContent = 'Pulang: --';
+        document.getElementById('statusPulang').className = 'pending';
+      } else {
+        state.absenStatus = 'belum_masuk';
+        document.getElementById('statusMasuk').textContent = 'Masuk: --';
+        document.getElementById('statusMasuk').className = 'pending';
+        document.getElementById('statusPulang').textContent = 'Pulang: --';
+        document.getElementById('statusPulang').className = 'pending';
+      }
+    } else {
+      state.absenStatus = 'belum_masuk';
+    }
+  } catch (e) {
+    console.log('checkAbsenStatus error:', e);
+    state.absenStatus = 'belum_masuk';
+  }
   updateButtonVisibility();
 }
 
@@ -1577,9 +1618,24 @@ function updateButtonVisibility() {
   const bm = document.getElementById('btnMasuk');
   const bp = document.getElementById('btnPulang');
   const bl = document.getElementById('btnLembur');
-  if (state.absenStatus === 'belum_masuk') { bm.classList.remove('hidden'); bp.classList.add('hidden'); bl.classList.add('hidden'); }
-  else if (state.absenStatus === 'sudah_masuk') { bm.classList.add('hidden'); bp.classList.remove('hidden'); bl.classList.remove('hidden'); }
-  else { bm.classList.add('hidden'); bp.classList.add('hidden'); bl.classList.add('hidden'); }
+  if (state.absenStatus === 'belum_masuk') {
+    bm.classList.remove('hidden');
+    bp.classList.add('hidden');
+    bl.classList.add('hidden');
+  } else if (state.absenStatus === 'sudah_masuk') {
+    bm.classList.add('hidden');
+    bp.classList.remove('hidden');
+    bl.classList.remove('hidden');
+  } else if (state.absenStatus === 'sudah_pulang') {
+    // All buttons hidden after pulang
+    bm.classList.add('hidden');
+    bp.classList.add('hidden');
+    bl.classList.add('hidden');
+  } else {
+    bm.classList.add('hidden');
+    bp.classList.add('hidden');
+    bl.classList.add('hidden');
+  }
 }
 
 async function absenMasuk() {
@@ -1611,6 +1667,8 @@ async function absenMasuk() {
       tampilPicoModal('sukses', `<b>Absen Masuk Berhasil!</b><br>Jam: ${formatTimeFromResponse(res.jamMasuk)}<br>Status: ${res.statusMasuk}`);
       document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(res.jamMasuk);
       document.getElementById('statusMasuk').className = 'ok';
+      // Refresh status so button changes to Pulang
+      await checkAbsenStatus();
       retakePhoto();
     } else { tampilPicoModal('error', res.error || 'Gagal absen masuk'); }
   } catch (e) { tampilPicoModal('error', 'Gagal: ' + e.message); }
@@ -1632,6 +1690,8 @@ async function absenPulang() {
       tampilPicoModal('izin_pulang', `<b>Absen Pulang Berhasil!</b><br>Durasi: ${res.durasiKerja || '-'}<br>Jam: ${formatTimeFromResponse(res.jamPulang)}`);
       document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(res.jamPulang);
       document.getElementById('statusPulang').className = 'ok';
+      // Refresh status so buttons hide
+      await checkAbsenStatus();
       retakePhoto();
     } else { tampilPicoModal('error', res.error || 'Gagal absen pulang'); }
   } catch (e) { tampilPicoModal('error', 'Gagal: ' + e.message); }
@@ -1735,14 +1795,16 @@ async function renderJadwal() {
     const res = await apiCall('getJadwalMingguan', { idKaryawan: state.user.id, tanggalReferensi: now.toISOString() });
     if (res.success) {
       const tbody = document.getElementById('jadwalTbody');
-      tbody.innerHTML = res.minggu.map(j => `
-        <tr class="${j.libur ? 'libur' : ''} ${j.namaHari === new Date().toLocaleDateString('id-ID',{weekday:'long'}) && state.jadwalOffset===0 ? 'today' : ''}">
+      tbody.innerHTML = res.minggu.map(j => {
+        const jm = formatTimeFromResponse(j.jamMasuk);
+        const jp = formatTimeFromResponse(j.jamPulang);
+        return `<tr class="${j.libur ? 'libur' : ''} ${j.namaHari === new Date().toLocaleDateString('id-ID',{weekday:'long'}) && state.jadwalOffset===0 ? 'today' : ''}">
           <td><div style="font-weight:800;font-size:15px;">${j.namaHari}</div><div style="font-size:13px;color:var(--text-secondary);">${j.tanggal}</div></td>
           <td>${j.toko !== '-' ? '<span class="badge badge-blue">'+j.toko+'</span>' : '-'}</td>
           <td>${j.shift !== '-' ? '<span class="badge badge-green">'+j.shift+'</span>' : '-'}</td>
-          <td>${j.jamMasuk !== '-' ? j.jamMasuk + ' - ' + j.jamPulang : '-'}</td>
-        </tr>
-      `).join('');
+          <td>${j.jamMasuk !== '-' ? jm + ' - ' + jp : '-'}</td>
+        </tr>`;
+      }).join('');
       const senin = new Date(now); senin.setDate(now.getDate() - now.getDay() + 1);
       const minggu = new Date(senin); minggu.setDate(senin.getDate() + 6);
       document.getElementById('jadwalPeriode').textContent = senin.toLocaleDateString('id-ID',{day:'numeric',month:'short'}) + ' - ' + minggu.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
