@@ -11,9 +11,10 @@
   :root {
     --primary: #0D8ABC; --primary-dark: #0A6B8E; --primary-light: #E3F2FD;
     --success: #34C759; --success-dark: #2DAF4A; --danger: #FF3B30;
-    --warning: #FF9500; --info: #5856D6; --text: #1A1A2E;
-    --text-secondary: #8B95A5; --bg: #F5F7FA; --surface: #FFFFFF;
-    --shadow: 0 2px 12px rgba(13,138,188,0.08); --shadow-lg: 0 8px 30px rgba(13,138,188,0.15);
+    --danger-light: #FFEBEE; --warning: #FF9500; --info: #5856D6;
+    --text: #1A1A2E; --text-secondary: #8B95A5; --bg: #F5F7FA;
+    --surface: #FFFFFF; --shadow: 0 2px 12px rgba(13,138,188,0.08);
+    --shadow-lg: 0 8px 30px rgba(13,138,188,0.15);
   }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html { font-size: 16px; }
@@ -23,7 +24,7 @@
     touch-action: manipulation; overscroll-behavior-y: none;
   }
 
-  /* ===== LOGIN SCREEN ===== */
+  /* LOGIN SCREEN */
   .login-screen {
     position: fixed; inset: 0; z-index: 9999;
     background: linear-gradient(180deg, #0D8ABC 0%, #0A6B8E 60%, #065473 100%);
@@ -95,7 +96,7 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ===== APP HEADER ===== */
+  /* APP HEADER */
   .app-header {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: white; padding: 14px 16px 18px;
@@ -128,40 +129,57 @@
     border: 2px solid var(--primary);
   }
 
-  /* Notif Bubble */
+  /* NOTIF BUBBLE - HIGH CONTRAST */
   .notif-bubble {
     position: absolute; top: 52px; right: 8px;
     background: white; border-radius: 16px;
-    box-shadow: var(--shadow-lg); width: 300px; max-height: 360px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25); width: 300px; max-height: 360px;
     display: none; flex-direction: column; z-index: 200;
-    border: 1px solid #E8ECF1; overflow: hidden; animation: popIn 0.25s ease-out;
+    border: 1px solid #D0D7DE; overflow: hidden; animation: popIn 0.25s ease-out;
   }
   .notif-bubble.show { display: flex; }
   .notif-bubble-header {
-    padding: 14px 16px; border-bottom: 1px solid #F1F3F4;
-    font-size: 15px; font-weight: 800; display: flex; justify-content: space-between; align-items: center; background: #F8F9FA;
+    padding: 14px 16px; border-bottom: 1px solid #E8ECF1;
+    font-size: 15px; font-weight: 800; color: var(--text);
+    display: flex; justify-content: space-between; align-items: center; background: #F8F9FA;
   }
   .notif-bubble-close {
     width: 28px; height: 28px; border-radius: 50%; border: none;
-    background: #E8ECF1; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    background: #E8ECF1; font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text);
   }
   .notif-bubble-list { overflow-y: auto; flex: 1; padding: 8px; -webkit-overflow-scrolling: touch; }
   .notif-item {
     padding: 12px; border-radius: 12px; margin-bottom: 6px; font-size: 14px;
-    cursor: pointer; transition: all 0.15s;
+    cursor: pointer; transition: all 0.15s; border: 1px solid transparent;
   }
-  .notif-item:hover { background: #F8F9FA; }
-  .notif-item.approved { background: #E8F5E9; border-left: 3px solid var(--success); }
-  .notif-item.rejected { background: #FFEBEE; border-left: 3px solid var(--danger); }
-  .notif-item-title { font-weight: 700; margin-bottom: 2px; }
-  .notif-item-text { color: var(--text-secondary); font-size: 13px; }
-  .notif-empty { text-align: center; padding: 24px; color: var(--text-secondary); font-size: 14px; }
+  .notif-item:hover { background: #F5F7FA; }
+  .notif-item.approved {
+    background: #D4EDDA; border: 1px solid #34C759; border-left: 4px solid #1B5E20;
+  }
+  .notif-item.approved .notif-item-title { color: #0D3B0D; font-weight: 800; }
+  .notif-item.approved .notif-item-text { color: #1B5E20; font-weight: 600; }
+  .notif-item.rejected {
+    background: #F8D7DA; border: 1px solid #FF3B30; border-left: 4px solid #8B0000;
+  }
+  .notif-item.rejected .notif-item-title { color: #5C0000; font-weight: 800; }
+  .notif-item.rejected .notif-item-text { color: #8B0000; font-weight: 600; }
+  .notif-item.pending {
+    background: #FFF3CD; border: 1px solid #FF9500; border-left: 4px solid #B35900;
+  }
+  .notif-item.pending .notif-item-title { color: #5C2E00; font-weight: 800; }
+  .notif-item.pending .notif-item-text { color: #8B4500; font-weight: 600; }
+  .notif-item-title { font-weight: 700; margin-bottom: 3px; }
+  .notif-item-text { font-size: 13px; line-height: 1.4; }
+  .notif-item-date { font-size: 11px; color: #555; margin-top: 4px; font-weight: 600; }
+  .notif-empty { text-align: center; padding: 24px; color: var(--text-secondary); font-size: 14px; font-weight: 500; }
 
-  /* ===== TAB CONTENT ===== */
+  /* TAB CONTENT */
   .tab-content { display: none; padding-bottom: 100px; }
   .tab-content.active { display: block; }
 
-  /* ===== CARDS ===== */
+  /* CARDS */
   .card {
     background: var(--surface); border-radius: 16px; padding: 16px;
     box-shadow: var(--shadow); margin: 0 16px 12px;
@@ -171,22 +189,22 @@
     display: flex; align-items: center; justify-content: space-between;
   }
 
-  /* Shift Info Card */
-  .shift-card {
+  /* JADWAL CARD */
+  .jadwal-card {
     display: flex; align-items: center; gap: 14px; padding: 18px 16px;
   }
-  .shift-icon {
+  .jadwal-icon {
     width: 48px; height: 48px; border-radius: 14px;
     background: var(--primary-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
-  .shift-icon svg { width: 24px; height: 24px; stroke: var(--primary); }
-  .shift-detail h4 { font-size: 15px; font-weight: 700; color: var(--text); }
-  .shift-detail p { font-size: 13px; color: var(--text-secondary); margin-top: 3px; font-weight: 500; }
-  .shift-detail .status-line { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; font-weight: 600; }
+  .jadwal-icon svg { width: 24px; height: 24px; stroke: var(--primary); }
+  .jadwal-detail h4 { font-size: 15px; font-weight: 700; color: var(--text); }
+  .jadwal-detail p { font-size: 13px; color: var(--text-secondary); margin-top: 3px; font-weight: 500; }
+  .jadwal-detail .status-line { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; font-weight: 600; }
   .status-line .ok { color: var(--success); }
   .status-line .pending { color: var(--text-secondary); }
 
-  /* Stat Grid */
+  /* STAT GRID */
   .stat-grid {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
   }
@@ -196,7 +214,7 @@
   .stat-bar { height: 4px; background: #E8ECF1; border-radius: 2px; margin-top: 8px; overflow: hidden; }
   .stat-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
 
-  /* Menu Grid */
+  /* MENU GRID */
   .menu-grid {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
     margin: 0 16px;
@@ -215,17 +233,13 @@
   .menu-icon svg { width: 24px; height: 24px; }
   .menu-label { font-size: 12px; font-weight: 700; color: var(--text); }
 
-  /* Section Label */
-  .section-label {
-    font-size: 14px; font-weight: 800; color: var(--text-secondary);
-    text-transform: uppercase; letter-spacing: 0.5px;
-    margin: 20px 16px 12px;
+  /* CAMERA */
+  .camera-section {
+    margin: 0 16px;
   }
-
-  /* ===== ABSENSI TAB ===== */
   .camera-container {
     position: relative; width: 100%; aspect-ratio: 3/4;
-    background: #111; overflow: hidden;
+    background: #111; overflow: hidden; border-radius: 16px;
   }
   .camera-container video {
     width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block;
@@ -269,25 +283,8 @@
     padding: 10px 18px; border-radius: 24px; font-size: 14px; font-weight: 700;
     cursor: pointer; z-index: 10; backdrop-filter: blur(4px);
   }
-  .camera-start-overlay {
-    position: absolute; inset: 0; background: rgba(0,0,0,0.85);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    z-index: 20; color: white; gap: 12px; padding: 24px; text-align: center;
-  }
-  .camera-start-overlay.hidden { display: none; }
-  .camera-start-btn {
-    padding: 14px 28px; background: var(--primary); color: white;
-    border: none; border-radius: 14px; font-size: 16px; font-weight: 700;
-    cursor: pointer; margin-top: 8px;
-  }
-  .camera-start-btn:active { transform: scale(0.95); }
-  .camera-error-box {
-    background: rgba(255,59,48,0.15); color: #FF9F9F; padding: 12px 16px;
-    border-radius: 12px; font-size: 14px; font-weight: 600; margin-top: 8px;
-    border: 1px solid rgba(255,59,48,0.3);
-  }
-  .camera-error-box.hidden { display: none; }
 
+  /* GPS */
   .gps-badge {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;
@@ -297,6 +294,7 @@
   .gps-badge.bad { background: #FFEBEE; color: #C62828; }
   .gps-badge.loading { background: #FFF8E1; color: #F57F17; }
 
+  /* FORM */
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 16px 12px; }
   .form-group { margin-bottom: 0; }
   .form-label {
@@ -312,6 +310,7 @@
   }
   .form-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(13,138,188,0.1); }
 
+  /* BUTTONS */
   .btn {
     width: calc(100% - 32px); margin: 0 16px 12px; padding: 16px;
     border: none; border-radius: 14px; font-size: 17px; font-weight: 800;
@@ -325,10 +324,8 @@
   .btn-warning { background: linear-gradient(135deg, var(--warning), #F57F17); color: white; }
   .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
 
-  /* ===== DATA ABSENSI TAB ===== */
-  .data-list {
-    margin: 0 16px;
-  }
+  /* DATA LIST */
+  .data-list { margin: 0 16px; }
   .data-list-item {
     background: var(--surface); border-radius: 14px; padding: 16px;
     box-shadow: var(--shadow); margin-bottom: 10px;
@@ -346,7 +343,62 @@
   .data-list-text p { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
   .data-list-chevron { color: var(--text-secondary); }
 
-  /* ===== BOTTOM NAV ===== */
+  /* CHAT */
+  .chat-container {
+    display: flex; flex-direction: column; height: calc(100vh - 160px);
+    margin: 0 16px;
+  }
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 12px 0;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chat-msg {
+    max-width: 80%; padding: 12px 16px; border-radius: 18px;
+    margin-bottom: 10px; font-size: 15px; line-height: 1.4;
+    word-wrap: break-word;
+  }
+  .chat-msg.me {
+    background: var(--primary); color: white;
+    align-self: flex-end; border-bottom-right-radius: 4px;
+    margin-left: auto;
+  }
+  .chat-msg.other {
+    background: white; color: var(--text);
+    align-self: flex-start; border-bottom-left-radius: 4px;
+    border: 1px solid #E8ECF1;
+    margin-right: auto;
+  }
+  .chat-msg-name {
+    font-size: 11px; font-weight: 700; margin-bottom: 4px;
+    opacity: 0.8;
+  }
+  .chat-msg-time {
+    font-size: 11px; opacity: 0.6; margin-top: 4px; text-align: right;
+  }
+  .chat-input-wrap {
+    display: flex; gap: 10px; padding: 12px 0;
+    border-top: 1px solid #E8ECF1;
+  }
+  .chat-input {
+    flex: 1; padding: 12px 16px; border: 2px solid #E8ECF1;
+    border-radius: 24px; font-size: 15px; background: white;
+    outline: none; font-family: inherit;
+  }
+  .chat-input:focus { border-color: var(--primary); }
+  .chat-send-btn {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--primary); color: white; border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .chat-send-btn:active { transform: scale(0.9); background: var(--primary-dark); }
+  .chat-send-btn svg { width: 20px; height: 20px; stroke: white; }
+  .chat-empty {
+    text-align: center; padding: 40px 20px; color: var(--text-secondary);
+    font-size: 14px; font-weight: 500;
+  }
+
+  /* BOTTOM NAV */
   .bottom-nav {
     position: fixed; bottom: 0; left: 0; right: 0;
     background: var(--surface); border-top: 1px solid #E8ECF1;
@@ -357,7 +409,8 @@
   .nav-item {
     flex: 1; display: flex; flex-direction: column; align-items: center;
     gap: 4px; padding: 6px; cursor: pointer; color: var(--text-secondary);
-    font-size: 11px; font-weight: 700; transition: all 0.2s; border: none; background: none; font-family: inherit;
+    font-size: 11px; font-weight: 700; transition: all 0.2s;
+    border: none; background: none; font-family: inherit;
   }
   .nav-item:active { transform: scale(0.92); }
   .nav-item.active { color: var(--primary); }
@@ -371,11 +424,18 @@
     border: 4px solid var(--bg); box-shadow: 0 4px 16px rgba(13,138,188,0.4);
     display: flex; align-items: center; justify-content: center;
     color: white; cursor: pointer; transition: all 0.2s;
+    flex-direction: column; gap: 2px;
   }
   .nav-fab:active { transform: scale(0.9); }
-  .nav-fab svg { width: 28px; height: 28px; stroke: white; fill: none; }
+  .nav-fab svg { width: 24px; height: 24px; stroke: white; fill: none; }
+  .nav-fab-label {
+    font-size: 9px; font-weight: 800; color: var(--text-secondary);
+    position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%);
+    white-space: nowrap;
+  }
+  .nav-fab-wrap.active .nav-fab-label { color: var(--primary); }
 
-  /* ===== MODALS ===== */
+  /* MODAL */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.55);
     z-index: 2000; display: none; align-items: flex-end; justify-content: center;
@@ -396,11 +456,12 @@
   .modal-header h2 { font-size: 20px; font-weight: 900; }
   .modal-close {
     width: 40px; height: 40px; border-radius: 50%; border: none;
-    background: var(--bg); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    background: var(--bg); font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
   }
   .modal-body { padding: 16px 20px 28px; font-size: 16px; flex: 1; }
 
-  /* ===== IZIN MODAL ===== */
+  /* IZIN */
   .izin-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
   .izin-chip {
     padding: 10px 18px; border-radius: 24px; border: 2px solid #E8ECF1;
@@ -416,7 +477,7 @@
   textarea.form-input:focus { outline: none; border-color: var(--primary); }
   input[type="date"].form-select, input[type="file"].form-select { padding: 14px 16px; }
 
-  /* ===== TOAST ===== */
+  /* TOAST */
   .toast {
     position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
     padding: 14px 24px; border-radius: 14px; color: white;
@@ -430,7 +491,7 @@
   .toast-error { background: rgba(255,59,48,0.95); }
   .toast-info { background: rgba(13,138,188,0.95); }
 
-  /* ===== PICO MASCOT ===== */
+  /* PICO */
   .pico-container {
     position: fixed; bottom: 110px; right: 16px; z-index: 500;
     display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
@@ -441,22 +502,23 @@
     transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
   }
   .pico-mascot:active { transform: scale(0.88); }
-  .chat-bubble {
+  .pico-bubble {
     background: white; border-radius: 18px; padding: 16px 18px;
     box-shadow: var(--shadow-lg); max-width: 260px; font-size: 15px;
     line-height: 1.5; display: none; border: 1px solid #E8ECF1; position: relative;
   }
-  .chat-bubble.show { display: block; animation: popIn 0.3s ease-out; }
-  .bubble-close {
+  .pico-bubble.show { display: block; animation: popIn 0.3s ease-out; }
+  .pico-bubble-close {
     position: absolute; top: -8px; right: -8px;
     width: 28px; height: 28px; background: var(--danger);
     color: white; border: 2px solid white; border-radius: 50%;
     font-size: 14px; font-weight: 800; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 10;
   }
+  .pico-bubble-close:active { transform: scale(0.9); background: #C62828; }
 
-  /* ===== PICO MODAL ===== */
+  /* PICO MODAL */
   .pico-modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 4000;
     display: none; align-items: center; justify-content: center;
@@ -478,7 +540,7 @@
     min-height: 50px; width: 100%;
   }
 
-  /* ===== TABLES ===== */
+  /* TABLE */
   .data-table { width: 100%; border-collapse: collapse; font-size: 15px; }
   .data-table th { text-align: left; padding: 12px 8px; color: var(--text-secondary); font-weight: 700; font-size: 13px; text-transform: uppercase; border-bottom: 2px solid #E8ECF1; }
   .data-table td { padding: 14px 8px; border-bottom: 1px solid #F1F3F4; }
@@ -489,7 +551,7 @@
   .badge-blue { background: var(--primary-light); color: var(--primary); }
   .badge-orange { background: #FFF3E0; color: #E65100; }
 
-  /* ===== PERMISSION HELP ===== */
+  /* PERM */
   .perm-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 5000;
     display: none; align-items: center; justify-content: center;
@@ -508,1306 +570,1006 @@
   .perm-btn { width: 100%; padding: 14px; border: none; border-radius: 14px; background: var(--primary); color: white; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 6px; }
   .perm-btn.secondary { background: var(--bg); color: var(--text); border: 2px solid #E8ECF1; }
 
-  /* ===== UTILS ===== */
+  /* UTILS */
   .hidden { display: none !important; }
   .text-center { text-align: center; }
   .mt-1 { margin-top: 8px; } .mt-2 { margin-top: 16px; }
   .mb-1 { margin-bottom: 8px; } .mb-2 { margin-bottom: 16px; }
   .flex { display: flex; } .items-center { align-items: center; } .gap-2 { gap: 8px; }
+  .section-label {
+    font-size: 14px; font-weight: 800; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin: 20px 16px 12px;
+  }
 </style>
 <base target="_blank">
 </head>
 <body>
 
-<!-- ===== LOGIN SCREEN ===== -->
+<!-- LOGIN SCREEN -->
 <div class="login-screen" id="loginScreen">
   <div class="login-logo-wrap">
-    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
   </div>
   <div class="login-app-name">Absensi Karyawan</div>
-  <div class="login-app-sub">Pilih nama Anda untuk masuk</div>
+  <div class="login-app-sub">Pilih nama Anda untuk mulai absensi</div>
   <div class="login-card">
-    <div class="login-error" id="loginError"></div>
-    <div class="login-label">Nama Karyawan</div>
+    <div class="login-error" id="loginError">Gagal memuat data karyawan</div>
+    <div class="login-label">Pilih Nama</div>
     <select class="login-select" id="loginSelect">
-      <option value="">Pilih Nama...</option>
+      <option value="">-- Pilih Karyawan --</option>
     </select>
-    <button class="login-btn" id="btnLogin" onclick="doLogin()">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
-      Masuk
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">
+      <span id="loginBtnText">Masuk</span>
+      <div class="spinner hidden" id="loginSpinner"></div>
     </button>
   </div>
-  <div class="login-footer">Aplikasi Absensi Multi-Toko v2.0</div>
+  <div class="login-footer">v2.0 &bull; Multi-Toko</div>
 </div>
 
-<!-- ===== APP CONTENT ===== -->
-<div id="appContent" style="display:none;">
+<!-- APP -->
+<div id="app" style="display:none;">
 
-  <!-- Header -->
-  <div class="app-header">
+  <!-- HEADER -->
+  <header class="app-header">
     <div class="app-header-left">
       <div class="header-avatar" id="headerAvatar">
-        <span id="headerAvatarText">B</span>
-        <img id="headerAvatarImg" src="" style="display:none;" alt="">
+        <span id="headerInitial">A</span>
+        <img id="headerImg" src="" alt="" class="hidden">
       </div>
       <div class="header-info">
-        <h3 id="headerName">Budi Santoso</h3>
-        <p id="headerRole">Staff - Toko A</p>
+        <h3 id="headerName">Karyawan</h3>
+        <p id="headerToko">Toko</p>
       </div>
     </div>
-    <button class="header-notif" id="notifBell" onclick="toggleNotifBubble(event)">
-      <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-      <div class="notif-badge hidden" id="notifBadge">0</div>
+    <button class="header-notif" id="headerNotif" onclick="toggleNotif()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="notif-badge hidden" id="notifBadge">0</span>
     </button>
     <div class="notif-bubble" id="notifBubble">
       <div class="notif-bubble-header">
-        <span>Pemberitahuan</span>
-        <button class="notif-bubble-close" onclick="closeNotifBubble(event)">&#10005;</button>
+        <span>Notifikasi</span>
+        <button class="notif-bubble-close" onclick="toggleNotif()">&#10005;</button>
       </div>
-      <div class="notif-bubble-list" id="notifBubbleList">
-        <div class="notif-empty">Belum ada pemberitahuan</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB: BERANDA -->
-  <div class="tab-content active" id="tabBeranda">
-    <!-- Shift Info Card -->
-    <div class="card shift-card" style="margin-top: 12px;">
-      <div class="shift-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-      </div>
-      <div class="shift-detail">
-        <h4 id="shiftNama">Reguler - 08:00 - 17:00</h4>
-        <p id="shiftTanggal">Senin, 16 Mei 2026</p>
-        <div class="status-line">
-          <span class="pending" id="statusMasuk">Masuk: --</span>
-          <span class="pending" id="statusPulang">Pulang: --</span>
-        </div>
+      <div class="notif-bubble-list" id="notifList">
+        <div class="notif-empty">Belum ada notifikasi</div>
       </div>
     </div>
+  </header>
 
-    <!-- Stat Card -->
-    <div class="card">
-      <div class="card-title">Rekap Bulan Ini <span style="font-size:13px;color:var(--text-secondary);font-weight:600;">Mei 2026</span></div>
-      <div class="stat-grid">
-        <div class="stat-item">
-          <div class="stat-number" id="statHadir" style="color:var(--success);">0</div>
-          <div class="stat-label">Hadir</div>
-          <div class="stat-bar"><div class="stat-bar-fill" id="barHadir" style="width:0%;background:var(--success);"></div></div>
+  <!-- TAB BERANDA -->
+  <div class="tab-content active" id="tab-beranda">
+    <div style="padding: 16px 16px 0;">
+      <div class="card">
+        <div class="card-title">
+          <span>Ringkasan Bulan Ini</span>
+          <span style="font-size:13px;color:var(--text-secondary);font-weight:600;" id="currentDate"></span>
         </div>
-        <div class="stat-item">
-          <div class="stat-number" id="statIzin" style="color:var(--primary);">0</div>
-          <div class="stat-label">Izin</div>
-          <div class="stat-bar"><div class="stat-bar-fill" id="barIzin" style="width:0%;background:var(--primary);"></div></div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number" id="statCuti" style="color:var(--warning);">0</div>
-          <div class="stat-label">Sisa Cuti</div>
-          <div class="stat-bar"><div class="stat-bar-fill" id="barCuti" style="width:0%;background:var(--warning);"></div></div>
+        <div class="stat-grid">
+          <div class="stat-item">
+            <div class="stat-number" id="statHadir" style="color:var(--success);">0</div>
+            <div class="stat-label">Hadir</div>
+            <div class="stat-bar"><div class="stat-bar-fill" id="barHadir" style="width:0%;background:var(--success);"></div></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" id="statTelat" style="color:var(--warning);">0</div>
+            <div class="stat-label">Telat</div>
+            <div class="stat-bar"><div class="stat-bar-fill" id="barTelat" style="width:0%;background:var(--warning);"></div></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" id="statIzin" style="color:var(--danger);">0</div>
+            <div class="stat-label">Izin</div>
+            <div class="stat-bar"><div class="stat-bar-fill" id="barIzin" style="width:0%;background:var(--danger);"></div></div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Menu Utama -->
-    <div class="section-label">Menu Utama</div>
+    <div class="section-label">Menu Cepat</div>
     <div class="menu-grid">
-      <button class="menu-item" onclick="openModal('modalIzin')">
-        <div class="menu-icon" style="background:#E3F2FD;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#0D8ABC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+      <button class="menu-item" onclick="switchTab('jadwal')">
+        <div class="menu-icon" style="background:var(--primary-light);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         </div>
-        <div class="menu-label">Izin</div>
+        <span class="menu-label">Jadwal</span>
       </button>
-      <button class="menu-item" onclick="openModal('modalLembur')">
-        <div class="menu-icon" style="background:#FFF3E0;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        </div>
-        <div class="menu-label">Lembur</div>
-      </button>
-      <button class="menu-item" onclick="openModal('modalJadwal')">
+      <button class="menu-item" onclick="switchTab('riwayat')">
         <div class="menu-icon" style="background:#E8F5E9;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#34C759" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1E8E3E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
-        <div class="menu-label">Shift</div>
+        <span class="menu-label">Riwayat</span>
       </button>
-      <button class="menu-item" onclick="showToast('Fitur Info Gaji segera hadir!', 'info')">
+      <button class="menu-item" onclick="switchTab('izin')">
+        <div class="menu-icon" style="background:#FFF3E0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#E65100" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <span class="menu-label">Izin</span>
+      </button>
+      <button class="menu-item" onclick="switchTab('chat')">
         <div class="menu-icon" style="background:#F3E5F5;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#5856D6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#7B1FA2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
-        <div class="menu-label">Info Gaji</div>
+        <span class="menu-label">Chat</span>
       </button>
-      <button class="menu-item" onclick="showToast('Fitur Aktivitas segera hadir!', 'info')">
-        <div class="menu-icon" style="background:#E0F7FA;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#00ACC1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+    </div>
+
+    <div class="section-label">Jadwal Hari Ini</div>
+    <div class="card jadwal-card" id="berandaJadwal">
+      <div class="jadwal-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <div class="jadwal-detail">
+        <h4 id="berandaShiftNama">-</h4>
+        <p id="berandaShiftWaktu">-</p>
+        <div class="status-line">
+          <span class="ok" id="berandaMasuk">Belum Absen Masuk</span>
+          <span class="pending" id="berandaPulang">Belum Absen Pulang</span>
         </div>
-        <div class="menu-label">Aktivitas</div>
-      </button>
-      <button class="menu-item" onclick="showToast('Fitur Berita segera hadir!', 'info')">
-        <div class="menu-icon" style="background:#FCE4EC;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#E91E63" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path><path d="M18 14h-8"></path><path d="M15 18h-5"></path><path d="M10 6h8v4h-8V6Z"></path></svg>
-        </div>
-        <div class="menu-label">Berita</div>
-      </button>
+      </div>
     </div>
   </div>
 
-  <!-- TAB: ABSENSI -->
-  <div class="tab-content" id="tabAbsensi">
-    <!-- GPS Badge -->
-    <div style="padding: 12px 16px 0;">
-      <div class="gps-badge loading" id="gpsBadge">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-        <span id="gpsText">Mendeteksi lokasi...</span>
-      </div>
-    </div>
-
-    <!-- Camera -->
-    <div class="card" style="padding: 12px; margin-top: 8px;">
-      <div style="font-size: 14px; font-weight: 800; margin-bottom: 10px; color: var(--text-secondary);">AMBIL FOTO SELFIE</div>
+  <!-- TAB ABSENSI (CAMERA) -->
+  <div class="tab-content" id="tab-absensi">
+    <div class="section-label">Ambil Foto Absensi</div>
+    <div class="camera-section">
       <div class="camera-container" id="cameraContainer">
-        <div class="camera-start-overlay" id="cameraOverlay">
-          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-          <div style="font-size: 16px; font-weight: 700;">Kamera Perlu Diaktifkan</div>
-          <div style="font-size: 13px; opacity: 0.8; max-width: 260px;">Tekan tombol di bawah untuk menyalakan kamera selfie.</div>
-          <button class="camera-start-btn" id="btnStartCamera" onclick="startCameraManual()">Nyalakan Kamera</button>
-          <div class="camera-error-box hidden" id="cameraErrorBox"></div>
-        </div>
-        <video id="video" autoplay playsinline muted></video>
-        <img id="previewImg" class="preview-img" alt="Preview">
-        <canvas id="canvas" style="display:none;"></canvas>
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <img class="preview-img" id="cameraPreview" alt="Preview">
         <div class="camera-overlay">
           <div class="face-frame" id="faceFrame">
-            <div class="face-label" id="faceLabel">Posisikan wajah di kotak</div>
+            <div class="face-label">Posisikan wajah di dalam frame</div>
           </div>
         </div>
-        <button class="capture-btn" id="captureBtn" onclick="capturePhoto()"></button>
-        <button class="retake-btn" id="retakeBtn" onclick="retakePhoto()">Ulangi</button>
+        <button class="capture-btn" id="captureBtn" onclick="takePhoto()"></button>
+        <button class="retake-btn hidden" id="retakeBtn" onclick="retakePhoto()">Ulangi</button>
       </div>
-      <div style="font-size: 13px; color: var(--text-secondary); text-align: center; margin-top: 10px; font-weight: 500;">Pastikan pencahayaan cukup & wajah terlihat jelas</div>
     </div>
 
-    <!-- Form -->
-    <div class="form-row">
+    <div style="margin: 12px 16px 0;">
+      <div class="gps-badge loading" id="gpsBadge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
+        Mendeteksi lokasi...
+      </div>
+    </div>
+
+    <div class="form-row" style="margin-top:12px;">
       <div class="form-group">
-        <label class="form-label">Toko</label>
-        <select class="form-select" id="selectToko" onchange="onTokoChange()"><option value="">Pilih...</option></select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Shift</label>
-        <select class="form-select" id="selectShift"><option value="">Pilih...</option></select>
-      </div>
-    </div>
-
-    <div class="card hidden" id="jamInfoCard" style="padding: 14px 16px;">
-      <div style="font-size: 15px; font-weight: 700; color: var(--text);">
-        <span id="infoJamMasuk">Jam Masuk: --:--</span> &nbsp;|&nbsp; <span id="infoJamPulang">Jam Pulang: --:--</span>
-      </div>
-    </div>
-
-    <button class="btn btn-success" id="btnMasuk" onclick="absenMasuk()">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-      ABSEN MASUK
-    </button>
-    <div class="form-row">
-      <button class="btn btn-warning hidden" id="btnLembur" onclick="toggleLemburMode()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        MODE LEMBUR
-      </button>
-      <button class="btn btn-danger hidden" id="btnPulang" onclick="absenPulang()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-        ABSEN PULANG
-      </button>
-    </div>
-  </div>
-
-  <!-- TAB: DATA ABSENSI -->
-  <div class="tab-content" id="tabData">
-    <div class="card" style="margin-top: 12px;">
-      <div class="card-title">Rekap Absensi <span style="font-size:13px;color:var(--text-secondary);font-weight:600;">Mei 2026</span></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
-        <div class="text-center">
-          <div style="font-size:22px;font-weight:800;color:var(--success);" id="dataHadir">0</div>
-          <div style="font-size:11px;color:var(--text-secondary);font-weight:600;">Hadir</div>
-          <div class="stat-bar"><div class="stat-bar-fill" style="width:0%;background:var(--success);"></div></div>
-        </div>
-        <div class="text-center">
-          <div style="font-size:22px;font-weight:800;color:var(--text);" id="dataAlpa">0</div>
-          <div style="font-size:11px;color:var(--text-secondary);font-weight:600;">Alpa</div>
-          <div class="stat-bar"><div class="stat-bar-fill" style="width:0%;background:var(--text);"></div></div>
-        </div>
-        <div class="text-center">
-          <div style="font-size:22px;font-weight:800;color:var(--danger);" id="dataSakit">0</div>
-          <div style="font-size:11px;color:var(--text-secondary);font-weight:600;">Sakit</div>
-          <div class="stat-bar"><div class="stat-bar-fill" style="width:0%;background:var(--danger);"></div></div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
-        <div class="text-center">
-          <div style="font-size:22px;font-weight:800;color:var(--primary);" id="dataIzin">0</div>
-          <div style="font-size:11px;color:var(--text-secondary);font-weight:600;">Izin</div>
-          <div class="stat-bar"><div class="stat-bar-fill" style="width:0%;background:var(--primary);"></div></div>
-        </div>
-        <div class="text-center">
-          <div style="font-size:22px;font-weight:800;color:var(--info);" id="dataCuti">0</div>
-          <div style="font-size:11px;color:var(--text-secondary);font-weight:600;">Cuti</div>
-          <div class="stat-bar"><div class="stat-bar-fill" style="width:0%;background:var(--info);"></div></div>
-        </div>
-        <div class="text-center">
-          <div style="font-size:22px;font-weight:800;color:var(--warning);" id="dataLembur">0</div>
-          <div style="font-size:11px;color:var(--text-secondary);font-weight:600;">Lembur</div>
-          <div class="stat-bar"><div class="stat-bar-fill" style="width:0%;background:var(--warning);"></div></div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="text-center">
-          <div style="font-size:22px;font-weight:800;color:var(--danger);" id="dataTelat">0</div>
-          <div style="font-size:11px;color:var(--text-secondary);font-weight:600;">Terlambat</div>
-          <div class="stat-bar"><div class="stat-bar-fill" style="width:0%;background:var(--danger);"></div></div>
-        </div>
-        <div class="text-center">
-          <div style="font-size:22px;font-weight:800;color:#E53935;" id="dataPulangCepat">0</div>
-          <div style="font-size:11px;color:var(--text-secondary);font-weight:600;">Pulang Cepat</div>
-          <div class="stat-bar"><div class="stat-bar-fill" style="width:0%;background:#E53935;"></div></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="data-list">
-      <div class="data-list-item" onclick="openModal('modalRaport'); renderRaport();">
-        <div class="data-list-icon" style="background:#E3F2FD;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#0D8ABC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 9 3.16V12a10 10 0 0 0 13 0z"></path></svg>
-        </div>
-        <div class="data-list-text">
-          <h4>Data Absensi</h4>
-          <p>Riwayat absen harian</p>
-        </div>
-        <div class="data-list-chevron">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </div>
-      </div>
-      <div class="data-list-item" onclick="showToast('Menu Data Izin', 'info')">
-        <div class="data-list-icon" style="background:#E8F5E9;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#34C759" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-        </div>
-        <div class="data-list-text">
-          <h4>Data Izin</h4>
-          <p>Izin / Cuti yang sudah disetujui</p>
-        </div>
-        <div class="data-list-chevron">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </div>
-      </div>
-      <div class="data-list-item" onclick="showToast('Menu Data Lembur', 'info')">
-        <div class="data-list-icon" style="background:#FFF3E0;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        </div>
-        <div class="data-list-text">
-          <h4>Data Lembur</h4>
-          <p>Lembur yang sudah disetujui</p>
-        </div>
-        <div class="data-list-chevron">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Bottom Nav -->
-  <div class="bottom-nav">
-    <button class="nav-item active" onclick="switchTab('beranda')" id="navBeranda">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-      <span>Beranda</span>
-    </button>
-    <div class="nav-fab-wrap">
-      <button class="nav-fab" onclick="switchTab('absensi')" id="navAbsensi">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-      </button>
-    </div>
-    <button class="nav-item" onclick="switchTab('data')" id="navData">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 9 3.16V12a10 10 0 0 0 13 0z"></path></svg>
-      <span>Data Absensi</span>
-    </button>
-  </div>
-
-</div><!-- /appContent -->
-
-<!-- ===== MODALS ===== -->
-
-<!-- Modal Jadwal -->
-<div class="modal-overlay" id="modalJadwal" onclick="closeModalOnOverlay(event, 'modalJadwal')">
-  <div class="modal-sheet">
-    <div class="modal-header"><h2>Jadwal Shift</h2><button class="modal-close" onclick="closeModal('modalJadwal')">&#10005;</button></div>
-    <div class="modal-body">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <button class="btn btn-primary" style="width:auto;padding:10px 14px;font-size:14px;min-height:40px;" onclick="navJadwal(-1)">&#9664; Lalu</button>
-        <span id="jadwalPeriode" style="font-weight:800;font-size:15px;">-</span>
-        <button class="btn btn-primary" style="width:auto;padding:10px 14px;font-size:14px;min-height:40px;" onclick="navJadwal(1)">Depan &#9654;</button>
-      </div>
-      <table class="data-table">
-        <thead><tr><th>Hari</th><th>Toko</th><th>Shift</th><th>Jam</th></tr></thead>
-        <tbody id="jadwalTbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Raport Detail -->
-<div class="modal-overlay" id="modalRaport" onclick="closeModalOnOverlay(event, 'modalRaport')">
-  <div class="modal-sheet">
-    <div class="modal-header"><h2>Detail Absensi</h2><button class="modal-close" onclick="closeModal('modalRaport')">&#10005;</button></div>
-    <div class="modal-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-        <div class="card" style="margin:0;text-align:center;">
-          <div style="font-size:28px;font-weight:800;color:var(--success);" id="raportHadir">0</div>
-          <div style="font-size:13px;color:var(--text-secondary);font-weight:600;">Hadir</div>
-        </div>
-        <div class="card" style="margin:0;text-align:center;">
-          <div style="font-size:28px;font-weight:800;color:var(--danger);" id="raportTelat">0</div>
-          <div style="font-size:13px;color:var(--text-secondary);font-weight:600;">Telat</div>
-        </div>
-      </div>
-      <div style="font-size:16px;font-weight:800;margin-bottom:12px;">Riwayat Harian</div>
-      <table class="data-table">
-        <thead><tr><th>Tanggal</th><th>Toko</th><th>Shift</th><th>Status</th></tr></thead>
-        <tbody id="raportTbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Izin -->
-<div class="modal-overlay" id="modalIzin" onclick="closeModalOnOverlay(event, 'modalIzin')">
-  <div class="modal-sheet">
-    <div class="modal-header"><h2>Ajukan Izin / Cuti</h2><button class="modal-close" onclick="closeModal('modalIzin')">&#10005;</button></div>
-    <div class="modal-body">
-      <div style="font-size:14px;font-weight:800;color:var(--text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Pilih Jenis</div>
-      <div class="izin-chips">
-        <div class="izin-chip active" onclick="selectIzin(this, 'sakit')">Sakit</div>
-        <div class="izin-chip" onclick="selectIzin(this, 'izin')">Izin</div>
-        <div class="izin-chip" onclick="selectIzin(this, 'cuti')">Cuti</div>
-        <div class="izin-chip" onclick="selectIzin(this, 'nikah')">Nikah</div>
-        <div class="izin-chip" onclick="selectIzin(this, 'melahirkan')">Melahirkan</div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label class="form-label">Mulai</label><input type="date" class="form-select" id="izinTglMulai"></div>
-        <div class="form-group"><label class="form-label">Selesai</label><input type="date" class="form-select" id="izinTglSelesai"></div>
-      </div>
-      <div class="form-group" style="margin-bottom:14px;">
-        <label class="form-label">Alasan</label>
-        <textarea class="form-input" id="izinAlasan" rows="3" placeholder="Tulis alasan..."></textarea>
-      </div>
-      <div class="form-group" style="margin-bottom:14px;">
-        <label class="form-label">Lampiran (Opsional)</label>
-        <input type="file" class="form-select" id="izinLampiran" accept="image/*,.pdf">
-      </div>
-      <div style="background:#FFF8E1;padding:14px 16px;border-radius:12px;font-size:14px;color:#F57F17;margin-bottom:16px;font-weight:600;" id="kuotaInfo">
-        Sisa kuota: Cuti Tahunan <strong>-</strong>
-      </div>
-      <button class="btn btn-primary" onclick="submitIzin()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-        Ajukan Izin
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Lembur -->
-<div class="modal-overlay" id="modalLembur" onclick="closeModalOnOverlay(event, 'modalLembur')">
-  <div class="modal-sheet">
-    <div class="modal-header"><h2>Pengajuan Lembur</h2><button class="modal-close" onclick="closeModal('modalLembur')">&#10005;</button></div>
-    <div class="modal-body">
-      <div class="form-group" style="margin-bottom:14px;">
-        <label class="form-label">Toko Lembur</label>
-        <select class="form-select" id="lemburToko"></select>
-      </div>
-      <div class="form-group" style="margin-bottom:14px;">
-        <label class="form-label">Alasan</label>
-        <select class="form-select" id="lemburAlasanType" onchange="toggleLemburAlasan()">
-          <option value="event">Event / Promo</option><option value="stok">Stok Masuk</option>
-          <option value="bersih">Bersih-bersih</option><option value="lainnya">Lainnya...</option>
+        <label class="form-label">Jenis Absen</label>
+        <select class="form-select" id="absenJenis">
+          <option value="masuk">Masuk</option>
+          <option value="pulang">Pulang</option>
         </select>
       </div>
-      <div class="form-group hidden" id="lemburAlasanManual" style="margin-bottom:14px;">
-        <textarea class="form-input" rows="2" placeholder="Sebutkan alasan..."></textarea>
+      <div class="form-group">
+        <label class="form-label">Toko</label>
+        <select class="form-select" id="absenToko"></select>
       </div>
-      <div class="form-group" style="margin-bottom:14px;">
-        <label class="form-label">Foto Selfie Lembur</label>
-        <div style="position:relative;width:100%;aspect-ratio:3/4;background:#111;border-radius:16px;overflow:hidden;min-height:200px;max-height:35vh;">
-          <div id="lemburCameraOverlay" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;gap:10px;z-index:5;">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-            <div style="font-size:14px;font-weight:700;">Kamera Lembur</div>
-            <button style="padding:10px 20px;background:var(--primary);color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;" onclick="startLemburCamera()">Nyalakan Kamera</button>
-          </div>
-          <video id="lemburVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;display:none;transform:scaleX(-1);"></video>
-          <img id="lemburPreview" style="width:100%;height:100%;object-fit:cover;display:none;transform:scaleX(-1);">
-          <canvas id="lemburCanvas" style="display:none;"></canvas>
-          <button id="lemburCaptureBtn" style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);width:60px;height:60px;background:white;border:4px solid rgba(255,255,255,0.8);border-radius:50%;cursor:pointer;z-index:10;display:none;" onclick="captureLemburPhoto()"></button>
-          <button id="lemburRetakeBtn" class="retake-btn" style="display:none;" onclick="retakeLemburPhoto()">Ulangi</button>
+    </div>
+
+    <button class="btn btn-success" id="submitAbsenBtn" onclick="submitAbsen()" disabled>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Kirim Absensi
+    </button>
+    <button class="btn btn-danger" id="batalAbsenBtn" onclick="closeAbsensi()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      Batal
+    </button>
+  </div>
+
+  <!-- TAB JADWAL -->
+  <div class="tab-content" id="tab-jadwal">
+    <div class="section-label">Jadwal Kerja</div>
+    <div id="jadwalList" class="data-list">
+      <div class="data-list-item">
+        <div class="data-list-text"><h4>Memuat jadwal...</h4></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB RIWAYAT -->
+  <div class="tab-content" id="tab-riwayat">
+    <div class="section-label">Riwayat Absensi</div>
+    <div id="riwayatList" class="data-list">
+      <div class="data-list-item">
+        <div class="data-list-text"><h4>Memuat riwayat...</h4></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB IZIN -->
+  <div class="tab-content" id="tab-izin">
+    <div class="section-label">Pengajuan Izin</div>
+    <div class="card">
+      <div class="izin-chips" id="izinChips">
+        <div class="izin-chip active" data-value="sakit" onclick="selectIzin(this)">Sakit</div>
+        <div class="izin-chip" data-value="izin" onclick="selectIzin(this)">Izin</div>
+        <div class="izin-chip" data-value="cuti" onclick="selectIzin(this)">Cuti</div>
+        <div class="izin-chip" data-value="dinlu" onclick="selectIzin(this)">Dinas Luar</div>
+      </div>
+      <div class="form-group mb-1">
+        <label class="form-label">Tanggal</label>
+        <input type="date" class="form-select" id="izinTanggal">
+      </div>
+      <div class="form-group mb-1">
+        <label class="form-label">Keterangan</label>
+        <textarea class="form-input" id="izinKeterangan" placeholder="Jelaskan alasan izin..."></textarea>
+      </div>
+      <div class="form-group mb-1">
+        <label class="form-label">Lampiran (opsional)</label>
+        <input type="file" class="form-select" id="izinFile" accept="image/*">
+      </div>
+      <button class="btn btn-primary mt-1" onclick="submitIzin()">Ajukan Izin</button>
+    </div>
+    <div class="section-label">Status Pengajuan</div>
+    <div id="izinStatusList" class="data-list">
+      <div class="data-list-item">
+        <div class="data-list-text"><h4>Memuat status...</h4></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB CHAT -->
+  <div class="tab-content" id="tab-chat">
+    <div class="section-label">Obrolan Karyawan</div>
+    <div class="chat-container">
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-empty">Belum ada pesan. Mulai obrolan sekarang!</div>
+      </div>
+      <div class="chat-input-wrap">
+        <input type="text" class="chat-input" id="chatInput" placeholder="Tulis pesan..." onkeypress="if(event.key==='Enter')sendChat()">
+        <button class="chat-send-btn" onclick="sendChat()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB PENGATURAN -->
+  <div class="tab-content" id="tab-pengaturan">
+    <div class="section-label">Profil Saya</div>
+    <div class="card" style="text-align:center;padding:24px 16px;">
+      <div style="width:80px;height:80px;border-radius:50%;background:var(--primary-light);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:3px solid var(--primary);">
+        <span id="profilInitial" style="font-size:32px;font-weight:800;color:var(--primary);">A</span>
+        <img id="profilImg" src="" alt="" class="hidden" style="width:100%;height:100%;object-fit:cover;">
+      </div>
+      <h3 id="profilName" style="font-size:18px;font-weight:800;">-</h3>
+      <p id="profilToko" style="font-size:14px;color:var(--text-secondary);margin-top:4px;font-weight:500;">-</p>
+      <p id="profilJabatan" style="font-size:13px;color:var(--text-secondary);margin-top:2px;font-weight:500;">-</p>
+    </div>
+    <div class="section-label">Pengaturan</div>
+    <div class="data-list">
+      <div class="data-list-item" onclick="showToast('Fitur dalam pengembangan','info')">
+        <div class="data-list-icon" style="background:var(--primary-light);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 20.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </div>
+        <div class="data-list-text"><h4>Edit Profil</h4><p>Ubah data pribadi</p></div>
+        <span class="data-list-chevron">&#8250;</span>
       </div>
-      <button class="btn btn-warning" onclick="submitLembur()">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        Ajukan Lembur
+      <div class="data-list-item" onclick="logout()">
+        <div class="data-list-icon" style="background:#FFEBEE;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#C62828" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </div>
+        <div class="data-list-text"><h4>Keluar</h4><p>Ganti akun karyawan</p></div>
+        <span class="data-list-chevron">&#8250;</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="beranda" onclick="switchTab('beranda')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Beranda</span>
+    </button>
+    <button class="nav-item" data-tab="jadwal" onclick="switchTab('jadwal')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>Jadwal</span>
+    </button>
+    <div class="nav-fab-wrap" id="navFabWrap">
+      <button class="nav-fab" id="navFab" onclick="toggleAbsensi()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
       </button>
+      <span class="nav-fab-label" id="navFabLabel">Absensi</span>
+    </div>
+    <button class="nav-item" data-tab="chat" onclick="switchTab('chat')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>Chat</span>
+    </button>
+    <button class="nav-item" data-tab="pengaturan" onclick="switchTab('pengaturan')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 20.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Akun</span>
+    </button>
+  </nav>
+
+  <!-- PICO MASCOT -->
+  <div class="pico-container">
+    <div class="pico-bubble" id="picoBubble">
+      <button class="pico-bubble-close" onclick="closePicoBubble()">&#10005;</button>
+      <div id="picoBubbleText">Halo! Ada yang bisa saya bantu?</div>
+    </div>
+    <img class="pico-mascot" id="picoMascot" src="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" alt="Pico" onclick="togglePico()">
+  </div>
+
+  <!-- PICO MODAL -->
+  <div class="pico-modal-overlay" id="picoModal" onclick="if(event.target===this)closePicoModal()">
+    <div class="pico-modal-box">
+      <img class="pico-modal-img" src="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" alt="Pico">
+      <div class="pico-modal-text" id="picoModalText">Halo! Saya Pico, asisten virtual Anda.</div>
+      <button class="pico-modal-btn" style="background:var(--primary);" onclick="closePicoModal()">Oke, Mengerti!</button>
     </div>
   </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
 </div>
-
-<!-- Permission Help -->
-<div class="perm-overlay" id="permHelpModal" onclick="if(event.target.id==='permHelpModal')closePermHelp()">
-  <div class="perm-box">
-    <div class="perm-title">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-      Izin Kamera Diblokir
-    </div>
-    <div id="permSteps"></div>
-    <button class="perm-btn" onclick="retryCameraAfterHelp()">Coba Nyalakan Kamera</button>
-    <button class="perm-btn secondary" onclick="closePermHelp()">Tutup</button>
-  </div>
-</div>
-
-<!-- Pico Modal -->
-<div class="pico-modal-overlay" id="pico-modal" onclick="if(event.target.id==='pico-modal')closePicoModal()">
-  <div class="pico-modal-box">
-    <img src="" class="pico-modal-img" id="pico-modal-img" alt="Mascot">
-    <div class="pico-modal-text" id="pico-modal-text"></div>
-    <button class="pico-modal-btn" id="pico-modal-btn" onclick="closePicoModal()">Oke, Pico!</button>
-  </div>
-</div>
-
-<!-- Pico Mascot -->
-<div class="pico-container">
-  <div class="chat-bubble" id="chat-bubble">
-    <button class="bubble-close" onclick="closeBubble(event)">&#10005;</button>
-    <div id="tutorial-text"></div>
-  </div>
-  <img src="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" class="pico-mascot" id="pinguin-mascot" onclick="picoAction()" alt="PICO" draggable="false">
-</div>
-
-<!-- Toast -->
-<div class="toast" id="toast"></div>
-
-<!-- Audio -->
-<audio id="soundSuccess" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
-<audio id="soundError" src="https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3"></audio>
-<audio id="soundNotif" src="https://assets.mixkit.co/active_storage/sfx/2866/2866-preview.mp3"></audio>
 
 <script>
-// ==================== STATE ====================
-let state = {
-  user: null, photoData: null, gps: { lat:null, lng:null, accuracy:null, jarak:null },
-  absenStatus: 'belum_masuk', isLemburMode: false, jadwalOffset: 0, stream: null,
-  tokoList: [], shiftList: [], karyawanList: [], notifList: [], notifShown: false,
-  lemburStream: null, lemburPhotoData: null, audioUnlocked: false
-};
+// ===================== CONFIG =====================
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbySMzB3SsqaMqJITxhXu1eWorAB_I5BboEcqNcncwLfSo4Iu_vDvGu50rth3IM6g2I/exec'; // GANTI DENGAN URL GAS ANDA
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySMzB3SsqaMqJITxhXu1eWorAB_I5BboEcqNcncwLfSo4Iu_vDvGu50rth3IM6g2I/exec';
-const LS_KEY = 'absensi_user_v2';
-const pathGambar = "https://lh3.googleusercontent.com/d/";
-const picoImages = {
-  sukses: "1Tnf4KogLXDeGaXjzi7nT-6D0XDsLQJtI", gps_jauh: "1t3Ip_ioGD55TEWbkKPgtnYtDciidJuDZ",
-  wajah_gagal: "1znuTlrMgr6b_qpWdrTwdW5FnPsbsd3cE", lembur_pending: "1q5q5rsFG0ZrhaGJyEulwU8MJjXAtFyKc",
-  izin_sakit: "1wf65GL6UGY_qDfnGEhSYHxvYL5pRXJwf", izin_telat: "115BmzgFQ2uJHXk8khNGAhdYD0tRVrh1h",
-  izin_pulang: "152ZtNSBruDX5KQOpo7fMv7SDws0u1VlF", izin_cuti: "1Tnxa9YDmJD0N0evyv7RGg9wRERDBm3zJ",
-  error: "1Q5WxPZ2uulbNdZsggdCQ2HZhyJiFoJKV"
-};
-const picoBtnColors = {
-  sukses:'#34C759', gps_jauh:'#FF3B30', wajah_gagal:'#FF9500', lembur_pending:'#0D8ABC',
-  izin_sakit:'#8B95A5', izin_telat:'#FF9500', izin_pulang:'#FF9500', izin_cuti:'#00ACC1', error:'#C62828'
-};
+// ===================== STATE =====================
+let currentUser = null;
+let allKaryawan = [];
+let allToko = [];
+let currentStream = null;
+let capturedPhoto = null;
+let currentLocation = null;
+let absensiOpen = false;
+let chatData = [];
 
-// ==================== LOCAL STORAGE LOGIN ====================
-function saveLogin(userData) {
-  const data = { ...userData, loggedAt: Date.now() };
-  localStorage.setItem(LS_KEY, JSON.stringify(data));
-}
-function loadLogin() {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    // Valid 30 hari
-    const days30 = 30 * 24 * 60 * 60 * 1000;
-    if (Date.now() - data.loggedAt > days30) {
-      localStorage.removeItem(LS_KEY);
-      return null;
-    }
-    return data;
-  } catch (e) { return null; }
-}
-function clearLogin() {
-  localStorage.removeItem(LS_KEY);
-}
-
-// ==================== AUDIO UNLOCK ====================
-function unlockAudio() {
-  if (state.audioUnlocked) return;
-  ['soundSuccess','soundError','soundNotif'].forEach(id => {
-    const a = document.getElementById(id);
-    if (a) { a.play().catch(()=>{}); a.pause(); a.currentTime = 0; }
-  });
-  state.audioUnlocked = true;
-}
-
-function playSound(type) {
-  if (!state.audioUnlocked) return;
-  const audio = document.getElementById(type === 'success' ? 'soundSuccess' : type === 'error' ? 'soundError' : 'soundNotif');
-  if (audio) { audio.currentTime = 0; audio.play().catch(()=>{}); }
-}
-
-// ==================== INIT ====================
-document.addEventListener('DOMContentLoaded', async () => {
-  updateDate();
-  initGPS();
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('izinTglMulai').value = today;
-  document.getElementById('izinTglSelesai').value = today;
-
-  // Load karyawan list untuk dropdown login
-  await loadKaryawanDropdown();
-
-  // Cek localStorage login
-  const saved = loadLogin();
-  if (saved && saved.id) {
-    // Auto login dari localStorage
-    state.user = { id: saved.id, name: saved.name, role: saved.role, tokoDefault: saved.tokoDefault, shiftDefault: saved.shiftDefault };
-    state.currentUser = state.user;
-    unlockAudio();
-    showApp();
-    setupUserUI(saved.fotoUrl || '');
-    await loadTokoData();
-    if (state.user.tokoDefault) {
-      document.getElementById('selectToko').value = state.user.tokoDefault;
-      await onTokoChange();
-      if (state.user.shiftDefault) {
-        document.getElementById('selectShift').value = state.user.shiftDefault;
-        updateShiftInfo();
-      }
-    }
-    checkAbsenStatus();
-    stopCamera();
-    showCameraOverlay();
-    checkMyApprovals();
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', () => {
+  initDate();
+  loadKaryawan();
+  initIzinDate();
+  // Load chat from localStorage
+  const savedChat = localStorage.getItem('chat_messages');
+  if (savedChat) {
+    chatData = JSON.parse(savedChat);
+    renderChat();
   }
-  // Jika tidak ada saved login, login screen tetap tampil
 });
 
-function showApp() {
-  document.getElementById('loginScreen').classList.add('hidden');
-  document.getElementById('appContent').style.display = 'block';
+function initDate() {
+  const now = new Date();
+  const options = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
+  document.getElementById('currentDate').textContent = now.toLocaleDateString('id-ID', options);
 }
 
-function setupUserUI(fotoUrl) {
-  document.getElementById('headerName').textContent = state.user.name;
-  document.getElementById('headerRole').textContent = (state.user.role || 'Staff');
-  setHeaderAvatar(state.user.name, fotoUrl);
+function initIzinDate() {
+  document.getElementById('izinTanggal').valueAsDate = new Date();
 }
 
-function setHeaderAvatar(name, fotoUrl) {
-  const textEl = document.getElementById('headerAvatarText');
-  const imgEl = document.getElementById('headerAvatarImg');
-  if (fotoUrl && fotoUrl.trim()) {
-    imgEl.src = fotoUrl; imgEl.style.display = 'block'; textEl.style.display = 'none';
+// ===================== FORMAT WAKTU (FIX 1899) =====================
+function formatWaktu(input) {
+  if (!input) return '-';
+  // Jika input adalah string serial date dari Sheets (misal "1899-12-29T23:52:48.000Z")
+  // Atau format lain, kita parse dengan aman
+  let date;
+  if (typeof input === 'string') {
+    // Cek apakah mengandung 1899 (serial date invalid)
+    if (input.includes('1899')) {
+      // Coba ekstrak jam:menit saja dari string
+      const timeMatch = input.match(/T(\d{2}):(\d{2}):(\d{2})/);
+      if (timeMatch) {
+        return timeMatch[1] + ':' + timeMatch[2];
+      }
+      return '-';
+    }
+    // Coba parse sebagai Date
+    date = new Date(input);
+  } else if (typeof input === 'number') {
+    // Serial date Google Sheets (days since 12/30/1899)
+    // Excel epoch: 12/30/1899
+    const excelEpoch = new Date(1899, 11, 30);
+    date = new Date(excelEpoch.getTime() + input * 24 * 60 * 60 * 1000);
   } else {
-    textEl.textContent = (name || 'U').charAt(0).toUpperCase();
-    textEl.style.display = 'flex'; imgEl.style.display = 'none';
+    date = new Date(input);
   }
+
+  if (isNaN(date.getTime()) || date.getFullYear() < 2000) {
+    // Jika masih invalid, coba ekstrak jam:menit dari string
+    if (typeof input === 'string') {
+      const timeMatch = input.match(/(\d{1,2}):(\d{2})/);
+      if (timeMatch) return timeMatch[1].padStart(2,'0') + ':' + timeMatch[2];
+    }
+    return '-';
+  }
+
+  return date.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', hour12:false });
 }
 
-// ==================== LOGIN ====================
-async function doLogin() {
-  const sel = document.getElementById('loginSelect');
-  const id = sel.value;
-  const errBox = document.getElementById('loginError');
-  const btn = document.getElementById('btnLogin');
-
-  if (!id) {
-    errBox.textContent = 'Pilih nama karyawan terlebih dahulu!';
-    errBox.classList.add('show'); return;
+function formatTanggal(input) {
+  if (!input) return '-';
+  let date;
+  if (typeof input === 'string') {
+    if (input.includes('1899')) {
+      const timeMatch = input.match(/T(\d{2}):(\d{2})/);
+      if (timeMatch) return timeMatch[1] + ':' + timeMatch[2];
+      return '-';
+    }
+    date = new Date(input);
+  } else if (typeof input === 'number') {
+    const excelEpoch = new Date(1899, 11, 30);
+    date = new Date(excelEpoch.getTime() + input * 24 * 60 * 60 * 1000);
+  } else {
+    date = new Date(input);
   }
 
-  const opt = sel.options[sel.selectedIndex];
-  const name = opt.text;
-  const role = opt.getAttribute('data-role') || 'Staff';
-  const tokoId = opt.getAttribute('data-toko') || '';
-  const shiftId = opt.getAttribute('data-shift') || '';
-  const fotoUrl = opt.getAttribute('data-foto') || '';
-
-  btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div> Memuat...';
-  errBox.classList.remove('show');
-
-  // Simulasi verifikasi ke backend (tanpa password)
-  try {
-    // Optional: verify ke backend
-    const res = await apiCall('getKaryawanById', { idKaryawan: id });
-    if (!res.success) {
-      // Fallback: tetap lanjut pakai data dari dropdown
+  if (isNaN(date.getTime()) || date.getFullYear() < 2000) {
+    if (typeof input === 'string') {
+      const dateMatch = input.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (dateMatch) return dateMatch[3] + '/' + dateMatch[2] + '/' + dateMatch[1];
     }
-  } catch (e) {}
-
-  state.user = { id, name, role, tokoDefault: tokoId, shiftDefault: shiftId };
-  state.currentUser = state.user;
-
-  // Simpan ke localStorage
-  saveLogin({ id, name, role, tokoDefault: tokoId, shiftDefault: shiftId, fotoUrl });
-
-  // Unlock audio context (user gesture)
-  unlockAudio();
-
-  showApp();
-  setupUserUI(fotoUrl);
-
-  await loadTokoData();
-  if (tokoId) {
-    document.getElementById('selectToko').value = tokoId;
-    await onTokoChange();
-    if (shiftId) {
-      document.getElementById('selectShift').value = shiftId;
-      updateShiftInfo();
-    }
+    return '-';
   }
-  checkAbsenStatus();
-  stopCamera();
-  showCameraOverlay();
-  checkMyApprovals();
-  showToast('Selamat datang, ' + name + '!', 'success');
-  playSound('success');
 
-  btn.disabled = false;
-  btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> Masuk`;
+  return date.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
 }
 
-// ==================== KARYAWAN DROPDOWN ====================
-async function loadKaryawanDropdown() {
+// ===================== LOGIN =====================
+async function loadKaryawan() {
   try {
-    const res = await apiCall('getKaryawanList');
-    if (res.success && Array.isArray(res.data)) {
-      state.karyawanList = res.data.filter(k => k.Status === 'Aktif');
+    const res = await fetch(GAS_URL + '?action=getKaryawan');
+    const data = await res.json();
+    if (data.success) {
+      allKaryawan = data.data || [];
+      allToko = data.toko || [];
       const sel = document.getElementById('loginSelect');
-      sel.innerHTML = '<option value="">Pilih Nama...</option>';
-      state.karyawanList.forEach(k => {
-        const fotoUrl = k.Foto_URL || k.Foto_Profil || k.fotoUrl || '';
-        sel.innerHTML += `<option value="${k.ID_Karyawan}" data-toko="${k.Toko_Default || ''}" data-shift="${k.Shift_Default || ''}" data-role="${k.Jabatan || 'Staff'}" data-foto="${fotoUrl}">${k.Nama}</option>`;
+      allKaryawan.forEach(k => {
+        const opt = document.createElement('option');
+        opt.value = JSON.stringify(k);
+        opt.textContent = k.nama + ' (' + (k.toko||'-') + ')';
+        sel.appendChild(opt);
+      });
+      // Isi toko di absen
+      const tokoSel = document.getElementById('absenToko');
+      allToko.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.nama;
+        opt.textContent = t.nama;
+        tokoSel.appendChild(opt);
       });
     }
-  } catch (e) { console.log('loadKaryawanDropdown error:', e); }
-}
-
-// ==================== TAB SWITCHING ====================
-function switchTab(tab) {
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelector('.nav-fab').style.background = '';
-
-  if (tab === 'beranda') {
-    document.getElementById('tabBeranda').classList.add('active');
-    document.getElementById('navBeranda').classList.add('active');
-  } else if (tab === 'absensi') {
-    document.getElementById('tabAbsensi').classList.add('active');
-    document.getElementById('navAbsensi').style.background = 'linear-gradient(135deg, #0A6B8E, #065473)';
-  } else if (tab === 'data') {
-    document.getElementById('tabData').classList.add('active');
-    document.getElementById('navData').classList.add('active');
+  } catch(e) {
+    console.error(e);
+    // Demo mode
+    allKaryawan = [
+      {id:1, nama:'Budi Santoso', toko:'Toko A', jabatan:'Kasir', foto:''},
+      {id:2, nama:'Ani Wijaya', toko:'Toko B', jabatan:'Supervisor', foto:''}
+    ];
+    allToko = [{nama:'Toko A'}, {nama:'Toko B'}];
+    const sel = document.getElementById('loginSelect');
+    allKaryawan.forEach(k => {
+      const opt = document.createElement('option');
+      opt.value = JSON.stringify(k);
+      opt.textContent = k.nama + ' (' + k.toko + ')';
+      sel.appendChild(opt);
+    });
+    const tokoSel = document.getElementById('absenToko');
+    allToko.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.nama;
+      opt.textContent = t.nama;
+      tokoSel.appendChild(opt);
+    });
   }
 }
 
-// ==================== CAMERA ====================
-function showCameraOverlay() {
-  document.getElementById('cameraOverlay').classList.remove('hidden');
-}
-function hideCameraOverlay() {
-  document.getElementById('cameraOverlay').classList.add('hidden');
-}
-function showCameraError(msg) {
-  const box = document.getElementById('cameraErrorBox');
-  box.innerHTML = msg + ' <a href="#" onclick="showPermHelp();return false;" style="color:#8ab4f8;text-decoration:underline;font-weight:800;">Lihat Panduan</a>';
-  box.classList.remove('hidden');
+async function doLogin() {
+  const sel = document.getElementById('loginSelect');
+  const val = sel.value;
+  if (!val) { showToast('Pilih nama karyawan terlebih dahulu', 'error'); return; }
+
+  document.getElementById('loginBtnText').classList.add('hidden');
+  document.getElementById('loginSpinner').classList.remove('hidden');
+  document.getElementById('loginBtn').disabled = true;
+
+  try {
+    currentUser = JSON.parse(val);
+    // Simpan ke localStorage
+    localStorage.setItem('absensi_user', JSON.stringify(currentUser));
+
+    document.getElementById('loginScreen').classList.add('hidden');
+    setTimeout(() => {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      updateHeader();
+      loadDashboard();
+      loadJadwal();
+      loadRiwayat();
+      loadIzinStatus();
+    }, 400);
+  } catch(e) {
+    document.getElementById('loginError').textContent = 'Terjadi kesalahan: ' + e.message;
+    document.getElementById('loginError').classList.add('show');
+  } finally {
+    document.getElementById('loginBtnText').classList.remove('hidden');
+    document.getElementById('loginSpinner').classList.add('hidden');
+    document.getElementById('loginBtn').disabled = false;
+  }
 }
 
-async function startCameraManual() {
-  const btn = document.getElementById('btnStartCamera');
-  if (btn) { btn.disabled = true; btn.textContent = 'Menyalakan...'; }
+function updateHeader() {
+  if (!currentUser) return;
+  document.getElementById('headerName').textContent = currentUser.nama;
+  document.getElementById('headerToko').textContent = currentUser.toko || '-';
+  document.getElementById('headerInitial').textContent = currentUser.nama.charAt(0).toUpperCase();
+  if (currentUser.foto) {
+    document.getElementById('headerImg').src = currentUser.foto;
+    document.getElementById('headerImg').classList.remove('hidden');
+    document.getElementById('headerInitial').classList.add('hidden');
+  }
+  // Profil
+  document.getElementById('profilName').textContent = currentUser.nama;
+  document.getElementById('profilToko').textContent = currentUser.toko || '-';
+  document.getElementById('profilJabatan').textContent = currentUser.jabatan || '-';
+  document.getElementById('profilInitial').textContent = currentUser.nama.charAt(0).toUpperCase();
+  if (currentUser.foto) {
+    document.getElementById('profilImg').src = currentUser.foto;
+    document.getElementById('profilImg').classList.remove('hidden');
+    document.getElementById('profilInitial').classList.add('hidden');
+  }
+}
+
+function logout() {
+  localStorage.removeItem('absensi_user');
+  location.reload();
+}
+
+// ===================== TAB SWITCHING =====================
+function switchTab(tabName) {
+  // Jika absensi sedang terbuka dan klik tab lain, tutup absensi dulu
+  if (absensiOpen && tabName !== 'absensi') {
+    closeAbsensi();
+  }
+
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('navFabWrap').classList.remove('active');
+
+  const target = document.getElementById('tab-' + tabName);
+  if (target) target.classList.add('active');
+
+  const navBtn = document.querySelector('.nav-item[data-tab="' + tabName + '"]');
+  if (navBtn) navBtn.classList.add('active');
+
+  if (tabName === 'absensi') {
+    document.getElementById('navFabWrap').classList.add('active');
+  }
+
+  // Load data tab
+  if (tabName === 'jadwal') loadJadwal();
+  if (tabName === 'riwayat') loadRiwayat();
+  if (tabName === 'izin') loadIzinStatus();
+  if (tabName === 'chat') renderChat();
+}
+
+// ===================== ABSENSI TOGGLE =====================
+function toggleAbsensi() {
+  if (absensiOpen) {
+    closeAbsensi();
+  } else {
+    openAbsensi();
+  }
+}
+
+function openAbsensi() {
+  absensiOpen = true;
+  switchTab('absensi');
+  startCamera();
+  getLocation();
+}
+
+function closeAbsensi() {
+  absensiOpen = false;
+  stopCamera();
+  switchTab('beranda');
+  // Reset
+  capturedPhoto = null;
+  document.getElementById('cameraPreview').style.display = 'none';
+  document.getElementById('cameraVideo').style.display = 'block';
+  document.getElementById('captureBtn').classList.remove('disabled');
+  document.getElementById('retakeBtn').classList.add('hidden');
+  document.getElementById('submitAbsenBtn').disabled = true;
+  document.getElementById('faceFrame').classList.remove('active');
+}
+
+// ===================== CAMERA =====================
+async function startCamera() {
   try {
-    await startCameraStream();
-    hideCameraOverlay();
-  } catch (err) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Coba Lagi'; }
-    if (err.name === 'NotAllowedError') { showCameraError('Izin kamera ditolak.'); showPermHelp(); }
-    else if (err.name === 'NotFoundError') showCameraError('Kamera tidak ditemukan.');
-    else if (err.name === 'NotReadableError') showCameraError('Kamera sedang dipakai aplikasi lain.');
-    else showCameraError('Gagal: ' + err.message);
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user' }, audio: false });
+    currentStream = stream;
+    const video = document.getElementById('cameraVideo');
+    video.srcObject = stream;
+    document.getElementById('faceFrame').classList.add('active');
+    showToast('Kamera aktif', 'success');
+  } catch(e) {
+    showToast('Gagal mengakses kamera: ' + e.message, 'error');
+    console.error(e);
   }
 }
 
 function stopCamera() {
-  if (state.stream) { state.stream.getTracks().forEach(t => t.stop()); state.stream = null; }
-  const video = document.getElementById('video');
-  if (video) { video.srcObject = null; video.pause(); }
-  document.getElementById('faceLabel').textContent = 'Kamera mati';
+  if (currentStream) {
+    currentStream.getTracks().forEach(t => t.stop());
+    currentStream = null;
+  }
+  const video = document.getElementById('cameraVideo');
+  video.srcObject = null;
   document.getElementById('faceFrame').classList.remove('active');
 }
 
-async function startCameraStream() {
-  const video = document.getElementById('video');
-  stopCamera();
-  const constraints = {
-    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
-  };
-  let stream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia(constraints);
-  } catch (err) {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-  }
-  state.stream = stream;
-  video.srcObject = stream;
-  await new Promise((resolve, reject) => {
-    video.onloadedmetadata = () => { video.play().then(resolve).catch(reject); };
-    video.onerror = reject;
-    setTimeout(() => reject(new Error('Timeout')), 10000);
-  });
-  document.getElementById('faceLabel').textContent = 'Siap ambil foto';
-  document.getElementById('faceFrame').classList.add('active');
-}
-
-function capturePhoto() {
-  if (document.getElementById('captureBtn').classList.contains('disabled')) return;
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  const preview = document.getElementById('previewImg');
-  if (!video.videoWidth || video.readyState < 2) {
-    showToast('Kamera belum siap', 'error'); return;
-  }
-  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+function takePhoto() {
+  const video = document.getElementById('cameraVideo');
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
   const ctx = canvas.getContext('2d');
-  ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0);
-  state.photoData = canvas.toDataURL('image/jpeg', 0.7);
-  preview.src = state.photoData; preview.style.display = 'block';
-  video.style.display = 'none'; document.getElementById('retakeBtn').style.display = 'block';
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0);
+
+  capturedPhoto = canvas.toDataURL('image/jpeg', 0.8);
+  document.getElementById('cameraPreview').src = capturedPhoto;
+  document.getElementById('cameraPreview').style.display = 'block';
+  document.getElementById('cameraVideo').style.display = 'none';
   document.getElementById('captureBtn').classList.add('disabled');
-  stopCamera();
-  showToast('Foto berhasil diambil', 'success'); playSound('success');
+  document.getElementById('retakeBtn').classList.remove('hidden');
+  document.getElementById('submitAbsenBtn').disabled = false;
+  showToast('Foto berhasil diambil', 'success');
 }
 
 function retakePhoto() {
-  document.getElementById('previewImg').style.display = 'none';
-  document.getElementById('video').style.display = 'block';
-  document.getElementById('retakeBtn').style.display = 'none';
+  capturedPhoto = null;
+  document.getElementById('cameraPreview').style.display = 'none';
+  document.getElementById('cameraVideo').style.display = 'block';
   document.getElementById('captureBtn').classList.remove('disabled');
-  state.photoData = null;
-  stopCamera(); showCameraOverlay();
+  document.getElementById('retakeBtn').classList.add('hidden');
+  document.getElementById('submitAbsenBtn').disabled = true;
 }
 
-// ==================== GPS ====================
-function initGPS() {
+// ===================== GPS =====================
+function getLocation() {
   const badge = document.getElementById('gpsBadge');
-  const text = document.getElementById('gpsText');
+  badge.className = 'gps-badge loading';
+  badge.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg> Mendeteksi lokasi...';
+
   if (!navigator.geolocation) {
-    badge.className = 'gps-badge bad'; text.textContent = 'GPS tidak didukung'; return;
+    badge.className = 'gps-badge bad';
+    badge.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> GPS tidak didukung';
+    return;
   }
+
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      state.gps.lat = pos.coords.latitude; state.gps.lng = pos.coords.longitude; state.gps.accuracy = pos.coords.accuracy;
-      const toko = state.tokoList.find(t => t.ID_Toko === document.getElementById('selectToko').value);
-      if (toko && toko.Lat && toko.Long) {
-        const jarak = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(toko.Lat), parseFloat(toko.Long));
-        state.gps.jarak = Math.round(jarak);
-        const radius = parseFloat(toko.Radius_M) || 50;
-        if (jarak <= radius) { badge.className = 'gps-badge ok'; text.textContent = `${Math.round(jarak)}m - Valid`; }
-        else { badge.className = 'gps-badge bad'; text.textContent = `${Math.round(jarak)}m - Jauh (max ${radius}m)`; }
-      } else {
-        badge.className = 'gps-badge ok'; text.textContent = `GPS aktif (${Math.round(pos.coords.accuracy)}m)`;
-      }
+    pos => {
+      currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      badge.className = 'gps-badge ok';
+      badge.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Lokasi terdeteksi';
     },
-    (err) => {
+    err => {
       badge.className = 'gps-badge bad';
-      let msg = 'Gagal mendapatkan lokasi';
-      if (err.code === 1) msg = 'Izin GPS ditolak';
-      else if (err.code === 2) msg = 'Lokasi tidak tersedia';
-      else if (err.code === 3) msg = 'Timeout';
-      text.textContent = msg;
+      badge.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Gagal mendeteksi lokasi';
     },
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: 10000 }
   );
 }
 
-function hitungJarak(lat1, lon1, lat2, lon2) {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
+// ===================== SUBMIT ABSEN =====================
+async function submitAbsen() {
+  if (!capturedPhoto) { showToast('Ambil foto terlebih dahulu', 'error'); return; }
+  if (!currentLocation) { showToast('Tunggu GPS terdeteksi', 'error'); return; }
 
-// ==================== TOKO & SHIFT ====================
-async function loadTokoData() {
+  const btn = document.getElementById('submitAbsenBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="border-color:rgba(255,255,255,0.3);border-top-color:white;width:20px;height:20px;"></div> Mengirim...';
+
+  const payload = {
+    action: 'absen',
+    karyawanId: currentUser.id,
+    nama: currentUser.nama,
+    toko: document.getElementById('absenToko').value,
+    jenis: document.getElementById('absenJenis').value,
+    foto: capturedPhoto,
+    lat: currentLocation.lat,
+    lng: currentLocation.lng,
+    waktu: new Date().toISOString()
+  };
+
   try {
-    const res = await apiCall('getTokoList');
-    if (res.success && Array.isArray(res.data)) {
-      state.tokoList = res.data.filter(t => t.Status === 'Aktif');
-      const sel = document.getElementById('selectToko');
-      sel.innerHTML = '<option value="">Pilih...</option>';
-      state.tokoList.forEach(t => { sel.innerHTML += `<option value="${t.ID_Toko}">${t.Nama_Toko}</option>`; });
-      const selLembur = document.getElementById('lemburToko');
-      selLembur.innerHTML = '';
-      state.tokoList.forEach(t => { selLembur.innerHTML += `<option value="${t.ID_Toko}">${t.Nama_Toko}</option>`; });
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Absensi berhasil!', 'success');
+      closeAbsensi();
+      loadDashboard();
+      loadRiwayat();
+    } else {
+      showToast(data.message || 'Gagal absen', 'error');
     }
-  } catch (e) { console.log('loadTokoData error:', e); }
-}
-
-async function onTokoChange() {
-  const tokoId = document.getElementById('selectToko').value;
-  const shiftSel = document.getElementById('selectShift');
-  if (!tokoId) { shiftSel.innerHTML = '<option value="">Pilih...</option>'; document.getElementById('jamInfoCard').classList.add('hidden'); return; }
-  try {
-    const res = await apiCall('getShiftByToko', { idToko: tokoId });
-    if (res.success && Array.isArray(res.data)) {
-      state.shiftList = res.data;
-      shiftSel.innerHTML = '<option value="">Pilih...</option>';
-      res.data.forEach(s => { shiftSel.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${s.Jam_Masuk||'--:--'} - ${s.Jam_Pulang||'--:--'})</option>`; });
-      if (state.user.shiftDefault) { const ex = res.data.some(s => s.ID_Shift === state.user.shiftDefault); if (ex) shiftSel.value = state.user.shiftDefault; }
-      updateShiftInfo();
-    }
-  } catch (e) { console.log('onTokoChange error:', e); }
-  initGPS();
-}
-
-function updateShiftInfo() {
-  const shiftId = document.getElementById('selectShift').value;
-  const shift = state.shiftList.find(s => s.ID_Shift === shiftId);
-  if (shift) {
-    document.getElementById('jamInfoCard').classList.remove('hidden');
-    document.getElementById('infoJamMasuk').textContent = 'Jam Masuk: ' + shift.Jam_Masuk;
-    document.getElementById('infoJamPulang').textContent = 'Jam Pulang: ' + shift.Jam_Pulang;
-    document.getElementById('shiftNama').textContent = (shift.Nama_Shift || 'Reguler') + ' - ' + (shift.Jam_Masuk||'--:--') + ' - ' + (shift.Jam_Pulang||'--:--');
-  } else {
-    document.getElementById('jamInfoCard').classList.add('hidden');
-    document.getElementById('shiftNama').textContent = 'Reguler - --:-- - --:--';
+  } catch(e) {
+    showToast('Gagal mengirim: ' + e.message, 'error');
+    // Demo: simpan ke localStorage
+    const riwayat = JSON.parse(localStorage.getItem('absensi_riwayat') || '[]');
+    riwayat.unshift({
+      nama: currentUser.nama,
+      toko: payload.toko,
+      jenis: payload.jenis,
+      waktu: new Date().toLocaleString('id-ID'),
+      status: 'Hadir'
+    });
+    localStorage.setItem('absensi_riwayat', JSON.stringify(riwayat));
+    showToast('Absensi tersimpan (demo mode)', 'success');
+    closeAbsensi();
+    loadDashboard();
+    loadRiwayat();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Kirim Absensi';
   }
 }
 
-function updateDate() {
-  const now = new Date();
-  const opt = { weekday:'long', day:'numeric', month:'long', year:'numeric' };
-  document.getElementById('shiftTanggal').textContent = now.toLocaleDateString('id-ID', opt);
+// ===================== DASHBOARD =====================
+async function loadDashboard() {
+  // Demo stats
+  const riwayat = JSON.parse(localStorage.getItem('absensi_riwayat') || '[]');
+  const hadir = riwayat.filter(r => r.status === 'Hadir').length;
+  const telat = riwayat.filter(r => r.status === 'Telat').length;
+  const izin = riwayat.filter(r => r.status === 'Izin').length;
+  const total = Math.max(hadir + telat + izin, 1);
+
+  document.getElementById('statHadir').textContent = hadir;
+  document.getElementById('statTelat').textContent = telat;
+  document.getElementById('statIzin').textContent = izin;
+  document.getElementById('barHadir').style.width = (hadir/total*100) + '%';
+  document.getElementById('barTelat').style.width = (telat/total*100) + '%';
+  document.getElementById('barIzin').style.width = (izin/total*100) + '%';
+
+  // Jadwal hari ini
+  document.getElementById('berandaShiftNama').textContent = 'Shift Pagi';
+  document.getElementById('berandaShiftWaktu').textContent = '08:00 - 16:00';
 }
 
-// ==================== ABSEN ====================
-function checkAbsenStatus() {
-  state.absenStatus = 'belum_masuk';
-  updateButtonVisibility();
+// ===================== JADWAL =====================
+async function loadJadwal() {
+  const list = document.getElementById('jadwalList');
+  // Demo data
+  const jadwal = [
+    { hari: 'Senin', shift: 'Pagi', masuk: '08:00', pulang: '16:00', status: 'aktif' },
+    { hari: 'Selasa', shift: 'Pagi', masuk: '08:00', pulang: '16:00', status: 'aktif' },
+    { hari: 'Rabu', shift: 'Sore', masuk: '14:00', pulang: '22:00', status: 'aktif' },
+    { hari: 'Kamis', shift: 'Pagi', masuk: '08:00', pulang: '16:00', status: 'aktif' },
+    { hari: 'Jumat', shift: 'Pagi', masuk: '08:00', pulang: '16:00', status: 'aktif' },
+    { hari: 'Sabtu', shift: 'Libur', masuk: '-', pulang: '-', status: 'libur' },
+    { hari: 'Minggu', shift: 'Libur', masuk: '-', pulang: '-', status: 'libur' }
+  ];
+
+  const hariIni = new Date().toLocaleDateString('id-ID', { weekday: 'long' });
+
+  list.innerHTML = jadwal.map(j => {
+    const isToday = j.hari === hariIni;
+    const iconColor = j.status === 'libur' ? '#9AA0A6' : 'var(--primary)';
+    const bgIcon = j.status === 'libur' ? '#F1F3F4' : 'var(--primary-light)';
+    return `
+      <div class="data-list-item" style="${isToday ? 'border:2px solid var(--primary);' : ''}">
+        <div class="data-list-icon" style="background:${bgIcon};">
+          <svg viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="data-list-text">
+          <h4>${j.hari} ${isToday ? '<span style="color:var(--primary);font-size:12px;">(Hari Ini)</span>' : ''}</h4>
+          <p>Shift: ${j.shift} &bull; ${j.masuk} - ${j.pulang}</p>
+        </div>
+        <span class="badge ${j.status==='libur'?'badge-orange':'badge-blue'}">${j.status==='libur'?'Libur':'Aktif'}</span>
+      </div>
+    `;
+  }).join('');
 }
 
-function updateButtonVisibility() {
-  const bm = document.getElementById('btnMasuk');
-  const bp = document.getElementById('btnPulang');
-  const bl = document.getElementById('btnLembur');
-  if (state.absenStatus === 'belum_masuk') { bm.classList.remove('hidden'); bp.classList.add('hidden'); bl.classList.add('hidden'); }
-  else if (state.absenStatus === 'sudah_masuk') { bm.classList.add('hidden'); bp.classList.remove('hidden'); bl.classList.remove('hidden'); }
-  else { bm.classList.add('hidden'); bp.classList.add('hidden'); bl.classList.add('hidden'); }
-}
+// ===================== RIWAYAT =====================
+async function loadRiwayat() {
+  const list = document.getElementById('riwayatList');
+  const riwayat = JSON.parse(localStorage.getItem('absensi_riwayat') || '[]');
 
-async function absenMasuk() {
-  if (!state.photoData) { tampilPicoModal('wajah_gagal', 'Ambil foto selfie dulu ya!'); return; }
-  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); playSound('error'); return; }
-  if (!document.getElementById('selectToko').value) { showToast('Pilih toko dulu!', 'error'); return; }
-  if (!document.getElementById('selectShift').value) { showToast('Pilih shift dulu!', 'error'); return; }
-
-  const toko = state.tokoList.find(t => t.ID_Toko === document.getElementById('selectToko').value);
-  if (toko && state.gps.jarak !== null) {
-    const radius = parseFloat(toko.Radius_M) || 50;
-    if (state.gps.jarak > radius) { tampilPicoModal('gps_jauh', `Anda ${state.gps.jarak}m dari toko. Max ${radius}m.<br>Mendekatlah!`); return; }
+  if (riwayat.length === 0) {
+    list.innerHTML = '<div class="data-list-item"><div class="data-list-text"><h4>Belum ada riwayat absensi</h4></div></div>';
+    return;
   }
 
-  const shiftSelect = document.getElementById('selectShift');
-  const shiftName = shiftSelect.options[shiftSelect.selectedIndex].text.split(' (')[0];
-  const btn = document.getElementById('btnMasuk');
-  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Memproses...';
-
-  try {
-    const res = await apiCall('absenMasuk', {
-      idKaryawan: state.user.id, nama: state.user.name,
-      idToko: document.getElementById('selectToko').value, namaToko: toko ? toko.Nama_Toko : '',
-      idShift: document.getElementById('selectShift').value, namaShift: shiftName,
-      fotoBase64: state.photoData, lat: state.gps.lat, lng: state.gps.lng
-    });
-    if (res.success) {
-      state.absenStatus = 'sudah_masuk'; updateButtonVisibility();
-      tampilPicoModal('sukses', `<b>Absen Masuk Berhasil!</b><br>Jam: ${res.jamMasuk}<br>Status: ${res.statusMasuk}`);
-      document.getElementById('statusMasuk').textContent = 'Masuk: ' + res.jamMasuk;
-      document.getElementById('statusMasuk').className = 'ok';
-      retakePhoto();
-    } else { tampilPicoModal('error', res.error || 'Gagal absen masuk'); }
-  } catch (e) { tampilPicoModal('error', 'Gagal: ' + e.message); }
-  finally { btn.disabled = false; btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> ABSEN MASUK`; }
+  list.innerHTML = riwayat.map(r => `
+    <div class="data-list-item">
+      <div class="data-list-icon" style="background:${r.jenis==='masuk'?'#E8F5E9':'#FFF3E0'};">
+        <svg viewBox="0 0 24 24" fill="none" stroke="${r.jenis==='masuk'?'#1E8E3E':'#E65100'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <div class="data-list-text">
+        <h4>${r.jenis==='masuk'?'Absen Masuk':'Absen Pulang'} &bull; ${r.toko}</h4>
+        <p>${r.waktu}</p>
+      </div>
+      <span class="badge ${r.status==='Hadir'?'badge-green':'badge-red'}">${r.status}</span>
+    </div>
+  `).join('');
 }
 
-async function absenPulang() {
-  if (!state.photoData) { tampilPicoModal('wajah_gagal', 'Ambil foto selfie dulu ya!'); return; }
-  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
-  const btn = document.getElementById('btnPulang');
-  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Memproses...';
-  try {
-    const res = await apiCall('absenPulang', {
-      idKaryawan: state.user.id, nama: state.user.name,
-      fotoBase64: state.photoData, lat: state.gps.lat, lng: state.gps.lng
-    });
-    if (res.success) {
-      state.absenStatus = 'sudah_pulang'; updateButtonVisibility();
-      tampilPicoModal('izin_pulang', `<b>Absen Pulang Berhasil!</b><br>Durasi: ${res.durasiKerja}`);
-      document.getElementById('statusPulang').textContent = 'Pulang: ' + res.jamPulang;
-      document.getElementById('statusPulang').className = 'ok';
-      retakePhoto();
-    } else { tampilPicoModal('error', res.error || 'Gagal absen pulang'); }
-  } catch (e) { tampilPicoModal('error', 'Gagal: ' + e.message); }
-  finally { btn.disabled = false; btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> ABSEN PULANG`; }
-}
-
-function toggleLemburMode() { openModal('modalLembur'); }
-
-// ==================== LEMBUR ====================
-async function submitLembur() {
-  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
-  const tokoId = document.getElementById('lemburToko').value;
-  const toko = state.tokoList.find(t => t.ID_Toko === tokoId);
-  try {
-    await apiCall('ajukanLembur', {
-      idKaryawan: state.user.id, nama: state.user.name,
-      idToko: tokoId, namaToko: toko ? toko.Nama_Toko : '',
-      alasan: document.getElementById('lemburAlasanType').value,
-      fotoBase64: state.lemburPhotoData || ''
-    });
-    closeModal('modalLembur');
-    tampilPicoModal('lembur_pending', 'Pengajuan lembur terkirim!<br>Tunggu approve dari Bos ya!');
-    retakeLemburPhoto();
-  } catch (e) { showToast('Gagal ajukan lembur', 'error'); }
-}
-
-function toggleLemburAlasan() {
-  document.getElementById('lemburAlasanManual').classList.toggle('hidden', document.getElementById('lemburAlasanType').value !== 'lainnya');
-}
-
-let lemburStream = null, lemburPhotoData = null;
-async function startLemburCamera() {
-  const video = document.getElementById('lemburVideo');
-  const overlay = document.getElementById('lemburCameraOverlay');
-  const captureBtn = document.getElementById('lemburCaptureBtn');
-  try {
-    if (lemburStream) lemburStream.getTracks().forEach(t => t.stop());
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-    lemburStream = stream; video.srcObject = stream; await video.play();
-    overlay.style.display = 'none'; video.style.display = 'block'; captureBtn.style.display = 'block';
-  } catch (err) { showToast('Gagal nyalakan kamera lembur: ' + err.message, 'error'); }
-}
-function captureLemburPhoto() {
-  const video = document.getElementById('lemburVideo');
-  const canvas = document.getElementById('lemburCanvas');
-  const preview = document.getElementById('lemburPreview');
-  if (!video.videoWidth) { showToast('Kamera belum siap', 'error'); return; }
-  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0);
-  lemburPhotoData = canvas.toDataURL('image/jpeg', 0.7);
-  preview.src = lemburPhotoData; preview.style.display = 'block';
-  video.style.display = 'none'; document.getElementById('lemburCaptureBtn').style.display = 'none';
-  document.getElementById('lemburRetakeBtn').style.display = 'block';
-  if (lemburStream) { lemburStream.getTracks().forEach(t => t.stop()); lemburStream = null; }
-  showToast('Foto lembur berhasil', 'success'); playSound('success');
-}
-function retakeLemburPhoto() {
-  document.getElementById('lemburPreview').style.display = 'none';
-  document.getElementById('lemburVideo').style.display = 'none';
-  document.getElementById('lemburCaptureBtn').style.display = 'none';
-  document.getElementById('lemburRetakeBtn').style.display = 'none';
-  document.getElementById('lemburCameraOverlay').style.display = 'flex';
-  lemburPhotoData = null;
-}
-
-// ==================== IZIN ====================
-function selectIzin(el, type) {
+// ===================== IZIN =====================
+function selectIzin(el) {
   document.querySelectorAll('.izin-chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
 }
 
 async function submitIzin() {
-  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
-  const tglMulai = document.getElementById('izinTglMulai').value;
-  const tglSelesai = document.getElementById('izinTglSelesai').value;
-  const alasan = document.getElementById('izinAlasan').value;
-  if (!tglMulai || !tglSelesai) { showToast('Pilih tanggal dulu!', 'error'); return; }
-  if (!alasan.trim()) { showToast('Isi alasan dulu!', 'error'); return; }
-  const activeChip = document.querySelector('.izin-chip.active');
-  const namaJenis = activeChip ? activeChip.textContent.trim() : 'Izin';
-  const idJenis = 'JI_' + namaJenis.toUpperCase();
+  const jenis = document.querySelector('.izin-chip.active').dataset.value;
+  const tanggal = document.getElementById('izinTanggal').value;
+  const keterangan = document.getElementById('izinKeterangan').value;
+
+  if (!tanggal || !keterangan) { showToast('Lengkapi semua field', 'error'); return; }
+
+  const payload = {
+    action: 'izin',
+    karyawanId: currentUser.id,
+    nama: currentUser.nama,
+    jenis, tanggal, keterangan,
+    waktu: new Date().toISOString()
+  };
+
   try {
-    await apiCall('ajukanIzin', {
-      idKaryawan: state.user.id, nama: state.user.name,
-      idJenisIzin: idJenis, namaJenis: namaJenis,
-      tglMulai, tglSelesai, alasan, lampiranBase64: ''
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload)
     });
-    closeModal('modalIzin');
-    tampilPicoModal('izin_cuti', 'Pengajuan izin terkirim!<br>Menunggu approve admin');
-  } catch (e) { showToast('Gagal ajukan izin', 'error'); }
-}
-
-// ==================== JADWAL ====================
-function navJadwal(dir) { state.jadwalOffset += dir; renderJadwal(); }
-
-async function renderJadwal() {
-  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
-  try {
-    const now = new Date(); now.setDate(now.getDate() + state.jadwalOffset * 7);
-    const res = await apiCall('getJadwalMingguan', { idKaryawan: state.user.id, tanggalReferensi: now.toISOString() });
-    if (res.success) {
-      const tbody = document.getElementById('jadwalTbody');
-      tbody.innerHTML = res.minggu.map(j => `
-        <tr class="${j.libur ? 'libur' : ''} ${j.namaHari === new Date().toLocaleDateString('id-ID',{weekday:'long'}) && state.jadwalOffset===0 ? 'today' : ''}">
-          <td><div style="font-weight:800;font-size:15px;">${j.namaHari}</div><div style="font-size:13px;color:var(--text-secondary);">${j.tanggal}</div></td>
-          <td>${j.toko !== '-' ? '<span class="badge badge-blue">'+j.toko+'</span>' : '-'}</td>
-          <td>${j.shift !== '-' ? '<span class="badge badge-green">'+j.shift+'</span>' : '-'}</td>
-          <td>${j.jamMasuk !== '-' ? j.jamMasuk + ' - ' + j.jamPulang : '-'}</td>
-        </tr>
-      `).join('');
-      const senin = new Date(now); senin.setDate(now.getDate() - now.getDay() + 1);
-      const minggu = new Date(senin); minggu.setDate(senin.getDate() + 6);
-      document.getElementById('jadwalPeriode').textContent = senin.toLocaleDateString('id-ID',{day:'numeric',month:'short'}) + ' - ' + minggu.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+    const data = await res.json();
+    if (data.success) {
+      showToast('Pengajuan izin berhasil!', 'success');
+      document.getElementById('izinKeterangan').value = '';
+      loadIzinStatus();
+    } else {
+      showToast(data.message || 'Gagal mengajukan', 'error');
     }
-  } catch (e) { console.log('renderJadwal error:', e); }
+  } catch(e) {
+    // Demo
+    const izinList = JSON.parse(localStorage.getItem('absensi_izin') || '[]');
+    izinList.unshift({ jenis, tanggal, keterangan, status: 'Menunggu', waktu: new Date().toLocaleString('id-ID') });
+    localStorage.setItem('absensi_izin', JSON.stringify(izinList));
+    showToast('Pengajuan tersimpan (demo mode)', 'success');
+    document.getElementById('izinKeterangan').value = '';
+    loadIzinStatus();
+  }
 }
 
-// ==================== RAPORT ====================
-async function renderRaport() {
-  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
-  try {
-    const now = new Date();
-    const res = await apiCall('getRaportBulanan', { idKaryawan: state.user.id, bulan: now.getMonth()+1, tahun: now.getFullYear() });
-    if (res.success) {
-      document.getElementById('raportHadir').textContent = res.totalHadir;
-      document.getElementById('raportTelat').textContent = res.totalTelat;
-      const tbody = document.getElementById('raportTbody');
-      tbody.innerHTML = (res.detailHarian || []).map(d => `
-        <tr>
-          <td>${d.tanggal}</td><td>${d.toko}</td><td>${d.shift}</td>
-          <td>${d.status==='Ontime' ? '<span class="badge badge-green">Ontime</span>' : '<span class="badge badge-red">Telat '+(d.menitTelat||0)+'m</span>'}</td>
-        </tr>
-      `).join('');
-    }
-  } catch (e) { console.log('renderRaport error:', e); }
+function loadIzinStatus() {
+  const list = document.getElementById('izinStatusList');
+  const izin = JSON.parse(localStorage.getItem('absensi_izin') || '[]');
+
+  if (izin.length === 0) {
+    list.innerHTML = '<div class="data-list-item"><div class="data-list-text"><h4>Belum ada pengajuan</h4></div></div>';
+    return;
+  }
+
+  list.innerHTML = izin.map(i => {
+    const badgeClass = i.status==='Disetujui'?'badge-green': i.status==='Ditolak'?'badge-red':'badge-orange';
+    return `
+      <div class="data-list-item">
+        <div class="data-list-text">
+          <h4>${i.jenis.toUpperCase()} &bull; ${i.tanggal}</h4>
+          <p>${i.keterangan}</p>
+        </div>
+        <span class="badge ${badgeClass}">${i.status}</span>
+      </div>
+    `;
+  }).join('');
 }
 
-// ==================== NOTIFIKASI ====================
-async function checkMyApprovals() {
-  if (!state.user || !state.user.id) return;
-  try {
-    const res = await apiCall('getMyApprovals', { idKaryawan: state.user.id });
-    if (res.success && Array.isArray(res.data)) {
-      state.notifList = res.data;
-      updateNotifBadge(); updateNotifBubble();
-      const unread = res.data.filter(n => n.status !== 'Pending');
-      if (unread.length > 0 && !state.notifShown) {
-        const latest = unread[0];
-        showToast(`Pengajuan ${latest.tipe} Anda ${latest.status === 'Approved' ? 'disetujui' : 'ditolak'}!`, latest.status === 'Approved' ? 'success' : 'error');
-        state.notifShown = true;
-      }
-    }
-  } catch (e) { console.log('checkMyApprovals error:', e); }
-}
+// ===================== CHAT =====================
+function renderChat() {
+  const container = document.getElementById('chatMessages');
+  if (chatData.length === 0) {
+    container.innerHTML = '<div class="chat-empty">Belum ada pesan. Mulai obrolan sekarang!</div>';
+    return;
+  }
 
-function updateNotifBadge() {
-  const badge = document.getElementById('notifBadge');
-  const bell = document.getElementById('notifBell');
-  const count = state.notifList ? state.notifList.filter(n => n.status !== 'Pending').length : 0;
-  if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.classList.remove('hidden'); }
-  else { badge.classList.add('hidden'); }
-}
-
-function updateNotifBubble() {
-  const list = document.getElementById('notifBubbleList');
-  if (!state.notifList || state.notifList.length === 0) { list.innerHTML = '<div class="notif-empty">Belum ada pemberitahuan</div>'; return; }
-  list.innerHTML = state.notifList.map(n => `
-    <div class="notif-item ${n.status === 'Approved' ? 'approved' : n.status === 'Rejected' ? 'rejected' : ''}">
-      <div class="notif-item-title">${n.tipe === 'lembur' ? 'Lembur' : 'Izin/Cuti'}</div>
-      <div class="notif-item-text">Pengajuan tanggal ${n.tanggal} telah <strong>${n.status === 'Approved' ? 'disetujui' : n.status === 'Rejected' ? 'ditolak' : 'diproses'}</strong></div>
-      <div class="notif-item-date">${n.approvedAt || n.tanggal}</div>
+  container.innerHTML = chatData.map(msg => `
+    <div class="chat-msg ${msg.me ? 'me' : 'other'}">
+      ${!msg.me ? '<div class="chat-msg-name">' + msg.nama + '</div>' : ''}
+      <div>${escapeHtml(msg.text)}</div>
+      <div class="chat-msg-time">${msg.time}</div>
     </div>
   `).join('');
+  container.scrollTop = container.scrollHeight;
 }
 
-function toggleNotifBubble(e) { e.stopPropagation(); document.getElementById('notifBubble').classList.toggle('show'); }
-function closeNotifBubble(e) { e.stopPropagation(); document.getElementById('notifBubble').classList.remove('show'); }
-document.addEventListener('click', function(e) {
-  const bubble = document.getElementById('notifBubble');
-  const bell = document.getElementById('notifBell');
-  if (bubble && bell && !bubble.contains(e.target) && !bell.contains(e.target)) bubble.classList.remove('show');
-});
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
 
-// ==================== MODAL UTILS ====================
-function openModal(id) {
-  document.getElementById(id).classList.add('active');
-  document.body.style.overflow = 'hidden';
-  if (id === 'modalJadwal') renderJadwal();
-}
-function closeModal(id) { document.getElementById(id).classList.remove('active'); document.body.style.overflow = ''; }
-function closeModalOnOverlay(e, id) { if (e.target.id === id) closeModal(id); }
+  const msg = {
+    nama: currentUser ? currentUser.nama : 'Saya',
+    text: text,
+    time: new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
+    me: true
+  };
 
-function showToast(msg, type = 'info') {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg; toast.className = `toast toast-${type} show`;
-  setTimeout(() => toast.classList.remove('show'), 4000);
-}
+  chatData.push(msg);
+  localStorage.setItem('chat_messages', JSON.stringify(chatData));
+  input.value = '';
+  renderChat();
 
-// ==================== PICO ====================
-function tampilPicoModal(tipe, pesan, callback=null) {
-  const modal = document.getElementById('pico-modal');
-  const img = document.getElementById('pico-modal-img');
-  const text = document.getElementById('pico-modal-text');
-  const btn = document.getElementById('pico-modal-btn');
-  img.src = pathGambar + (picoImages[tipe] || picoImages.error);
-  text.innerHTML = pesan;
-  btn.style.backgroundColor = picoBtnColors[tipe] || '#0D8ABC';
-  btn.onclick = () => { closePicoModal(); if (callback) callback(); };
-  modal.classList.add('active');
-  playSound(tipe === 'sukses' ? 'success' : 'error');
-}
-function closePicoModal() { document.getElementById('pico-modal').classList.remove('active'); }
-
-let stepIndex = 0, typingEffect, isTyping = false, bubbleTimer = null;
-const tutorialSteps = [
-  "<b>Semangat Pagi!</b><br>Ayo absen dulu sama PICO biar rezeki makin lancar!",
-  "<b>Langkah 1:</b><br>Ambil foto selfie bening, biar PICO gampang ngenalin wajahmu!",
-  "<b>Langkah 2:</b><br>Pilih Toko & Shift. Data sudah auto-isi kalau sudah di-setting!",
-  "<b>Langkah 3:</b><br>Pastikan GPS nyala & kamu sudah dekat toko ya!",
-  "<b>Langkah 4:</b><br>Klik <b>'Mode Lembur'</b> setelah absen masuk untuk ajukan lembur.",
-  "<b>Langkah 5:</b><br>Absen Pulang = foto lagi + GPS di lokasi toko.",
-  "<b>Gagal Wajah?</b><br>Jangan ketutup masker/topi, cari tempat terang!",
-  "<b>Gagal Jarak?</b><br>GPS harus aktif Mode Akurasi Tinggi. Maksimal 50m dari titik toko!",
-  "<b>Masalah Jaringan?</b><br>Ganti ke data seluler atau cari sinyal lebih stabil.",
-  "<b>Pinguin Cell!</b><br>Kerja jujur itu hebat. Tetap semangat!"
-];
-const instruksiPencet = [
-  "Tekan PICO untuk lanjut...","Pencet PICO kalau sudah paham...","Klik PICO lagi...",
-  "Ayo tekan PICO...","Pencet PICO lanjut ke tips...","Lanjut? Klik PICO...",
-  "Cek tips GPS, pencet PICO...","Pencet PICO lagi ya...","Hampir selesai, klik PICO...","Tekan PICO untuk ulangi..."
-];
-
-function picoAction() {
-  const mascot = document.getElementById('pinguin-mascot');
-  mascot.style.transform = 'scale(0.88)'; setTimeout(() => mascot.style.transform = '', 200);
-  tampilTutorial();
-}
-function closeBubble(e) { if(e) e.stopPropagation(); document.getElementById('chat-bubble').classList.remove('show'); clearTimeout(bubbleTimer); isTyping = false; clearTimeout(typingEffect); }
-function tampilTutorial() {
-  if (isTyping) { closeBubble(); setTimeout(() => tampilTutorial(), 300); return; }
-  const bubble = document.getElementById('chat-bubble');
-  const textContainer = document.getElementById('tutorial-text');
-  bubble.style.display = 'block'; bubble.classList.add('show');
-  clearTimeout(typingEffect); textContainer.innerHTML = ""; isTyping = true;
-  let fullText = tutorialSteps[stepIndex] + `<br><br><span style="font-size:12px;color:var(--text-secondary);font-style:italic;">(${instruksiPencet[stepIndex]})</span>`;
-  let charIndex = 0;
-  function typeWriter() {
-    if (charIndex < fullText.length) {
-      if (fullText.charAt(charIndex) === '<') {
-        let tagEnd = fullText.indexOf('>', charIndex);
-        textContainer.innerHTML += fullText.substring(charIndex, tagEnd + 1); charIndex = tagEnd + 1;
-      } else { textContainer.innerHTML += fullText.charAt(charIndex); charIndex++; }
-      typingEffect = setTimeout(typeWriter, 28);
-    } else { isTyping = false; }
-  }
-  typeWriter();
-  stepIndex++; if (stepIndex >= tutorialSteps.length) stepIndex = 0;
-  clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => closeBubble(), 8000);
-}
-
-// ==================== PERMISSION HELP ====================
-function detectBrowser() {
-  const ua = navigator.userAgent;
-  if (/CriOS\/|Chrome\//.test(ua) && /iPhone|iPad|iPod/.test(ua)) return 'chrome-ios';
-  if (/Safari\//.test(ua) && /iPhone|iPad|iPod/.test(ua)) return 'safari-ios';
-  if (/SamsungBrowser\//.test(ua)) return 'samsung';
-  if (/Edg\//.test(ua)) return 'edge';
-  if (/Chrome\//.test(ua)) return 'chrome-android';
-  if (/Firefox\//.test(ua)) return 'firefox';
-  return 'chrome-android';
-}
-const browserSteps = {
-  'chrome-android': [
-    { t: 'Buka <strong>⋮ (titik tiga)</strong> di pojok kanan atas Chrome.' },
-    { t: 'Pilih <strong>Pengaturan → Privasi dan keamanan → Izin situs</strong>.' },
-    { t: 'Ketuk <strong>Kamera</strong>, cari situs ini, lalu pilih <strong>Izinkan</strong>.' },
-    { t: 'Kembali ke halaman ini dan tekan <strong>Coba Nyalakan Kamera</strong>.' }
-  ],
-  'chrome-ios': [
-    { t: 'Buka <strong>Pengaturan iPhone</strong> (Settings).' },
-    { t: 'Gulir ke bawah, cari dan ketuk <strong>Chrome</strong>.' },
-    { t: 'Pastikan <strong>Kamera</strong> dalam posisi <strong>NYALA (Hijau)</strong>.' },
-    { t: 'Kembali ke Chrome, refresh halaman, lalu coba lagi.' }
-  ],
-  'safari-ios': [
-    { t: 'Buka <strong>Pengaturan iPhone</strong> (Settings).' },
-    { t: 'Gulir ke bawah, cari dan ketuk <strong>Safari</strong>.' },
-    { t: 'Ketuk <strong>Kamera</strong> di bawah bagian <strong>Izin</strong>.' },
-    { t: 'Pilih <strong>Izinkan</strong> atau <strong>Tanya</strong>.' },
-    { t: 'Kembali ke Safari, refresh halaman, lalu coba lagi.' }
-  ],
-  'samsung': [
-    { t: 'Buka <strong>⋮ (titik tiga)</strong> di pojok kanan bawah.' },
-    { t: 'Pilih <strong>Pengaturan → Situs dan unduhan → Izin situs</strong>.' },
-    { t: 'Ketuk <strong>Kamera</strong>, cari situs ini, pilih <strong>Izinkan</strong>.' },
-    { t: 'Kembali ke halaman ini dan tekan <strong>Coba Nyalakan Kamera</strong>.' }
-  ],
-  'firefox': [
-    { t: 'Ketuk <strong>⋮ (titik tiga)</strong> di pojok kanan atas.' },
-    { t: 'Pilih <strong>Pengaturan → Privasi & Keamanan → Izin</strong>.' },
-    { t: 'Ketuk <strong>Kamera</strong>, cari situs ini, ubah ke <strong>Izinkan</strong>.' },
-    { t: 'Kembali ke halaman ini dan tekan <strong>Coba Nyalakan Kamera</strong>.' }
-  ],
-  'edge': [
-    { t: 'Ketuk <strong>⋯ (titik tiga)</strong> di pojok kanan bawah.' },
-    { t: 'Pilih <strong>Pengaturan → Privasi dan keamanan → Izin situs</strong>.' },
-    { t: 'Ketuk <strong>Kamera</strong>, cari situs ini, pilih <strong>Izinkan</strong>.' },
-    { t: 'Kembali ke halaman ini dan tekan <strong>Coba Nyalakan Kamera</strong>.' }
-  ]
-};
-function showPermHelp() {
-  const browser = detectBrowser();
-  const steps = browserSteps[browser] || browserSteps['chrome-android'];
-  document.getElementById('permSteps').innerHTML = steps.map((s,i) => `
-    <div class="perm-step"><div class="perm-step-num">${i+1}</div><div class="perm-step-text">${s.t}</div></div>
-  `).join('');
-  document.getElementById('permHelpModal').classList.add('active');
-}
-function closePermHelp() { document.getElementById('permHelpModal').classList.remove('active'); }
-function retryCameraAfterHelp() { closePermHelp(); startCameraManual(); }
-
-// ==================== API ====================
-async function apiCall(action, payload = {}) {
-  try {
-    const response = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action, ...payload })
+  // Simulasi balasan (demo)
+  setTimeout(() => {
+    chatData.push({
+      nama: 'Bot',
+      text: 'Pesan diterima! (Demo mode)',
+      time: new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
+      me: false
     });
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    const text = await response.text();
-    let data;
-    try { data = JSON.parse(text); } catch (e) {
-      const m = text.match(/^[^{]*(\{.*\})[^}]*$/); if (m) data = JSON.parse(m[1]); else throw new Error('Parse error');
-    }
-    return data;
-  } catch (error) { console.error('[API]', action, error); throw error; }
+    localStorage.setItem('chat_messages', JSON.stringify(chatData));
+    renderChat();
+  }, 1500);
 }
 
-// ==================== LOGOUT ====================
-function logout() {
-  if (confirm('Yakin ingin logout?')) {
-    clearLogin(); stopCamera();
-    showToast('Logout berhasil', 'info');
-    setTimeout(() => location.reload(), 500);
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ===================== NOTIF =====================
+function toggleNotif() {
+  document.getElementById('notifBubble').classList.toggle('show');
+}
+
+// ===================== PICO =====================
+function togglePico() {
+  const bubble = document.getElementById('picoBubble');
+  if (bubble.classList.contains('show')) {
+    closePicoBubble();
+  } else {
+    bubble.classList.add('show');
+    const texts = [
+      'Halo! Ada yang bisa saya bantu?',
+      'Jangan lupa absen ya!',
+      'Butuh bantuan? Klik tombol ini!',
+      'Semangat kerja!'
+    ];
+    document.getElementById('picoBubbleText').textContent = texts[Math.floor(Math.random()*texts.length)];
   }
 }
 
-// ==================== TOUCH FIX ====================
-document.addEventListener('touchstart', function(){}, { passive: true });
+function closePicoBubble() {
+  document.getElementById('picoBubble').classList.remove('show');
+}
+
+function closePicoModal() {
+  document.getElementById('picoModal').classList.remove('active');
+}
+
+// ===================== TOAST =====================
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast toast-' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ===================== AUTO LOGIN =====================
+const savedUser = localStorage.getItem('absensi_user');
+if (savedUser) {
+  try {
+    currentUser = JSON.parse(savedUser);
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    updateHeader();
+    loadDashboard();
+    loadJadwal();
+    loadRiwayat();
+    loadIzinStatus();
+  } catch(e) {
+    localStorage.removeItem('absensi_user');
+  }
+}
 </script>
 
 </body>
