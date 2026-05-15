@@ -98,7 +98,7 @@
   /* ===== APP HEADER ===== */
   .app-header {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    color: white; padding: 14px 16px 18px;
+    color: white; padding: 14px 12px 18px;
     position: sticky; top: 0; z-index: 100;
     display: flex; align-items: center; justify-content: space-between;
   }
@@ -116,7 +116,7 @@
     width: 40px; height: 40px; border-radius: 50%;
     background: rgba(255,255,255,0.15); border: none;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; backdrop-filter: blur(4px); margin-left: 8px;
+    cursor: pointer; backdrop-filter: blur(4px);
   }
   .header-logout:active { transform: scale(0.9); background: rgba(255,255,255,0.25); }
   .header-logout svg { width: 22px; height: 22px; stroke: white; fill: none; }
@@ -471,6 +471,7 @@
     background: white; border-radius: 18px; padding: 16px 18px;
     box-shadow: var(--shadow-lg); max-width: 260px; font-size: 15px;
     line-height: 1.5; display: none; border: 1px solid #E8ECF1; position: relative;
+    pointer-events: auto;
   }
   .chat-bubble.show { display: block; animation: popIn 0.3s ease-out; }
   .bubble-close {
@@ -480,7 +481,11 @@
     font-size: 14px; font-weight: 800; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 10;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
+  .bubble-close:active { transform: scale(0.9); background: #C62828; }
 
   /* ===== PICO MODAL ===== */
   .pico-modal-overlay {
@@ -583,13 +588,15 @@
         <p id="headerRole">Staff - Toko A</p>
       </div>
     </div>
-    <button class="header-notif" id="notifBell" onclick="toggleNotifBubble(event)">
-      <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-      <div class="notif-badge hidden" id="notifBadge">0</div>
-    </button>
-    <button class="header-logout" onclick="logout()" title="Logout">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-    </button>
+    <div style="display:flex;align-items:center;gap:4px;">
+      <button class="header-notif" id="notifBell" onclick="toggleNotifBubble(event)">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+        <div class="notif-badge hidden" id="notifBadge">0</div>
+      </button>
+      <button class="header-logout" onclick="logout()" title="Logout">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      </button>
+    </div>
     <div class="notif-bubble" id="notifBubble">
       <div class="notif-bubble-header">
         <span>Pemberitahuan</span>
@@ -721,7 +728,6 @@
         <canvas id="canvas" style="display:none;"></canvas>
         <div class="camera-overlay">
           <div class="face-frame" id="faceFrame">
-            <div class="face-label" id="faceLabel">Posisikan wajah di kotak</div>
           </div>
         </div>
         <button class="capture-btn" id="captureBtn" onclick="capturePhoto()"></button>
@@ -1073,7 +1079,7 @@
 <!-- Pico Mascot -->
 <div class="pico-container">
   <div class="chat-bubble" id="chat-bubble">
-    <button class="bubble-close" onclick="closeBubble(event)">&#10005;</button>
+    <button class="bubble-close" onclick="closeBubble(event)" ontouchstart="closeBubble(event)">&#10005;</button>
     <div id="tutorial-text"></div>
   </div>
   <img src="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" class="pico-mascot" id="pinguin-mascot" onclick="picoAction()" alt="PICO" draggable="false">
@@ -1339,28 +1345,53 @@ function showCameraError(msg) {
 
 // Auto-start camera when tab opens - no manual button needed
 async function autoStartCamera() {
+  // Small delay to let previous stream fully release
+  await new Promise(r => setTimeout(r, 400));
   try {
     await startCameraStream();
     hideCameraOverlay();
   } catch (err) {
     if (err.name === 'NotAllowedError') { showCameraError('Izin kamera ditolak.'); showPermHelp(); }
     else if (err.name === 'NotFoundError') showCameraError('Kamera tidak ditemukan.');
-    else if (err.name === 'NotReadableError') showCameraError('Kamera sedang dipakai aplikasi lain.');
+    else if (err.name === 'NotReadableError') {
+      // Retry once after a longer delay for mobile browsers
+      showCameraError('Kamera sedang dipakai, mencoba ulang...');
+      await new Promise(r => setTimeout(r, 1500));
+      try {
+        await startCameraStream();
+        hideCameraOverlay();
+        document.getElementById('cameraErrorBox').classList.add('hidden');
+      } catch (err2) {
+        showCameraError('Kamera sedang dipakai aplikasi lain.');
+      }
+    }
     else showCameraError('Gagal: ' + err.message);
   }
 }
 
 function stopCamera() {
-  if (state.stream) { state.stream.getTracks().forEach(t => t.stop()); state.stream = null; }
+  if (state.stream) {
+    state.stream.getTracks().forEach(t => { t.stop(); });
+    state.stream = null;
+  }
   const video = document.getElementById('video');
-  if (video) { video.srcObject = null; video.pause(); }
-  document.getElementById('faceLabel').textContent = 'Kamera mati';
+  if (video) {
+    video.srcObject = null;
+    video.pause();
+    video.load(); // Force release
+  }
+  // Don't show "Kamera mati" text since we removed faceLabel
   document.getElementById('faceFrame').classList.remove('active');
 }
 
 async function startCameraStream() {
   const video = document.getElementById('video');
   stopCamera();
+
+  // Ensure video element is fully reset
+  video.style.display = 'block';
+  video.removeAttribute('src');
+
   const constraints = {
     video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
   };
@@ -1372,12 +1403,20 @@ async function startCameraStream() {
   }
   state.stream = stream;
   video.srcObject = stream;
+
+  // Wait for video to be ready with better promise handling
   await new Promise((resolve, reject) => {
-    video.onloadedmetadata = () => { video.play().then(resolve).catch(reject); };
+    const onLoaded = () => {
+      video.play().then(() => {
+        resolve();
+      }).catch(reject);
+    };
+    video.onloadedmetadata = onLoaded;
+    video.onloadeddata = onLoaded;
     video.onerror = reject;
     setTimeout(() => reject(new Error('Timeout')), 10000);
   });
-  document.getElementById('faceLabel').textContent = 'Siap ambil foto';
+
   document.getElementById('faceFrame').classList.add('active');
 }
 
@@ -1406,7 +1445,9 @@ function retakePhoto() {
   document.getElementById('retakeBtn').style.display = 'none';
   document.getElementById('captureBtn').classList.remove('disabled');
   state.photoData = null;
-  stopCamera(); showCameraOverlay();
+  stopCamera();
+  // Auto-restart camera after retake
+  setTimeout(() => autoStartCamera(), 300);
 }
 
 // ==================== GPS ====================
@@ -1489,9 +1530,11 @@ function updateShiftInfo() {
   const shift = state.shiftList.find(s => s.ID_Shift === shiftId);
   if (shift) {
     document.getElementById('jamInfoCard').classList.remove('hidden');
-    document.getElementById('infoJamMasuk').textContent = 'Jam Masuk: ' + shift.Jam_Masuk;
-    document.getElementById('infoJamPulang').textContent = 'Jam Pulang: ' + shift.Jam_Pulang;
-    document.getElementById('shiftNama').textContent = (shift.Nama_Shift || 'Reguler') + ' - ' + (shift.Jam_Masuk||'--:--') + ' - ' + (shift.Jam_Pulang||'--:--');
+    const jamMasuk = formatTimeFromResponse(shift.Jam_Masuk);
+    const jamPulang = formatTimeFromResponse(shift.Jam_Pulang);
+    document.getElementById('infoJamMasuk').textContent = 'Jam Masuk: ' + jamMasuk;
+    document.getElementById('infoJamPulang').textContent = 'Jam Pulang: ' + jamPulang;
+    document.getElementById('shiftNama').textContent = (shift.Nama_Shift || 'Reguler') + ' - ' + jamMasuk + ' - ' + jamPulang;
   } else {
     document.getElementById('jamInfoCard').classList.add('hidden');
     document.getElementById('shiftNama').textContent = 'Reguler - --:-- - --:--';
@@ -1829,7 +1872,17 @@ function picoAction() {
   mascot.style.transform = 'scale(0.88)'; setTimeout(() => mascot.style.transform = '', 200);
   tampilTutorial();
 }
-function closeBubble(e) { if(e) e.stopPropagation(); document.getElementById('chat-bubble').classList.remove('show'); clearTimeout(bubbleTimer); isTyping = false; clearTimeout(typingEffect); }
+function closeBubble(e) {
+  if(e) { e.stopPropagation(); e.preventDefault(); }
+  const bubble = document.getElementById('chat-bubble');
+  if (bubble) {
+    bubble.classList.remove('show');
+    bubble.style.display = 'none';
+  }
+  clearTimeout(bubbleTimer);
+  isTyping = false;
+  clearTimeout(typingEffect);
+}
 function tampilTutorial() {
   if (isTyping) { closeBubble(); setTimeout(() => tampilTutorial(), 300); return; }
   const bubble = document.getElementById('chat-bubble');
@@ -1916,26 +1969,60 @@ function retryCameraAfterHelp() { closePermHelp(); autoStartCamera(); }
 // ==================== TIME FORMATTER ====================
 function formatTimeFromResponse(timeStr) {
   if (!timeStr) return '--:--';
-  // Handle Google Sheets date serial or ISO weirdness like 1899-12-29T23:52:48.000Z
-  if (typeof timeStr === 'string' && (timeStr.includes('1899') || timeStr.includes('T'))) {
-    try {
-      const d = new Date(timeStr);
-      // If year is 1899 or invalid, extract HH:mm directly from string
-      if (isNaN(d.getTime()) || d.getFullYear() < 2000) {
-        const m = timeStr.match(/T(\d{2}):(\d{2}):(\d{2})/);
-        if (m) return m[1] + ':' + m[2];
-        const m2 = timeStr.match(/(\d{2}):(\d{2})/);
-        if (m2) return m2[1] + ':' + m2[2];
-        return '--:--';
-      }
-      return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
-    } catch (e) { return '--:--'; }
-  }
-  // If it's already HH:mm or HH:mm:ss
+
+  // If it's already clean HH:mm or HH:mm:ss
   if (typeof timeStr === 'string' && /^\d{2}:\d{2}/.test(timeStr)) {
     return timeStr.substring(0, 5);
   }
-  return timeStr;
+
+  // Handle Google Sheets serial date strings like 1899-12-29T23:52:48.000Z
+  // or 1899-12-30T08:52:48.000Z ( Sheets epoch is Dec 30 1899 )
+  if (typeof timeStr === 'string' && (timeStr.includes('1899') || timeStr.includes('1900') || timeStr.includes('T'))) {
+    // Extract HH:mm:ss from ISO string using regex - most reliable method
+    const isoMatch = timeStr.match(/T(\d{2}):(\d{2}):(\d{2})/);
+    if (isoMatch) {
+      return isoMatch[1] + ':' + isoMatch[2];
+    }
+    // Fallback: try Date object
+    try {
+      const d = new Date(timeStr);
+      if (!isNaN(d.getTime())) {
+        // Use UTC methods since Sheets stores as UTC
+        const h = String(d.getUTCHours()).padStart(2, '0');
+        const m = String(d.getUTCMinutes()).padStart(2, '0');
+        return h + ':' + m;
+      }
+    } catch (e) {}
+    return '--:--';
+  }
+
+  // Handle numeric serial number from Google Sheets
+  // Sheets stores dates as serial numbers: days since Dec 30 1899
+  // Time-only values are stored as fractions (e.g. 0.5 = 12:00)
+  if (typeof timeStr === 'number' || (typeof timeStr === 'string' && /^\d+\.?\d*$/.test(timeStr))) {
+    const num = parseFloat(timeStr);
+    if (!isNaN(num)) {
+      // Get fractional part (time) and convert to HH:mm
+      const fraction = num - Math.floor(num);
+      // Handle negative (dates before epoch) - take absolute for time
+      const absFraction = Math.abs(fraction);
+      const totalMinutes = Math.round(absFraction * 24 * 60);
+      const h = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+      const m = String(totalMinutes % 60).padStart(2, '0');
+      return h + ':' + m;
+    }
+  }
+
+  // Last resort: try to parse any string containing time pattern
+  if (typeof timeStr === 'string') {
+    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      const h = String(parseInt(timeMatch[1], 10)).padStart(2, '0');
+      return h + ':' + timeMatch[2];
+    }
+  }
+
+  return '--:--';
 }
 
 // ==================== API ====================
