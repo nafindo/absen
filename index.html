@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a73e8">
+<title>Absensi Karyawan</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Login Overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">A</div>
+    <div class="login-title">Absensi Karyawan</div>
+    <div class="login-subtitle">Masukkan ID dan Password Anda</div>
+    <div class="login-error" id="loginError"></div>
+    <input type="text" class="login-input" id="loginId" placeholder="ID Karyawan" autocomplete="off">
+    <input type="password" class="login-input" id="loginPassword" placeholder="PIN / Password" autocomplete="off">
+    <button class="login-btn" id="btnLogin" onclick="doLogin()">
+      <span style="font-size:20px;">&#128274;</span> Masuk
+    </button>
+    <div class="login-footer">Aplikasi Absensi Multi-Toko</div>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <h1>Absensi Karyawan</h1>
+  <div class="date" id="currentDate">Memuat...</div>
+</div>
+
+<!-- GPS Alert -->
+<div class="gps-alert loading" id="gpsStatus">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+  <span id="gpsText">Mendeteksi lokasi...</span>
+</div>
+
+<!-- In-App Browser Warning -->
+<div class="inapp-warning" id="inappWarning">
+  <h4><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Browser Ini Memblokir Kamera</h4>
+  <p id="inappText">Anda membuka aplikasi dari dalam WhatsApp/Instagram/Facebook. Browser bawaan aplikasi ini tidak mengizinkan akses kamera. Tap tombol di bawah untuk membuka di Chrome/Samsung Browser.</p>
+  <a class="btn-open-browser" id="openBrowserBtn" href="#" onclick="openInExternalBrowser(event)">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+    Buka di Browser Luar (Chrome)
+  </a>
+</div>
+
+<!-- Nama Section (Mode Tanpa Login) -->
+<div class="nama-section hidden" id="namaSection">
+  <label class="form-label">Pilih Nama Karyawan</label>
+  <select class="form-select" id="selectNama" onchange="onNamaChange()">
+    <option value="">Pilih Nama...</option>
+  </select>
+</div>
+
+<!-- Profile Card -->
+<div class="profile-card">
+  <div class="profile-avatar" id="userAvatar">
+    <span id="userAvatarText">B</span>
+    <img id="userAvatarImg" src="" style="display:none;" alt="Foto Profil">
+  </div>
+  <div class="profile-info">
+    <h3 id="userName">Budi Santoso</h3>
+    <p id="userRole">Staff - Toko A</p>
+  </div>
+  <div class="notif-bell" id="notifBell" onclick="toggleNotifBubble(event)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+    <div class="notif-badge hidden" id="notifBadge">0</div>
+  </div>
+  <div class="notif-bubble" id="notifBubble">
+    <div class="notif-bubble-header">
+      <span>Pemberitahuan</span>
+      <button class="notif-bubble-close" onclick="closeNotifBubble(event)">&#10005;</button>
+    </div>
+    <div class="notif-bubble-list" id="notifBubbleList">
+      <div class="notif-empty">Belum ada pemberitahuan</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Container -->
+<div class="container">
+
+  <!-- Camera Section -->
+  <div class="camera-section">
+    <div class="form-label-camera">Ambil Foto Selfie</div>
+    <div class="camera-wrapper" id="cameraWrapper">
+      <div class="camera-start-overlay" id="cameraStartOverlay">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+        <div style="font-size:18px;font-weight:800;">Kamera Perlu Diaktifkan</div>
+        <div style="font-size:14px;opacity:0.8;text-align:center;padding:0 20px;">Tekan tombol di bawah untuk menyalakan kamera selfie. Pastikan izin kamera diizinkan.</div>
+        <button class="camera-start-btn" id="btnStartCamera" onclick="startCameraManual()">Nyalakan Kamera</button>
+        <div class="camera-error-box hidden" id="cameraErrorBox"></div>
+      </div>
+      <video id="video" autoplay playsinline muted></video>
+      <img id="previewImg" class="preview-img" alt="Preview">
+      <canvas id="canvas"></canvas>
+      <div class="camera-overlay">
+        <div class="face-guide" id="faceGuide">
+          <div class="face-status" id="faceStatus">Posisikan wajah di kotak</div>
+        </div>
+      </div>
+      <button class="capture-btn" id="captureBtn" ontouchstart="this.style.transform='translateX(-50%) scale(0.9)'" ontouchend="this.style.transform='translateX(-50%) scale(1)';capturePhoto()" onclick="capturePhoto()"></button>
+      <button class="retake-btn" id="retakeBtn" onclick="retakePhoto()">Ulangi</button>
+    </div>
+    <div class="camera-tip">Pastikan pencahayaan cukup & wajah terlihat jelas</div>
+    <button class="btn btn-primary" id="btnStartCameraExternal" onclick="startCameraManual()" style="margin-top:12px;background:linear-gradient(135deg,#1a73e8,#4285f4);display:none;">
+      <span style="font-size:22px;">&#128247;</span> Nyalakan Kamera Selfie
+    </button>
+  </div>
+
+  <!-- Form Row: Toko & Shift -->
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label">Toko</label>
+      <select class="form-select" id="selectToko" onchange="onTokoChange()">
+        <option value="">Pilih Toko...</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Shift</label>
+      <select class="form-select" id="selectShift"><option value="">Pilih Shift...</option></select>
+    </div>
+  </div>
+
+  <!-- Shift Info -->
+  <div class="form-group" id="jamMasukInfo" style="display:none;">
+    <div class="shift-info-box">
+      <span id="infoJamMasuk">Jam Masuk: 08:00</span> - <span id="infoJamPulang">Jam Pulang: 16:00</span>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <button class="btn btn-success" id="btnMasuk" onclick="absenMasuk()">
+    <span style="font-size:22px;">&#9679;</span> ABSEN MASUK
+  </button>
+  <div class="btn-row">
+    <button class="btn btn-warning hidden" id="btnLembur" onclick="toggleLemburMode()">
+      <span style="font-size:22px;">&#9679;</span> MODE LEMBUR
+    </button>
+    <button class="btn btn-danger hidden" id="btnPulang" onclick="absenPulang()">
+      <span style="font-size:22px;">&#9679;</span> ABSEN PULANG
+    </button>
+  </div>
+
+</div>
+
+<!-- Bottom Navigation -->
+<div class="bottom-nav">
+  <div class="nav-item active" onclick="switchTab('home')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+    <span>Absen</span>
+  </div>
+  <div class="nav-item" onclick="openModal('modalJadwal')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+    <span>Jadwal</span>
+  </div>
+  <div class="nav-item" onclick="openModal('modalRaport')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 9 3.16V12a10 10 0 0 0 13 0z"></path></svg>
+    <span>Raport</span>
+  </div>
+  <div class="nav-item" onclick="openModal('modalMenu')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+    <span>Menu</span>
+  </div>
+</div>
+
+<!-- PICO Mascot -->
+<div class="pico-container">
+  <div class="chat-bubble" id="chat-bubble">
+    <button class="bubble-close" onclick="closeBubble(event)">&#10005;</button>
+    <div id="tutorial-text"></div>
+  </div>
+  <img src="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" class="pico-mascot" id="pinguin-mascot" onclick="picoAction()" alt="PICO" draggable="false">
+</div>
+
+<!-- PICO Modal -->
+<div class="pico-modal-overlay" id="pico-modal" onclick="if(event.target.id==='pico-modal')closePicoModal()">
+  <div class="pico-modal-box">
+    <div class="pico-modal-scroll">
+      <img src="" class="pico-modal-img" id="pico-modal-img" alt="Mascot" style="width:120px;height:120px;object-fit:cover;border-radius:50%;margin:0 auto 16px;display:block;">
+      <div class="pico-modal-text" id="pico-modal-text"></div>
+    </div>
+    <button class="pico-modal-btn" id="pico-modal-btn" onclick="closePicoModal()" style="margin-top:16px;flex-shrink:0;">Oke, Pico!</button>
+  </div>
+</div>
+
+<!-- Modal: Jadwal -->
+<div class="modal-overlay" id="modalJadwal" onclick="closeModalOnOverlay(event, 'modalJadwal')">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Jadwal Shift</h2><button class="modal-close" onclick="closeModal('modalJadwal')">&#10005;</button></div>
+    <div class="modal-body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+        <button class="btn btn-outline" style="padding:10px 14px;font-size:15px;min-height:44px;" onclick="navJadwal(-1)">&#9664; Lalu</button>
+        <span id="jadwalPeriode" style="font-weight:800;font-size:16px;">-</span>
+        <button class="btn btn-outline" style="padding:10px 14px;font-size:15px;min-height:44px;" onclick="navJadwal(1)">Depan &#9654;</button>
+      </div>
+      <table class="jadwal-table">
+        <thead><tr><th>Hari</th><th>Toko</th><th>Shift</th><th>Jam</th></tr></thead>
+        <tbody id="jadwalTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Raport -->
+<div class="modal-overlay" id="modalRaport" onclick="closeModalOnOverlay(event, 'modalRaport')">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Raport Absen</h2><button class="modal-close" onclick="closeModal('modalRaport')">&#10005;</button></div>
+    <div class="modal-body">
+      <div class="stat-grid">
+        <div class="stat-card success"><div class="stat-number" id="statHadir">0</div><div class="stat-label">Hadir</div></div>
+        <div class="stat-card"><div class="stat-number" id="statIzin">0</div><div class="stat-label">Izin/Cuti</div></div>
+        <div class="stat-card danger"><div class="stat-number" id="statTelat">0</div><div class="stat-label">Telat</div></div>
+        <div class="stat-card"><div class="stat-number" id="statJam">0</div><div class="stat-label">Jam Kerja</div></div>
+      </div>
+      <div style="font-size:17px;font-weight:800;margin-bottom:14px;">Detail Harian</div>
+      <table class="jadwal-table">
+        <thead><tr><th>Tanggal</th><th>Toko</th><th>Shift</th><th>Status</th></tr></thead>
+        <tbody id="raportTbody"></tbody>
+      </table>
+      <button class="btn btn-primary" style="margin-top:18px;" onclick="downloadRaport()">
+        <span>&#128229;</span> Download PDF
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Menu -->
+<div class="modal-overlay" id="modalMenu" onclick="closeModalOnOverlay(event, 'modalMenu')">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Menu Lainnya</h2><button class="modal-close" onclick="closeModal('modalMenu')">&#10005;</button></div>
+    <div class="modal-body">
+      <button class="btn btn-outline" onclick="closeModal('modalMenu'); openModal('modalIzin')" style="margin-bottom:12px;">
+        <span style="font-size:24px;">&#128203;</span> Ajukan Izin / Sakit / Cuti
+      </button>
+      <button class="btn btn-warning" onclick="closeModal('modalMenu'); openModal('modalLembur')" style="margin-bottom:12px;">
+        <span style="font-size:24px;">&#128161;</span> Pengajuan Lembur
+      </button>
+      <button class="btn btn-danger" onclick="closeModal('modalMenu'); logout()" style="margin-bottom:12px;">
+        <span style="font-size:24px;">&#128682;</span> Logout
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Izin -->
+<div class="modal-overlay" id="modalIzin" onclick="closeModalOnOverlay(event, 'modalIzin')">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Ajukan Izin / Cuti</h2><button class="modal-close" onclick="closeModal('modalIzin')">&#10005;</button></div>
+    <div class="modal-body">
+      <div class="form-label" style="font-size:17px;font-weight:800;color:var(--text);margin-bottom:10px;">Pilih Jenis</div>
+      <div class="izin-types">
+        <div class="izin-chip active" onclick="selectIzin(this, 'sakit')">Sakit</div>
+        <div class="izin-chip" onclick="selectIzin(this, 'izin')">Izin</div>
+        <div class="izin-chip" onclick="selectIzin(this, 'cuti')">Cuti</div>
+        <div class="izin-chip" onclick="selectIzin(this, 'nikah')">Nikah</div>
+        <div class="izin-chip" onclick="selectIzin(this, 'melahirkan')">Melahirkan</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Mulai</label><input type="date" class="form-input" id="izinTglMulai"></div>
+        <div class="form-group"><label class="form-label">Selesai</label><input type="date" class="form-input" id="izinTglSelesai"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Alasan</label><textarea class="form-input" id="izinAlasan" rows="3" placeholder="Tulis alasan..."></textarea></div>
+      <div class="form-group"><label class="form-label">Lampiran (Opsional)</label><input type="file" class="form-input" id="izinLampiran" accept="image/*,.pdf"></div>
+      <div style="background:#fef3c7;padding:14px 16px;border-radius:12px;font-size:15px;color:#92400e;margin-bottom:16px;font-weight:600;" id="kuotaInfo">
+        Sisa kuota: Cuti Tahunan <strong>-</strong>
+      </div>
+      <button class="btn btn-primary" onclick="submitIzin()">
+        <span>&#128228;</span> Ajukan Izin
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Lembur -->
+<div class="modal-overlay" id="modalLembur" onclick="closeModalOnOverlay(event, 'modalLembur')">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Pengajuan Lembur</h2><button class="modal-close" onclick="closeModal('modalLembur')">&#10005;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Toko Lembur</label><select class="form-select" id="lemburToko"></select></div>
+      <div class="form-group"><label class="form-label">Alasan</label><select class="form-select" id="lemburAlasanType" onchange="toggleLemburAlasan()"><option value="event">Event / Promo</option><option value="stok">Stok Masuk</option><option value="bersih">Bersih-bersih</option><option value="lainnya">Lainnya...</option></select></div>
+      <div class="form-group hidden" id="lemburAlasanManual"><textarea class="form-input" rows="2" placeholder="Sebutkan alasan..."></textarea></div>
+
+      <div class="form-group">
+        <label class="form-label">Foto Selfie Lembur</label>
+        <div class="camera-wrapper" id="lemburCameraWrapper" style="min-height:200px;max-height:35vh;">
+          <div class="camera-start-overlay" id="lemburCameraOverlay" style="display:flex;">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+            <div style="font-size:16px;font-weight:800;margin:8px 0;">Kamera Lembur</div>
+            <button class="camera-start-btn" onclick="startLemburCamera()">&#128247; Nyalakan Kamera</button>
+          </div>
+          <video id="lemburVideo" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;display:none;transform:scaleX(-1);"></video>
+          <img id="lemburPreview" style="width:100%;height:100%;object-fit:cover;display:none;transform:scaleX(-1);">
+          <canvas id="lemburCanvas" style="display:none;"></canvas>
+          <button class="capture-btn" id="lemburCaptureBtn" style="display:none;" onclick="captureLemburPhoto()"></button>
+          <button class="retake-btn" id="lemburRetakeBtn" style="display:none;" onclick="retakeLemburPhoto()">Ulangi</button>
+        </div>
+      </div>
+
+      <button class="btn btn-warning" onclick="submitLembur()">
+        <span style="font-size:22px;">&#9679;</span> Ajukan Lembur
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Audio -->
+<audio id="soundSuccess" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+<audio id="soundError" src="https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3"></audio>
+<audio id="soundNotif" src="https://assets.mixkit.co/active_storage/sfx/2866/2866-preview.mp3"></audio>
+
+<!-- Permission Help Modal -->
+<div class="perm-help-overlay" id="permHelpModal" onclick="if(event.target.id==='permHelpModal')closePermHelp()">
+  <div class="perm-help-box">
+    <div class="perm-help-title">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+      Izin Kamera Diblokir
+    </div>
+    <div class="browser-tag" id="browserTag">Chrome Android</div>
+    <div id="permSteps"></div>
+    <button class="perm-help-btn" onclick="retryCameraAfterHelp()">&#128247; Coba Nyalakan Kamera</button>
+    <button class="perm-help-btn secondary" onclick="closePermHelp()">Tutup</button>
+  </div>
+</div>
+
+<!-- Main JavaScript -->
+<script src="js/app.js"></script>
+</body>
+</html>
