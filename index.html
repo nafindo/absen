@@ -821,7 +821,8 @@ const picoBtnColors = {
   sukses:'#34a853', gps_jauh:'#ea4335', wajah_gagal:'#f9ab00', lembur_pending:'#1a73e8',
   izin_sakit:'#9aa0a6', izin_telat:'#fbbc04', izin_pulang:'#f9ab00', izin_cuti:'#00acc1', error:'#c53929'
 };
-
+// Ganti dengan URL deployment Google Apps Script Anda
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySMzB3SsqaMqJITxhXu1eWorAB_I5BboEcqNcncwLfSo4Iu_vDvGu50rth3IM6g2I/exec';
 function tampilPicoModal(tipe, pesan, callback=null) {
   const modal = document.getElementById('pico-modal');
   const img = document.getElementById('pico-modal-img');
