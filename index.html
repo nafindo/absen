@@ -166,12 +166,6 @@
   .notif-item-title { font-weight: 700; margin-bottom: 2px; }
   .notif-item-text { color: var(--text-secondary); font-size: 13px; }
   .notif-empty { text-align: center; padding: 24px; color: var(--text-secondary); font-size: 14px; }
-  .notif-item.approved { background: #E8F5E9; border-left: 3px solid var(--success); }
-  .notif-item.approved .notif-item-title { color: #1B5E20; }
-  .notif-item.approved .notif-item-text { color: #2E7D32; font-weight: 600; }
-  .notif-item.rejected { background: #FFEBEE; border-left: 3px solid var(--danger); }
-  .notif-item.rejected .notif-item-title { color: #B71C1C; }
-  .notif-item.rejected .notif-item-text { color: #C62828; font-weight: 600; }
   .notif-item .notif-item-date { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
 
   /* ===== TAB CONTENT ===== */
@@ -632,9 +626,8 @@
   .mt-1 { margin-top: 8px; } .mt-2 { margin-top: 16px; }
   .mb-1 { margin-bottom: 8px; } .mb-2 { margin-bottom: 16px; }
   .flex { display: flex; } .items-center { align-items: center; } .gap-2 { gap: 8px; }
-</style>
-<base target="_blank">
-<base target="_blank">
+  </style>
+
 <base target="_blank">
 </head>
 <body>
@@ -3023,5 +3016,6 @@ function logout() {
 document.addEventListener('touchstart', function(){}, { passive: true });
 </script>
 
+<script src="script.js"></script>
 </body>
 </html>
