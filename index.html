@@ -479,6 +479,13 @@
   .chat-msg-file { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: rgba(255,255,255,0.15); border-radius: 10px; font-size: 13px; }
   .chat-msg-file svg { flex-shrink: 0; }
 
+  /* Chat Status Animations */
+  @keyframes chatPulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+  .chat-sending { animation: chatPulse 1s infinite; }
+
   /* ===== BERITA CARD ===== */
   .berita-card {
     background: var(--surface); border-radius: 16px; overflow: hidden;
@@ -1381,6 +1388,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('izinTglMulai').value = today;
   document.getElementById('izinTglSelesai').value = today;
 
+  // Test connection first
+  await testBackendConnection();
+
   // Load karyawan list untuk dropdown login
   await loadKaryawanDropdown();
 
@@ -1402,13 +1412,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateShiftInfo();
       }
     }
-    checkAbsenStatus();
+    await checkAbsenStatus();
     stopCamera();
     showCameraOverlay();
     checkMyApprovals();
   }
   // Jika tidak ada saved login, login screen tetap tampil
 });
+
+async function testBackendConnection() {
+  try {
+    // Simple test with getTokoList (lightweight)
+    const res = await apiCall('getTokoList');
+    if (res.success) {
+      console.log('[CONN] Backend connected successfully');
+    } else {
+      console.warn('[CONN] Backend responded but with error:', res.error);
+    }
+  } catch (e) {
+    console.error('[CONN] Backend connection failed:', e.message);
+    showToast('Koneksi ke server gagal. Periksa internet Anda.', 'error');
+  }
+}
 
 function showApp() {
   document.getElementById('loginScreen').classList.add('hidden');
@@ -2106,12 +2131,16 @@ function openModal(id) {
   document.getElementById(id).classList.add('active');
   document.body.style.overflow = 'hidden';
   if (id === 'modalJadwal') renderJadwal();
-  if (id === 'modalChat') loadChatMessages();
+  if (id === 'modalChat') { loadChatMessages(); startChatPolling(); }
   if (id === 'modalTukerShift') populateTukerShiftModal();
   if (id === 'modalTugas') renderTugasList();
   if (id === 'modalBerita') renderBeritaList();
 }
-function closeModal(id) { document.getElementById(id).classList.remove('active'); document.body.style.overflow = ''; }
+function closeModal(id) { 
+  document.getElementById(id).classList.remove('active'); 
+  document.body.style.overflow = ''; 
+  if (id === 'modalChat') stopChatPolling();
+}
 function closeModalOnOverlay(e, id) { if (e.target.id === id) closeModal(id); }
 
 function showToast(msg, type = 'info') {
@@ -2314,19 +2343,57 @@ function formatTimeFromResponse(timeStr) {
 
 // ==================== API ====================
 async function apiCall(action, payload = {}) {
-  try {
-    const response = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action, ...payload })
-    });
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    const text = await response.text();
-    let data;
-    try { data = JSON.parse(text); } catch (e) {
-      const m = text.match(/^[^{]*(\{.*\})[^}]*$/); if (m) data = JSON.parse(m[1]); else throw new Error('Parse error');
+  const maxRetries = 2;
+  let lastError;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action, ...payload })
+      });
+
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+      }
+
+      const text = await response.text();
+      if (!text || !text.trim()) {
+        throw new Error('Response kosong dari server');
+      }
+
+      // Try to extract JSON from response (handle redirect wrappers)
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        // Try to find JSON object in text
+        const m = text.match(/\{[\s\S]*\}/);
+        if (m) {
+          try { data = JSON.parse(m[0]); } catch (e2) { throw new Error('Parse error: ' + text.substring(0, 100)); }
+        } else {
+          throw new Error('Invalid response: ' + text.substring(0, 100));
+        }
+      }
+
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response format');
+      }
+
+      return data;
+
+    } catch (error) {
+      lastError = error;
+      console.warn(`[API] ${action} attempt ${attempt + 1} failed:`, error.message);
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); // Exponential backoff
+      }
     }
-    return data;
-  } catch (error) { console.error('[API]', action, error); throw error; }
+  }
+
+  console.error('[API]', action, 'All retries failed:', lastError);
+  throw lastError;
 }
 
 // ==================== CHAT ====================
@@ -2334,15 +2401,27 @@ let chatMessages = [];
 let chatAttachment = null; // { type: 'image'|'file', data: base64, name: string }
 let chatCameraStream = null;
 
+let chatPollInterval = null;
+
 async function loadChatMessages() {
   if (!state.user || !state.user.id) return;
   try {
     const res = await apiCall('getChatMessages', { limit: 50 });
     if (res.success && Array.isArray(res.data)) {
-      chatMessages = res.data;
+      // Merge server data with local pending messages
+      const serverIds = new Set(res.data.map(m => m.idPesan).filter(Boolean));
+      const pendingMessages = chatMessages.filter(m => m.status === 'sending' || m.status === 'failed');
+      chatMessages = [...res.data, ...pendingMessages];
+      // Sort by timestamp
+      chatMessages.sort((a, b) => {
+        const ta = a.waktu ? new Date(a.waktu.replace('Terkirim', '').replace('Baru saja', new Date())) : new Date(0);
+        const tb = b.waktu ? new Date(b.waktu.replace('Terkirim', '').replace('Baru saja', new Date())) : new Date(0);
+        return ta - tb;
+      });
       renderChat();
-      // Update badge with unread count (simplified: just count messages from others)
-      const othersCount = chatMessages.filter(m => m.idKaryawan !== state.user.id).length;
+
+      // Update badge with unread count
+      const othersCount = res.data.filter(m => m.idKaryawan !== state.user.id).length;
       const badge = document.getElementById('badgeChat');
       if (badge && othersCount > 0) {
         badge.textContent = othersCount > 9 ? '9+' : othersCount;
@@ -2352,7 +2431,26 @@ async function loadChatMessages() {
       renderChatEmpty();
     }
   } catch (e) {
-    renderChatEmpty();
+    console.error('[CHAT] Load failed:', e);
+    // Don't clear messages on error, just show toast
+    if (chatMessages.length === 0) renderChatEmpty();
+  }
+}
+
+function startChatPolling() {
+  if (chatPollInterval) clearInterval(chatPollInterval);
+  chatPollInterval = setInterval(() => {
+    const modal = document.getElementById('modalChat');
+    if (modal && modal.classList.contains('active')) {
+      loadChatMessages();
+    }
+  }, 10000); // Poll every 10 seconds
+}
+
+function stopChatPolling() {
+  if (chatPollInterval) {
+    clearInterval(chatPollInterval);
+    chatPollInterval = null;
   }
 }
 
@@ -2374,10 +2472,26 @@ function renderChat() {
     } else {
       content = `<div>${escapeHtml(m.pesan || '')}</div>`;
     }
-    return `<div style="align-self: ${isMe ? 'flex-end' : 'flex-start'}; max-width: 80%; background: ${isMe ? 'var(--primary)' : 'white'}; color: ${isMe ? 'white' : 'var(--text)'}; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+
+    // Status indicator for own messages
+    let statusIcon = '';
+    if (isMe) {
+      if (m.status === 'sending') {
+        statusIcon = '<span style="font-size:10px;opacity:0.7;">&#9203; Mengirim...</span>';
+      } else if (m.status === 'failed') {
+        statusIcon = `<span style="font-size:10px;color:#FF9F9F;cursor:pointer;" onclick="retryChatMessage('${m.tempId}')">&#10060; Gagal (klik retry)</span>`;
+      } else {
+        statusIcon = '<span style="font-size:10px;opacity:0.7;">&#10003; Terkirim</span>';
+      }
+    }
+
+    return `<div style="align-self: ${isMe ? 'flex-end' : 'flex-start'}; max-width: 80%; background: ${isMe ? 'var(--primary)' : 'white'}; color: ${isMe ? 'white' : 'var(--text)'}; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; box-shadow: 0 1px 4px rgba(0,0,0,0.06); ${m.status === 'failed' ? 'border: 2px solid var(--danger);' : ''}">
       <div style="font-size: 12px; font-weight: 700; margin-bottom: 4px; opacity: ${isMe ? '0.9' : '1'}; color: ${isMe ? 'rgba(255,255,255,0.9)' : 'var(--primary)'};">${escapeHtml(m.nama || 'Karyawan')}</div>
       ${content}
-      <div style="font-size: 11px; margin-top: 4px; opacity: 0.7; text-align: right;">${m.waktu || ''}</div>
+      <div style="font-size: 11px; margin-top: 4px; opacity: 0.7; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
+        <span>${m.waktu || ''}</span>
+        ${statusIcon}
+      </div>
     </div>`;
   }).join('');
   container.scrollTop = container.scrollHeight;
@@ -2510,24 +2624,69 @@ async function sendChat() {
     payload.namaFile = chatAttachment.name;
   }
 
-  // Optimistic render
-  chatMessages.push({
-    idKaryawan: state.user.id, nama: state.user.name,
-    pesan: pesan || (chatAttachment.type === 'image' ? '[Foto]' : '[File]'),
+  // Generate temp ID for tracking
+  const tempId = 'temp_' + Date.now();
+
+  // Optimistic render with "sending" status
+  const msgObj = {
+    tempId: tempId,
+    idKaryawan: state.user.id,
+    nama: state.user.name,
+    pesan: pesan || (chatAttachment ? (chatAttachment.type === 'image' ? '[Foto]' : '[File]') : ''),
     tipe: chatAttachment ? chatAttachment.type : 'text',
     fileUrl: chatAttachment ? chatAttachment.data : null,
     namaFile: chatAttachment ? chatAttachment.name : null,
-    waktu: 'Baru saja'
-  });
+    waktu: 'Mengirim...',
+    status: 'sending'
+  };
+  chatMessages.push(msgObj);
   renderChat();
   input.value = '';
   clearChatAttachment();
 
   try {
-    await apiCall('sendChatMessage', payload);
+    const res = await apiCall('sendChatMessage', payload);
+    if (res.success) {
+      // Update status to sent
+      const idx = chatMessages.findIndex(m => m.tempId === tempId);
+      if (idx !== -1) {
+        chatMessages[idx].status = 'sent';
+        chatMessages[idx].waktu = 'Terkirim';
+        chatMessages[idx].idPesan = res.idPesan;
+        renderChat();
+      }
+      // Refresh messages after short delay to get server timestamp
+      setTimeout(() => loadChatMessages(), 800);
+    } else {
+      throw new Error(res.error || 'Server error');
+    }
   } catch (e) {
-    showToast('Gagal mengirim pesan', 'error');
+    // Update status to failed
+    const idx = chatMessages.findIndex(m => m.tempId === tempId);
+    if (idx !== -1) {
+      chatMessages[idx].status = 'failed';
+      chatMessages[idx].waktu = 'Gagal dikirim';
+      renderChat();
+    }
+    showToast('Gagal mengirim: ' + e.message, 'error');
   }
+}
+
+// Retry failed message
+async function retryChatMessage(tempId) {
+  const msg = chatMessages.find(m => m.tempId === tempId);
+  if (!msg) return;
+
+  // Remove old failed message
+  chatMessages = chatMessages.filter(m => m.tempId !== tempId);
+
+  // Rebuild payload and resend
+  document.getElementById('chatInput').value = msg.pesan;
+  if (msg.fileUrl && msg.tipe !== 'text') {
+    chatAttachment = { type: msg.tipe, data: msg.fileUrl, name: msg.namaFile };
+    showChatAttachmentPreview(msg.namaFile);
+  }
+  sendChat();
 }
 
 async function populateTukerShiftModal() {
