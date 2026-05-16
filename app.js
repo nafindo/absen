@@ -505,7 +505,7 @@
             if (!state.user || !state.user.id) { state.absenStatus = 'belum_masuk'; updateButtonVisibility(); return; }
             try {
                 const res = await apiCall('getAbsenStatus', { idKaryawan: state.user.id });
-                if (res.success) {
+                if (res && res.status) {
                     state.absenStatus = res.status;
                     if (res.status === 'sudah_pulang') {
                         const d = res.data || {};
