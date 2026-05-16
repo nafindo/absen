@@ -1,61 +1,671 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - AntyGravity Absensi</title>
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    
-    <!-- Admin CSS -->
-    <link rel="stylesheet" href="admin.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Admin — Absensi Pro</title>
+<link rel="stylesheet" href="admin.css">
 </head>
 <body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">📋</div>
+    <div>
+      <div class="sidebar-title">Absensi Pro</div>
+      <div class="sidebar-sub">Dashboard Admin</div>
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Menu Utama</div>
+    <div class="nav-item active" onclick="showPage('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
+    <div class="nav-item" onclick="showPage('laporan')"><span class="nav-icon">📈</span> Laporan Absensi</div>
     
-    <!-- Sidebar -->
-    <aside class="sidebar">
-        <div class="sidebar-logo">
-            <i class="bi bi-fingerprint"></i> AntyGravity
-        </div>
-        <nav class="sidebar-nav">
-            <a href="#dashboard" class="nav-item active"><i class="bi bi-speedometer2"></i> Dashboard</a>
-            <a href="#laporan" class="nav-item"><i class="bi bi-file-earmark-bar-graph"></i> Laporan</a>
-            <a href="#setting-karyawan" class="nav-item"><i class="bi bi-people"></i> Karyawan</a>
-            <a href="#setting-toko" class="nav-item"><i class="bi bi-shop"></i> Toko</a>
-            <a href="#slip-gaji" class="nav-item"><i class="bi bi-cash-stack"></i> Slip Gaji</a>
-        </nav>
-    </aside>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Pengaturan</div>
+    <div class="nav-item" onclick="showPage('setting-toko')"><span class="nav-icon">🏪</span> Setting Toko</div>
+    <div class="nav-item" onclick="showPage('setting-karyawan')"><span class="nav-icon">👤</span> Setting Karyawan</div>
+    <div class="nav-item" onclick="showPage('setting-jadwal')"><span class="nav-icon">📅</span> Setting Jadwal</div>
+    <div class="nav-item" onclick="showPage('setting-izin')"><span class="nav-icon">📋</span> Setting Izin/Cuti</div>
+    <div class="nav-item" onclick="showPage('setting-global')"><span class="nav-icon">⚙️</span> Setting Global</div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-mini">
+      <div class="user-mini-avatar">A</div>
+      <div><div style="font-size:14px;font-weight:600;">Admin Owner</div><div style="font-size:12px;color:var(--text-secondary);">owner@toko.com</div></div>
+    </div>
+  </div>
+</nav>
 
-    <!-- Main Content -->
-    <main class="main-content">
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div>
+        <div class="page-title" id="pageTitle">📊 Dashboard</div>
+        <div class="topbar-date" id="currentDate">Kamis, 13 Mei 2026 — 09:15 WIB</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="notif-btn" onclick="showPage('notifikasi')">🔔<span class="notif-badge" id="topbarBadge">0</span></button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- PAGE: DASHBOARD -->
+    <div id="page-dashboard">
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-box-header"><span class="stat-box-label">Total Karyawan</span><div class="stat-box-icon blue">👥</div></div>
+          <div class="stat-box-value" id="statTotalKaryawan">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-header"><span class="stat-box-label">Hadir Hari Ini</span><div class="stat-box-icon green">✅</div></div>
+          <div class="stat-box-value" id="statHadir">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-header"><span class="stat-box-label">Pending Approval</span><div class="stat-box-icon yellow">⏳</div></div>
+          <div class="stat-box-value" id="statPending">0</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-header"><span class="stat-box-label">Telat Hari Ini</span><div class="stat-box-icon red">⚠️</div></div>
+          <div class="stat-box-value" id="statTelat">0</div>
+        </div>
+      </div>
+
+      <div class="section-title">🏪 Monitor Hari Ini — Karyawan Online</div>
+      <div class="toko-grid" id="tokoGrid"></div>
+
+      <div class="section-title">🔔 Notifikasi Menunggu Approval</div>
+      <div class="notif-section"><div id="notifList"></div></div>
+
+      <div class="section-title">📋 Daftar Absensi Hari Ini</div>
+      <div class="table-section">
         
-        <!-- Topbar -->
-        <header class="topbar">
-            <div class="page-title">Dashboard</div>
-            <div class="topbar-actions">
-                <div class="datetime" id="current-time">Memuat Waktu...</div>
-                <button class="icon-btn position-relative">
-                    <i class="bi bi-bell"></i>
-                    <span class="badge-dot"></span>
-                </button>
-                <div class="admin-profile">
-                    <img src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff" alt="Admin">
-                    <span>Super Admin</span>
-                </div>
+        <div class="table-wrap">
+          <table class="data-table" id="absensiTable">
+            <thead>
+              <tr>
+                <th>Nama</th><th>Toko</th><th>Shift</th><th>Jam Masuk</th><th>Jam Pulang</th>
+                <th>Durasi Kerja</th><th>Durasi Lembur</th><th>Status</th><th>Menit Telat</th>
+                <th>Status Lembur</th><th>Toko Lembur</th><th>Foto</th>
+              </tr>
+            </thead>
+            <tbody id="absensiTbody"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span style="font-size:13px;color:var(--text-secondary);" id="absensiFooter">Menampilkan 0 data</span>
+          <div class="export-btns">
+            <button class="btn-export" onclick="exportExcel()">📥 Export Excel</button>
+            <button class="btn-export" onclick="exportPDF()">📄 Export PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: LAPORAN -->
+    <!-- PAGE: LAPORAN -->
+<div id="page-laporan" class="hidden">
+  <div class="section-title">📈 Laporan Absensi Karyawan</div>
+  
+  <div class="laporan-tabs">
+    <button class="laporan-tab active" onclick="switchLaporan('harian')">📅 Harian</button>
+    <button class="laporan-tab" onclick="switchLaporan('mingguan')">📆 Mingguan</button>
+    <button class="laporan-tab" onclick="switchLaporan('bulanan')">📊 Bulanan</button>
+    <button class="laporan-tab" onclick="switchLaporan('tahunan')">📈 Tahunan</button>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="table-toolbar">
+    <select class="table-filter" id="laporanKaryawan" onchange="loadLaporan()" style="min-width:180px;">
+      <option value="">👤 Semua Karyawan</option>
+    </select>
+    <select class="table-filter" id="laporanToko" onchange="loadLaporan()"><option value="">🏪 Semua Toko</option></select>
+    <select class="table-filter" id="laporanShift" onchange="loadLaporan()"><option value="">🕐 Semua Shift</option></select>
+    
+    <!-- Harian: 1 tanggal -->
+    <input type="date" class="table-filter" id="laporanTanggal" onchange="loadLaporan()">
+    
+    <!-- Bulanan -->
+    <input type="month" class="table-filter hidden" id="laporanBulan" onchange="loadLaporan()">
+    
+    <!-- Tahunan -->
+    <input type="number" class="table-filter hidden" id="laporanTahun" onchange="loadLaporan()" placeholder="Tahun" min="2020" max="2099" style="width:100px;">
+  </div>
+
+  <!-- STATISTIK PER KARYAWAN (Muncul jika karyawan dipilih) -->
+  <div id="laporanStatistik" class="hidden" style="margin-bottom:24px;">
+    <div class="stats-row" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+      <div class="stat-box">
+        <div class="stat-box-header"><span class="stat-box-label">Kehadiran</span><div class="stat-box-icon green">✅</div></div>
+        <div class="stat-box-value" id="statHadir">0</div>
+        <div class="stat-box-trend">hari masuk</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-header"><span class="stat-box-label">Izin Approved</span><div class="stat-box-icon blue">📋</div></div>
+        <div class="stat-box-value" id="statIzin">0</div>
+        <div class="stat-box-trend">hari izin</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-header"><span class="stat-box-label">Keterlambatan</span><div class="stat-box-icon red">⚠️</div></div>
+        <div class="stat-box-value" id="statTelat">0</div>
+        <div class="stat-box-trend">kali telat</div>
+      </div>
+        <div class="stat-box" style="padding:16px;">
+    <div class="stat-box-header" style="margin-bottom:8px;">
+      <span class="stat-box-label">Total Jam Kerja</span>
+      <div class="stat-box-icon blue">⏱️</div>
+    </div>
+    <div class="stat-box-value" style="font-size:18px;" id="statJamKerja">0 jam 0 menit</div>
+    <div class="stat-box-trend">durasi kerja</div>
+  </div>
+  <div class="stat-box" style="padding:16px;">
+    <div class="stat-box-header" style="margin-bottom:8px;">
+      <span class="stat-box-label">Total Jam Lembur</span>
+      <div class="stat-box-icon yellow">🔥</div>
+    </div>
+    <div class="stat-box-value" style="font-size:18px;" id="statJamLembur">0 jam 0 menit</div>
+    <div class="stat-box-trend">durasi lembur</div>
+  </div>
+    </div>
+
+    <!-- KHUSUS BULANAN: Perhitungan Upah -->
+    <div id="bulananDetail" class="hidden" style="margin-top:16px;background:var(--card);border-radius:16px;padding:20px;border:1px solid var(--border);">
+      <div style="font-size:16px;font-weight:700;margin-bottom:14px;color:var(--text);">📊 Perhitungan Upah Bulanan</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:14px;font-size:14px;">
+        <div style="background:var(--bg);padding:12px;border-radius:10px;">
+          <div style="color:var(--text-secondary);font-size:12px;margin-bottom:4px;">Hari Kerja Seharusnya</div>
+          <div style="font-size:20px;font-weight:700;" id="blnHariSeharusnya">0 <span style="font-size:13px;font-weight:500;">hari</span></div>
+        </div>
+                <div style="background:var(--bg);padding:12px;border-radius:10px;">
+          <div style="color:var(--text-secondary);font-size:12px;margin-bottom:4px;">Akumulasi Jam (Kerja + Lembur)</div>
+          <div style="font-size:18px;font-weight:700;" id="blnTotalJam">0 jam 0 menit</div>
+        </div>
+        <div style="background:var(--bg);padding:12px;border-radius:10px;">
+          <div style="color:var(--text-secondary);font-size:12px;margin-bottom:4px;">Jumlah Hari Kerja (÷ 9 jam)</div>
+          <div style="font-size:18px;font-weight:700;color:var(--primary);" id="blnHariKerja">0 hari 0 jam 0 menit</div>
+        </div>
+        <div style="background:var(--bg);padding:12px;border-radius:10px;">
+          <div style="color:var(--text-secondary);font-size:12px;margin-bottom:4px;">Selisih Lebih (Lembur)</div>
+          <div style="font-size:18px;font-weight:700;color:var(--warning);" id="blnSelisih">0 hari 0 jam 0 menit</div>
+        </div>
+        <div style="background:var(--bg);padding:12px;border-radius:10px;">
+          <div style="color:var(--text-secondary);font-size:12px;margin-bottom:4px;">Toleransi Izin (Dihitung Gaji)</div>
+          <div style="font-size:20px;font-weight:700;color:var(--success);" id="blnToleransi">2 hari</div>
+        </div>
+        <div style="background:var(--bg);padding:12px;border-radius:10px;">
+          <div style="color:var(--text-secondary);font-size:12px;margin-bottom:4px;">Status Gaji</div>
+          <div style="font-size:20px;font-weight:700;" id="blnStatus">-</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text-secondary);line-height:1.6;">
+        💡 <strong>Rumus:</strong> (Total Jam Kerja + Total Jam Lembur) ÷ 9 jam/shift = Hari Kerja Aktual.<br>
+        💡 <strong>Ketentuan:</strong> Izin ≤ 2 hari/bulan masih dihitung gaji penuh. Izin &gt; 2 hari atau tidak hadir tanpa izin dianggap <strong>bolos</strong> (tidak dihitung upah).
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Tabel -->
+    <!-- TABEL KOMPAK (Tanpa Scroll Horizontal) -->
+  <div class="table-section">
+    <div class="table-wrap">
+      <table class="data-table" id="laporanTable" style="font-size:12px;table-layout:fixed;width:100%;">
+        <thead>
+          <tr>
+            <th style="width:80px;white-space:nowrap;">Tanggal</th>
+            <th style="width:140px;">Karyawan & Lokasi</th>
+            <th style="width:90px;white-space:nowrap;">Waktu Kerja</th>
+            <th style="width:80px;white-space:nowrap;">Status</th>
+            <th style="width:100px;white-space:nowrap;">Lembur</th>
+            <th style="width:120px;white-space:nowrap;">Bukti Foto</th>
+          </tr>
+        </thead>
+        <tbody id="laporanTbody"></tbody>
+      </table>
+    </div>
+    
+    <div class="table-footer">
+      <span style="font-size:13px;color:var(--text-secondary);" id="laporanFooter">Menampilkan 0 data</span>
+      <div class="export-btns">
+        <button class="btn-export" onclick="exportExcel()">📥 Export Excel</button>
+        <button class="btn-export" onclick="exportPDF()">📄 Export PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+    <!-- PAGE: NOTIFIKASI -->
+    <div id="page-notifikasi" class="hidden">
+      <div class="section-title">🔔 Semua Notifikasi</div>
+      <div class="notif-section" id="allNotifList"></div>
+    </div>
+
+    <!-- PAGE: DATA ABSENSI -->
+    <div id="page-absensi" class="hidden">
+      <div class="section-title">📋 Data Absensi Lengkap</div>
+      <div class="table-section">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Tanggal</th><th>Nama</th><th>Toko</th><th>Shift</th><th>Masuk</th><th>Pulang</th><th>Durasi</th><th>Status</th><th>Telat</th></tr></thead>
+            <tbody id="absensiFullTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: SETTING TOKO -->
+    <div id="page-setting-toko" class="hidden">
+      <div class="section-title">🏪 Setting Toko</div>
+      <div style="display:flex;gap:12px;margin-bottom:20px;">
+        <button class="btn-export" style="background:var(--primary);color:white;border:none;" onclick="openModalToko()">+ Tambah Toko</button>
+        <button class="btn-export" onclick="openModal('modalShift')">⚙️ Shift per Toko</button>
+      </div>
+      <div class="setting-grid" id="tokoList"></div>
+    </div>
+
+    <!-- PAGE: SETTING KARYAWAN -->
+    <div id="page-setting-karyawan" class="hidden">
+      <div class="section-title">👤 Setting Karyawan</div>
+      <div style="display:flex;gap:12px;margin-bottom:20px;">
+        <button class="btn-export" style="background:var(--primary);color:white;border:none;" onclick="openModalKaryawan()">+ Tambah Karyawan</button>
+        
+      </div>
+            <div class="kar-grid" id="karyawanGrid"></div>
+    </div>
+    <!-- TAMBAH PAGE SETTING JADWAL -->
+<div id="page-setting-jadwal" class="hidden">
+  <div class="section-title">📅 Setting Jadwal Karyawan</div>
+  
+  <!-- Toolbar -->
+  <div class="jadwal-toolbar" style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;background:var(--card);padding:16px 20px;border-radius:16px;border:1px solid var(--border);box-shadow:0 1px 2px rgba(60,64,67,0.1);">
+    <div class="toolbar-group" style="display:flex;align-items:center;gap:8px;">
+      <span class="toolbar-label" style="font-size:12px;color:var(--text-secondary);font-weight:600;">🏪 Toko</span>
+      <select class="toolbar-select" id="jadwalSelectToko" onchange="loadJadwalGrid()" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;background:white;min-width:160px;">
+        <option value="">Pilih Toko...</option>
+      </select>
+    </div>
+    <div class="toolbar-group" style="display:flex;align-items:center;gap:8px;">
+      <span class="toolbar-label" style="font-size:12px;color:var(--text-secondary);font-weight:600;">📅 Minggu</span>
+      <div class="week-nav" style="display:flex;align-items:center;gap:0;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;">
+        <button onclick="prevWeekJadwal()" style="padding:10px 14px;background:white;border:none;cursor:pointer;font-size:16px;color:var(--text);">◀</button>
+        <div class="week-display" id="jadwalWeekDisplay" style="padding:10px 16px;font-size:14px;font-weight:600;min-width:180px;text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border);background:var(--bg);">19–25 Mei 2026</div>
+        <button onclick="nextWeekJadwal()" style="padding:10px 14px;background:white;border:none;cursor:pointer;font-size:16px;color:var(--text);">▶</button>
+      </div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:10px;">
+      <button class="btn-export" style="background:var(--primary);color:white;border:none;" onclick="openTemplateModal()">📋 Template</button>
+      <button class="btn-export" style="background:var(--success);color:white;border:none;" onclick="openRollingModal()">⚙️ Generate Rolling</button>
+    </div>
+  </div>
+
+  <!-- Schedule Grid -->
+  <div class="schedule-wrapper" style="background:var(--card);border-radius:16px;border:1px solid var(--border);box-shadow:0 1px 2px rgba(60,64,67,0.1);overflow:hidden;">
+    <div style="overflow-x:auto;">
+      <div class="schedule-grid" id="scheduleGrid" style="display:grid;grid-template-columns:220px repeat(7,1fr);min-width:1000px;">
+        <!-- Headers diisi oleh JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend-bar" style="display:flex;align-items:center;gap:16px;margin-top:16px;padding:12px 20px;background:var(--card);border-radius:12px;border:1px solid var(--border);flex-wrap:wrap;">
+    <span style="font-size:12px;font-weight:600;color:var(--text-secondary);">Keterangan Shift:</span>
+    <div class="legend-item" style="display:flex;align-items:center;gap:6px;font-size:12px;">
+      <div class="legend-dot" style="width:14px;height:14px;border-radius:4px;background:#E3F2FD;border:1px solid #1565C0;"></div> Pagi
+    </div>
+    <div class="legend-item" style="display:flex;align-items:center;gap:6px;font-size:12px;">
+      <div class="legend-dot" style="width:14px;height:14px;border-radius:4px;background:#FFF8E1;border:1px solid #E65100;"></div> Siang
+    </div>
+    <div class="legend-item" style="display:flex;align-items:center;gap:6px;font-size:12px;">
+      <div class="legend-dot" style="width:14px;height:14px;border-radius:4px;background:#F3E5F5;border:1px solid #6A1B9A;"></div> Malam
+    </div>
+    <div class="legend-item" style="display:flex;align-items:center;gap:6px;font-size:12px;">
+      <div class="legend-dot" style="width:14px;height:14px;border-radius:4px;background:#F5F5F5;border:1px solid #9E9E9E;"></div> Libur
+    </div>
+    <div class="legend-item" style="display:flex;align-items:center;gap:6px;font-size:12px;">
+      <div class="legend-dot" style="width:14px;height:14px;border-radius:4px;background:#FFEBEE;border:1px solid #C62828;"></div> Izin/Cuti
+    </div>
+  </div>
+</div>
+    <!-- PAGE: SETTING IZIN -->
+    <div id="page-setting-izin" class="hidden">
+      <div class="section-title">📋 Setting Izin & Cuti</div>
+      <div style="display:flex;gap:12px;margin-bottom:20px;">
+        <button class="btn-export" style="background:var(--primary);color:white;border:none;" onclick="openModal('modalJenisIzin')">+ Jenis Izin Baru</button>
+      </div>
+      <div class="table-section">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Jenis</th><th>Kode</th><th>Kuota/Tahun</th><th>Kuota/Bulan</th><th>Max/Ajuan</th><th>Gender</th><th>Status</th><th>Aksi</th></tr></thead>
+            <tbody id="jenisIzinTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: SETTING GLOBAL -->
+    <div id="page-setting-global" class="hidden">
+      <div class="section-title">⚙️ Setting Global App</div>
+      <div class="table-section" style="max-width:700px;">
+        <div class="form-group"><label class="form-label">Nama Aplikasi</label><input type="text" class="form-input" id="setNamaApp" value="Absensi Karyawan Pro"></div>
+        <div class="form-group"><label class="form-label">Logo URL</label><input type="text" class="form-input" id="setLogo" value=""></div>
+        <div class="form-group"><label class="form-label">Folder Drive ID</label><input type="text" class="form-input" id="setFolder" value=""></div>
+        <div class="form-group"><label class="form-label">Toleransi Keterlambatan (menit)</label><input type="number" class="form-input" id="setToleransi" value="15"></div>
+        <div class="form-group"><label class="form-label">Kunci Jadwal Karyawan</label>
+          <select class="form-select" id="setKunci"><option value="LOCKED" selected>LOCKED — Jadwal ditentukan admin</option><option value="OPEN">OPEN — Karyawan bebas pilih</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Face Detection Mode</label>
+          <select class="form-select" id="setFace"><option value="BLINK" selected>BLINK</option><option value="FACE_ONLY">FACE_ONLY</option><option value="NONE">NONE</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">GPS Validation</label>
+          <select class="form-select" id="setGPS"><option value="STRICT" selected>STRICT</option><option value="LENIENT">LENIENT</option><option value="OFF">OFF</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Warna Primary</label><input type="color" class="form-input" id="setColor" value="#1a73e8" style="height:44px;padding:4px;"></div>
+        <div class="modal-footer" style="padding:0;margin-top:20px;">
+          <button class="btn-modal btn-modal-primary" onclick="saveGlobalSetting()">💾 Simpan Perubahan</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL: TOKO (Tambah/Edit) -->
+<div class="modal-overlay" id="modalToko" onclick="closeModalOnOverlay(event, 'modalToko')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="tokoModalTitle">🏪 Tambah Toko Baru</h2>
+      <button class="modal-close" onclick="closeModal('modalToko')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tokoIdEdit">
+      
+      <!-- FOTO PREVIEW DI ATAS -->
+      <div class="form-group" style="text-align:center; margin-bottom:20px;">
+        <label class="form-label" style="text-align:left;">📸 Foto Toko</label>
+        <div id="tokoFotoPreview" style="
+          width:100%; 
+          height:180px; 
+          border:2px dashed var(--border); 
+          border-radius:12px; 
+          display:flex; 
+          align-items:center; 
+          justify-content:center; 
+          background:var(--bg);
+          margin-bottom:10px;
+          overflow:hidden;
+          position:relative;
+        ">
+          <span id="tokoFotoPlaceholder" style="color:var(--text-secondary); font-size:14px;">📷 Belum ada foto</span>
+          <img id="tokoFotoImg" src="" style="width:100%; height:100%; object-fit:cover; display:none;">
+        </div>
+        <input type="file" id="tokoFotoFile" accept="image/*" style="display:none;" onchange="previewTokoFoto(this)">
+        <button type="button" class="gps-picker-btn" onclick="document.getElementById('tokoFotoFile').click()" style="margin-top:0;">
+          📤 Pilih Foto Toko
+        </button>
+        <input type="hidden" id="tokoFoto" value="">
+      </div>
+
+      <!-- NAMA TOKO -->
+      <div class="form-group">
+        <label class="form-label">Nama Toko *</label>
+        <input type="text" class="form-input" id="tokoNama" placeholder="Contoh: Toko Cabang Jakarta">
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Alamat</label>
+          <input type="text" class="form-input" id="tokoAlamat" placeholder="Jl. Contoh No. 123">
+        </div>
+        
+        <!-- GPS GROUP -->
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label class="form-label">📍 Lokasi GPS</label>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:8px;">
+            <div>
+              <label style="font-size:11px; color:var(--text-secondary); margin-bottom:4px; display:block;">Latitude</label>
+              <input type="text" class="form-input" id="tokoLat" placeholder="-6.2088" readonly style="background:#f8f9fa;">
             </div>
-        </header>
-
-        <!-- Dynamic Content Area -->
-        <div class="content-area" id="page-content">
-            <!-- Konten diisi secara dinamis oleh JS -->
+            <div>
+              <label style="font-size:11px; color:var(--text-secondary); margin-bottom:4px; display:block;">Longitude</label>
+              <input type="text" class="form-input" id="tokoLng" placeholder="106.8456" readonly style="background:#f8f9fa;">
+            </div>
+          </div>
+          <button type="button" class="gps-picker-btn" onclick="ambilLokasiGPS()">
+            📡 Ambil Lokasi GPS Sekarang
+          </button>
+          <div id="gpsPreview" style="font-size:12px; color:var(--text-secondary); margin-top:6px;"></div>
         </div>
-        
-    </main>
 
-    <script src="admin.js"></script>
+        <div class="form-group">
+          <label class="form-label">Radius (meter)</label>
+          <input type="number" class="form-input" id="tokoRadius" value="50">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jam Buka</label>
+          <input type="time" class="form-input" id="tokoJamBuka" value="08:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jam Tutup</label>
+          <input type="time" class="form-input" id="tokoJamTutup" value="22:00">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal btn-modal-secondary" onclick="closeModal('modalToko')">Batal</button>
+      <button class="btn-modal btn-modal-primary" onclick="saveToko()">💾 Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SHIFT -->
+<!-- MODAL: SHIFT -->
+<div class="modal-overlay" id="modalShift" onclick="closeModalOnOverlay(event, 'modalShift')">
+  <div class="modal-box" style="max-width:900px;">
+    <div class="modal-header">
+      <h2>⚙️ Shift per Toko</h2>
+      <button class="modal-close" onclick="closeModal('modalShift')">✕</button>
+    </div>
+    <div class="modal-body">
+      
+      <!-- Pilih Toko -->
+      <div style="margin-bottom:20px;">
+        <select class="table-filter" id="shiftTokoSelect" onchange="loadShiftByToko()" style="min-width:200px;">
+          <option value="">🏪 Pilih Toko...</option>
+        </select>
+      </div>
+
+      <!-- TABEL SHIFT -->
+      <div class="table-section" style="margin-bottom:24px;">
+        <div class="table-wrap">
+          <table class="data-table" id="shiftTable">
+            <thead>
+              <tr>
+                <th>Nama Shift</th>
+                <th>Jam Masuk</th>
+                <th>Jam Pulang</th>
+                <th>Toleransi</th>
+                <th>Status</th>
+                <th style="width:120px;">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="shiftTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- FORM TAMBAH/EDIT SHIFT (INLINE, BUKAN POPUP) -->
+      <div id="shiftFormBox" style="display:none;background:var(--primary-light);border-radius:16px;padding:20px;border:2px solid var(--primary);">
+        <div style="font-size:16px;font-weight:700;margin-bottom:16px;color:var(--primary);" id="shiftFormTitle">
+          ➕ Tambah Shift Baru
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Nama Shift *</label>
+            <input type="text" class="form-input" id="sfNama" placeholder="Contoh: Pagi, Siang, Malam">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Jam Masuk *</label>
+            <input type="time" class="form-input" id="sfMasuk" value="08:00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Jam Pulang *</label>
+            <input type="time" class="form-input" id="sfPulang" value="17:00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Toleransi Keterlambatan (menit)</label>
+            <input type="number" class="form-input" id="sfToleransi" value="15" min="0" max="120">
+          </div>
+        </div>
+        <input type="hidden" id="sfIdEdit" value="">
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button class="btn-modal btn-modal-secondary" onclick="cancelShiftForm()">Batal</button>
+          <button class="btn-modal btn-modal-primary" onclick="saveShiftForm()">💾 Simpan</button>
+        </div>
+      </div>
+
+      <!-- TOMBOL TAMBAH SHIFT -->
+      <div id="shiftAddBtnWrap" style="margin-top:20px;">
+        <button class="btn-export" style="background:var(--primary);color:white;border:none;" onclick="showShiftForm()">
+          ➕ Tambah Shift
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: KARYAWAN -->
+<div class="modal-overlay" id="modalKaryawan" onclick="closeModalOnOverlay(event, 'modalKaryawan')">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="karModalTitle">👤 Tambah Karyawan</h2>
+      <button class="modal-close" onclick="closeModal('modalKaryawan')">✕</button>
+    </div>
+    <div class="modal-body">
+      
+      <!-- FOTO PREVIEW 3/4 -->
+      <!-- FOTO PREVIEW — SATU AREA KLIK -->
+<div class="form-group" style="text-align:center;">
+  <div class="kar-foto-preview" id="karFotoPreview" onclick="openKarFotoPicker()">
+    <span class="placeholder" id="karFotoPlaceholder">
+      <span class="icon">📷</span>
+      <div>Tap untuk pilih foto</div>
+      <div style="font-size:11px;opacity:0.7;margin-top:4px;">Galeri atau Kamera</div>
+    </span>
+    <img id="karFotoImg" src="" alt="Preview" onerror="handleFotoError(this)">
+    <div class="overlay-ganti" id="karFotoOverlay">
+      <span class="icon">🔄</span>
+      <span>Ganti Foto</span>
+    </div>
+  </div>
+  <div class="foto-hint" id="karFotoHint">Klik area foto untuk mengganti</div>
+  
+  <!-- Input file tersembunyi -->
+  <input type="file" id="karFotoInput" accept="image/*" style="display:none;" onchange="previewKarFoto(this)">
+  
+  <!-- Hidden fields -->
+  <input type="hidden" id="karFotoBase64" value="">
+  <input type="hidden" id="karFotoUrlLama" value="">
+</div>
+
+      <!-- NAMA LENGKAP (UTAMA) -->
+      <div class="form-group">
+        <label class="form-label">Nama Lengkap *</label>
+        <input type="text" class="form-input" id="karNama" placeholder="Masukkan nama lengkap">
+      </div>
+
+      <!-- KETERANGAN LAINNYA -->
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">PIN (4 digit)</label>
+          <input type="text" class="form-input" id="karPIN" maxlength="4" placeholder="0000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jabatan</label>
+          <input type="text" class="form-input" id="karJabatan" placeholder="Staff/Kasir/Manager">
+        </div>
+        <div class="form-group">
+          <label class="form-label">No. HP</label>
+          <input type="text" class="form-input" id="karHP" placeholder="08xxxxxxxxxx">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-input" id="karEmail" placeholder="email@domain.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tanggal Masuk</label>
+          <input type="date" class="form-input" id="karTglMasuk">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Toko Default</label>
+          <select class="form-select" id="karToko"><option value="">Pilih Toko</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Shift Default</label>
+          <select class="form-select" id="karShift"><option value="">Pilih Shift</option></select>
+        </div>
+      </div>
+      
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal btn-modal-secondary" onclick="closeModal('modalKaryawan')">Batal</button>
+      <button class="btn-modal btn-modal-primary" onclick="saveKaryawan()">💾 Simpan</button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- MODAL: JENIS IZIN -->
+<div class="modal-overlay" id="modalJenisIzin" onclick="closeModalOnOverlay(event, 'modalJenisIzin')">
+  <div class="modal-box">
+    <div class="modal-header"><h2>📋 Jenis Izin Baru</h2><button class="modal-close" onclick="closeModal('modalJenisIzin')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Nama Jenis</label><input type="text" class="form-input" id="izinNama"></div>
+        <div class="form-group"><label class="form-label">Kode</label><input type="text" class="form-input" id="izinKode"></div>
+        <div class="form-group"><label class="form-label">Kuota per Tahun</label><input type="number" class="form-input" id="izinKotaTahun"></div>
+        <div class="form-group"><label class="form-label">Kuota per Bulan</label><input type="number" class="form-input" id="izinKotaBulan"></div>
+        <div class="form-group"><label class="form-label">Maks Hari per Ajuan</label><input type="number" class="form-input" id="izinMax" value="3"></div>
+        <div class="form-group"><label class="form-label">Gender Khusus</label>
+          <select class="form-select" id="izinGender"><option>Semua</option><option>Perempuan</option><option>Laki-laki</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Potong Cuti Bulanan?</label>
+          <select class="form-select" id="izinPotong"><option value="Ya">Ya</option><option value="Tidak">Tidak</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Syarat Hari Kerja Minimal</label><input type="number" class="form-input" id="izinSyarat" value="90"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal btn-modal-secondary" onclick="closeModal('modalJenisIzin')">Batal</button>
+      <button class="btn-modal btn-modal-primary" onclick="saveJenisIzin()">💾 Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- AUDIO -->
+<audio id="soundSuccess" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+<audio id="soundError" src="https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3"></audio>
+<audio id="soundNotif" src="https://assets.mixkit.co/active_storage/sfx/2866/2866-preview.mp3"></audio>
+
+<script src="admin.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/absen/sw.js')
+      .then(reg => console.log('SW registered'))
+      .catch(err => console.log('SW fail', err));
+  });
+}
+</script>
 </body>
 </html>
