@@ -1,1859 +1,1864 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0D8ABC">
-<title>Absensi Karyawan Pro</title>
-<style>
-  :root {
-    --primary: #0D8ABC; --primary-dark: #0A6B8E; --primary-light: #E3F2FD;
-    --success: #34C759; --success-dark: #2DAF4A; --danger: #FF3B30;
-    --warning: #FF9500; --info: #5856D6; --text: #1A1A2E;
-    --text-secondary: #8B95A5; --bg: #F5F7FA; --surface: #FFFFFF;
-    --shadow: 0 2px 12px rgba(13,138,188,0.08); --shadow-lg: 0 8px 30px rgba(13,138,188,0.15);
-  }
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html { font-size: 16px; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased;
-    touch-action: manipulation; overscroll-behavior-y: none;
-  }
-
-  /* ===== LOGIN SCREEN ===== */
-  .login-screen {
-    position: fixed; inset: 0; z-index: 9999;
-    background: linear-gradient(180deg, #0D8ABC 0%, #0A6B8E 60%, #065473 100%);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 24px; transition: opacity 0.4s ease, transform 0.4s ease;
-  }
-  .login-screen.hidden {
-    opacity: 0; pointer-events: none; transform: scale(1.05);
-  }
-  .login-logo-wrap {
-    width: 100px; height: 100px; background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(10px); border-radius: 28px;
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 20px; border: 2px solid rgba(255,255,255,0.25);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-  }
-  .login-logo-wrap svg { width: 52px; height: 52px; stroke: white; }
-  .login-app-name {
-    color: white; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;
-    margin-bottom: 8px; text-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  }
-  .login-app-sub {
-    color: rgba(255,255,255,0.75); font-size: 14px; font-weight: 500;
-    margin-bottom: 40px; text-align: center;
-  }
-  .login-card {
-    background: white; border-radius: 24px; padding: 28px 24px;
-    width: 100%; max-width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-  }
-  .login-label {
-    font-size: 13px; font-weight: 700; color: var(--text-secondary);
-    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px;
-  }
-  .login-select {
-    width: 100%; padding: 16px 18px; border: 2px solid #E8ECF1;
-    border-radius: 16px; font-size: 17px; background: #F8F9FA; color: var(--text);
-    appearance: none; -webkit-appearance: none; margin-bottom: 20px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='%238B95A5' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 16px center; padding-right: 48px;
-    min-height: 56px; transition: all 0.2s;
-  }
-  .login-select:focus {
-    outline: none; border-color: var(--primary); background: white;
-    box-shadow: 0 0 0 4px rgba(13,138,188,0.12);
-  }
-  .login-btn {
-    width: 100%; padding: 18px; border: none; border-radius: 16px;
-    background: linear-gradient(135deg, var(--success), var(--success-dark));
-    color: white; font-size: 18px; font-weight: 800; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 10px;
-    box-shadow: 0 4px 16px rgba(52,199,89,0.35); transition: all 0.15s;
-    min-height: 56px;
-  }
-  .login-btn:active { transform: scale(0.97); }
-  .login-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-  .login-error {
-    background: #FFF2F2; color: var(--danger); padding: 12px 16px;
-    border-radius: 12px; font-size: 14px; font-weight: 700; margin-bottom: 16px;
-    display: none; border: 1px solid #FFD6D6;
-  }
-  .login-error.show { display: block; }
-  .login-footer {
-    margin-top: 24px; color: rgba(255,255,255,0.6); font-size: 12px;
-    text-align: center; font-weight: 500;
-  }
-  .spinner {
-    width: 22px; height: 22px; border: 3px solid rgba(255,255,255,0.3);
-    border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ===== APP HEADER ===== */
-  .app-header {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    color: white; padding: 14px 12px 18px;
-    position: sticky; top: 0; z-index: 100;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .app-header-left { display: flex; align-items: center; gap: 12px; }
-  .header-avatar {
-    width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.2);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px; font-weight: 800; color: white; overflow: hidden;
-    border: 2px solid rgba(255,255,255,0.3); flex-shrink: 0;
-  }
-  .header-avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .header-info h3 { font-size: 16px; font-weight: 700; line-height: 1.2; }
-  .header-info p { font-size: 12px; opacity: 0.85; font-weight: 500; margin-top: 2px; }
-  .header-logout {
-    width: 40px; height: 40px; border-radius: 50%;
-    background: rgba(255,255,255,0.15); border: none;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; backdrop-filter: blur(4px);
-  }
-  .header-logout:active { transform: scale(0.9); background: rgba(255,255,255,0.25); }
-  .header-logout svg { width: 22px; height: 22px; stroke: white; fill: none; }
-
-  .header-notif {
-    width: 40px; height: 40px; border-radius: 50%;
-    background: rgba(255,255,255,0.15); border: none;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; position: relative; backdrop-filter: blur(4px);
-  }
-  .header-notif:active { transform: scale(0.9); background: rgba(255,255,255,0.25); }
-  .header-notif svg { width: 22px; height: 22px; stroke: white; fill: none; }
-  .notif-badge {
-    position: absolute; top: -2px; right: -2px;
-    width: 18px; height: 18px; border-radius: 50%;
-    background: var(--danger); color: white; font-size: 11px; font-weight: 800;
-    display: flex; align-items: center; justify-content: center;
-    border: 2px solid var(--primary);
-  }
-
-  /* Notif Bubble */
-  .notif-bubble {
-    position: absolute; top: 52px; right: 8px;
-    background: white; border-radius: 16px;
-    box-shadow: var(--shadow-lg); width: 300px; max-height: 360px;
-    display: none; flex-direction: column; z-index: 200;
-    border: 1px solid #E8ECF1; overflow: hidden; animation: popIn 0.25s ease-out;
-  }
-  .notif-bubble.show { display: flex; }
-  .notif-bubble-header {
-    padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.2);
-    font-size: 15px; font-weight: 800; display: flex; justify-content: space-between; align-items: center; background: var(--primary); color: white;
-  }
-  .notif-bubble-close {
-    width: 28px; height: 28px; border-radius: 50%; border: none;
-    background: rgba(255,255,255,0.25); color: white; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-  }
-  .notif-bubble-close:active { background: rgba(255,255,255,0.4); }
-  .notif-bubble-list { overflow-y: auto; flex: 1; padding: 8px; -webkit-overflow-scrolling: touch; }
-  .notif-item {
-    padding: 12px; border-radius: 12px; margin-bottom: 6px; font-size: 14px;
-    cursor: pointer; transition: all 0.15s;
-  }
-  .notif-item:hover { background: #F8F9FA; }
-  .notif-item.approved { background: #E8F5E9; border-left: 3px solid var(--success); }
-  .notif-item.rejected { background: #FFEBEE; border-left: 3px solid var(--danger); }
-  .notif-item-title { font-weight: 700; margin-bottom: 2px; }
-  .notif-item-text { color: var(--text-secondary); font-size: 13px; }
-  .notif-empty { text-align: center; padding: 24px; color: var(--text-secondary); font-size: 14px; }
-  .notif-item .notif-item-date { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
-
-  /* ===== TAB CONTENT ===== */
-  .tab-content { display: none; padding-bottom: 100px; }
-  .tab-content.active { display: block; }
-
-  /* ===== CARDS ===== */
-  .card {
-    background: var(--surface); border-radius: 16px; padding: 16px;
-    box-shadow: var(--shadow); margin: 0 16px 12px;
-  }
-  .card-title {
-    font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 14px;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-
-  /* Shift Info Card */
-  .shift-card {
-    display: flex; align-items: center; gap: 14px; padding: 18px 16px;
-  }
-  .shift-icon {
-    width: 48px; height: 48px; border-radius: 14px;
-    background: var(--primary-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .shift-icon svg { width: 24px; height: 24px; stroke: var(--primary); }
-  .shift-detail h4 { font-size: 15px; font-weight: 700; color: var(--text); }
-  .shift-detail p { font-size: 13px; color: var(--text-secondary); margin-top: 3px; font-weight: 500; }
-  .shift-detail .status-line { display: flex; gap: 16px; margin-top: 8px; font-size: 13px; font-weight: 600; }
-  .status-line .ok { color: var(--success); }
-  .status-line .pending { color: var(--text-secondary); }
-
-  /* Stat Grid */
-  .stat-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-  }
-  .stat-item { text-align: center; }
-  .stat-number { font-size: 26px; font-weight: 800; color: var(--text); line-height: 1; }
-  .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 6px; font-weight: 600; }
-  .stat-bar { height: 4px; background: #E8ECF1; border-radius: 2px; margin-top: 8px; overflow: hidden; }
-  .stat-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
-
-  /* Menu Grid */
-  .menu-grid {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
-    margin: 0 16px;
-  }
-  .menu-item {
-    background: var(--surface); border-radius: 14px; padding: 16px 4px;
-    text-align: center; box-shadow: var(--shadow); cursor: pointer;
-    transition: all 0.15s ease; border: none; font-family: inherit;
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
-  }
-  .menu-item:active { transform: scale(0.95); background: var(--primary-light); }
-  .menu-item { position: relative; }
-  .menu-badge {
-    position: absolute; top: -4px; right: -4px;
-    width: 18px; height: 18px; border-radius: 50%;
-    background: var(--danger); color: white; font-size: 10px; font-weight: 800;
-    display: flex; align-items: center; justify-content: center;
-    border: 2px solid white; box-shadow: 0 2px 6px rgba(255,59,48,0.4);
-    z-index: 2;
-  }
-  .menu-icon {
-    width: 44px; height: 44px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .menu-icon svg { width: 24px; height: 24px; }
-  .menu-label { font-size: 12px; font-weight: 700; color: var(--text); }
-
-  /* Section Label */
-  .section-label {
-    font-size: 14px; font-weight: 800; color: var(--text-secondary);
-    text-transform: uppercase; letter-spacing: 0.5px;
-    margin: 20px 16px 12px;
-  }
-
-  /* ===== ABSENSI TAB ===== */
-  .camera-container {
-    position: relative; width: 100%; aspect-ratio: 3/4;
-    background: #111; overflow: hidden;
-  }
-  .camera-container video {
-    width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block;
-  }
-  .camera-container .preview-img {
-    width: 100%; height: 100%; object-fit: cover; display: none; transform: scaleX(-1);
-  }
-  .camera-overlay {
-    position: absolute; inset: 0; pointer-events: none;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-  }
-  .face-frame {
-    width: 240px; height: 300px; border: 3px solid rgba(52,199,89,0.5);
-    border-radius: 50% 50% 45% 45%; position: relative;
-    transition: all 0.3s;
-  }
-  .face-frame.active { border-color: var(--success); box-shadow: 0 0 20px rgba(52,199,89,0.3); }
-  .face-label {
-    position: absolute; bottom: -36px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,0,0,0.7); color: white; padding: 6px 14px;
-    border-radius: 20px; font-size: 13px; font-weight: 600; white-space: nowrap;
-  }
-  .capture-btn {
-    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
-    width: 72px; height: 72px; background: white;
-    border: 4px solid rgba(255,255,255,0.8); border-radius: 50%;
-    cursor: pointer; pointer-events: auto; z-index: 10;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .capture-btn::before {
-    content: ''; width: 56px; height: 56px; background: var(--primary);
-    border-radius: 50%; transition: all 0.15s;
-  }
-  .capture-btn:active::before { transform: scale(0.88); }
-  .capture-btn.disabled { opacity: 0.4; pointer-events: none; }
-  .capture-btn.disabled::before { background: #9AA0A6; }
-  .retake-btn {
-    position: absolute; top: 16px; right: 16px;
-    background: rgba(0,0,0,0.6); color: white; border: none;
-    padding: 10px 18px; border-radius: 24px; font-size: 14px; font-weight: 700;
-    cursor: pointer; z-index: 10; backdrop-filter: blur(4px);
-  }
-  .camera-start-overlay {
-    position: absolute; inset: 0; background: rgba(0,0,0,0.85);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    z-index: 20; color: white; gap: 12px; padding: 24px; text-align: center;
-  }
-  .camera-start-overlay.hidden { display: none; }
-  .camera-start-btn {
-    padding: 14px 28px; background: var(--primary); color: white;
-    border: none; border-radius: 14px; font-size: 16px; font-weight: 700;
-    cursor: pointer; margin-top: 8px;
-  }
-  .camera-start-btn:active { transform: scale(0.95); }
-  .camera-error-box {
-    background: rgba(255,59,48,0.15); color: #FF9F9F; padding: 12px 16px;
-    border-radius: 12px; font-size: 14px; font-weight: 600; margin-top: 8px;
-    border: 1px solid rgba(255,59,48,0.3);
-  }
-  .camera-error-box.hidden { display: none; }
-
-  .gps-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;
-    margin-bottom: 12px;
-  }
-  .gps-badge.ok { background: #E8F5E9; color: #1E8E3E; }
-  .gps-badge.bad { background: #FFEBEE; color: #C62828; }
-  .gps-badge.loading { background: #FFF8E1; color: #F57F17; }
-
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 16px 12px; }
-  .form-group { margin-bottom: 0; }
-  .form-label {
-    display: block; font-size: 12px; font-weight: 700; color: var(--text-secondary);
-    margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;
-  }
-  .form-select {
-    width: 100%; padding: 14px 16px; border: 2px solid #E8ECF1;
-    border-radius: 14px; font-size: 16px; background: var(--surface); color: var(--text);
-    appearance: none; -webkit-appearance: none; min-height: 50px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%238B95A5' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 14px center; padding-right: 44px;
-  }
-  .form-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px rgba(13,138,188,0.1); }
-
-  .btn {
-    width: calc(100% - 32px); margin: 0 16px 12px; padding: 16px;
-    border: none; border-radius: 14px; font-size: 17px; font-weight: 800;
-    cursor: pointer; transition: all 0.15s; display: flex;
-    align-items: center; justify-content: center; gap: 10px; min-height: 54px;
-  }
-  .btn:active { transform: scale(0.97); }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-  .btn-success { background: linear-gradient(135deg, var(--success), var(--success-dark)); color: white; box-shadow: 0 4px 14px rgba(52,199,89,0.3); }
-  .btn-danger { background: linear-gradient(135deg, var(--danger), #E53935); color: white; box-shadow: 0 4px 14px rgba(255,59,48,0.3); }
-  .btn-warning { background: linear-gradient(135deg, var(--warning), #F57F17); color: white; }
-  .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
-
-  /* ===== DATA ABSENSI TAB ===== */
-  .data-list {
-    margin: 0 16px;
-  }
-  .data-list-item {
-    background: var(--surface); border-radius: 14px; padding: 16px;
-    box-shadow: var(--shadow); margin-bottom: 10px;
-    display: flex; align-items: center; gap: 14px; cursor: pointer;
-    transition: all 0.15s;
-  }
-  .data-list-item:active { transform: scale(0.98); background: var(--primary-light); }
-  .data-list-icon {
-    width: 44px; height: 44px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .data-list-icon svg { width: 22px; height: 22px; }
-  .data-list-text { flex: 1; }
-  .data-list-text h4 { font-size: 15px; font-weight: 700; }
-  .data-list-text p { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
-  .data-list-chevron { color: var(--text-secondary); }
-
-  /* ===== BOTTOM NAV ===== */
-  .bottom-nav {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: var(--surface); border-top: 1px solid #E8ECF1;
-    display: flex; justify-content: space-around; align-items: center;
-    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-    z-index: 1000; box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
-  }
-  .nav-item {
-    flex: 1; display: flex; flex-direction: column; align-items: center;
-    gap: 4px; padding: 6px; cursor: pointer; color: var(--text-secondary);
-    font-size: 11px; font-weight: 700; transition: all 0.2s; border: none; background: none; font-family: inherit;
-  }
-  .nav-item:active { transform: scale(0.92); }
-  .nav-item.active { color: var(--primary); }
-  .nav-item svg { width: 24px; height: 24px; stroke-width: 2; }
-  .nav-fab-wrap {
-    position: relative; top: -20px;
-  }
-  .nav-fab {
-    width: 60px; height: 60px; border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    border: 4px solid var(--bg); box-shadow: 0 4px 16px rgba(13,138,188,0.4);
-    display: flex; align-items: center; justify-content: center;
-    color: white; cursor: pointer; transition: all 0.2s;
-  }
-  .nav-fab:active { transform: scale(0.9); }
-  .nav-fab svg { width: 28px; height: 28px; stroke: white; fill: none; }
-
-  /* ===== MODALS ===== */
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
-    z-index: 2000; display: none; align-items: flex-end; justify-content: center;
-    backdrop-filter: blur(6px);
-  }
-  .modal-overlay.active { display: flex; }
-  .modal-sheet {
-    background: white; width: 100%; max-height: 90vh;
-    border-radius: 24px 24px 0 0; overflow-y: auto;
-    animation: slideUp 0.3s ease-out; display: flex; flex-direction: column;
-  }
-  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  @keyframes popIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
-  .modal-header {
-    padding: 20px 20px 0; display: flex; justify-content: space-between; align-items: center;
-    position: sticky; top: 0; background: white; z-index: 10;
-  }
-  .modal-header h2 { font-size: 20px; font-weight: 900; }
-  .modal-close {
-    width: 40px; height: 40px; border-radius: 50%; border: none;
-    background: var(--bg); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-  }
-  .modal-body { padding: 16px 20px 28px; font-size: 16px; flex: 1; }
-
-  /* ===== IZIN MODAL ===== */
-  .izin-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
-  .izin-chip {
-    padding: 10px 18px; border-radius: 24px; border: 2px solid #E8ECF1;
-    background: white; font-size: 14px; cursor: pointer; transition: all 0.2s; font-weight: 700;
-  }
-  .izin-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
-  .izin-chip:active { transform: scale(0.95); }
-  textarea.form-input {
-    width: 100%; padding: 14px 16px; border: 2px solid #E8ECF1;
-    border-radius: 14px; font-size: 16px; background: var(--surface);
-    min-height: 100px; resize: vertical; font-family: inherit;
-  }
-  textarea.form-input:focus { outline: none; border-color: var(--primary); }
-  input[type="date"].form-select, input[type="file"].form-select { padding: 14px 16px; }
-
-  /* ===== TOAST ===== */
-  .toast {
-    position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%);
-    padding: 14px 24px; border-radius: 14px; color: white;
-    font-size: 15px; font-weight: 700; z-index: 3000;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25); display: none;
-    animation: toastSlide 0.35s ease-out; max-width: 90%; text-align: center;
-  }
-  .toast.show { display: block; }
-  @keyframes toastSlide { from { opacity:0; transform: translateX(-50%) translateY(20px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
-  .toast-success { background: rgba(52,199,89,0.95); }
-  .toast-error { background: rgba(255,59,48,0.95); }
-  .toast-info { background: rgba(13,138,188,0.95); }
-
-  /* ===== PICO MASCOT ===== */
-  .pico-container {
-    position: fixed; bottom: 110px; right: 16px; z-index: 500;
-    display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
-  }
-  .pico-mascot {
-    width: 60px; height: 60px; cursor: pointer;
-    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.25));
-    transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .pico-mascot:active { transform: scale(0.88); }
-  .chat-bubble {
-    background: white; border-radius: 18px; padding: 16px 18px;
-    box-shadow: var(--shadow-lg); max-width: 260px; font-size: 15px;
-    line-height: 1.5; display: none; border: 1px solid #E8ECF1; position: relative;
-    pointer-events: auto;
-  }
-
-  /* Chat Attachments */
-  .chat-msg-img { max-width: 200px; max-height: 200px; border-radius: 12px; cursor: pointer; object-fit: cover; }
-  .chat-msg-file { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: rgba(255,255,255,0.15); border-radius: 10px; font-size: 13px; }
-  .chat-msg-file svg { flex-shrink: 0; }
-
-  /* Chat Status Animations */
-  @keyframes chatPulse {
-    0%, 100% { opacity: 0.7; }
-    50% { opacity: 1; }
-  }
-  .chat-sending { animation: chatPulse 1s infinite; }
-
-  /* ===== BERITA CARD ===== */
-  .berita-card {
-    background: var(--surface); border-radius: 16px; overflow: hidden;
-    box-shadow: var(--shadow); margin-bottom: 14px; border: 1px solid #E8ECF1;
-  }
-  .berita-img {
-    width: 100%; height: 160px; object-fit: cover; background: #E8ECF1;
-  }
-  .berita-body { padding: 14px 16px; }
-  .berita-kategori {
-    display: inline-block; padding: 4px 10px; border-radius: 6px;
-    font-size: 11px; font-weight: 800; margin-bottom: 8px;
-  }
-  .berita-judul { font-size: 16px; font-weight: 800; line-height: 1.3; margin-bottom: 8px; }
-  .berita-isi { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
-  .berita-tgl { font-size: 12px; color: var(--text-secondary); margin-top: 10px; font-weight: 600; }
-
-  /* ===== TUGAS CARD ===== */
-  .tugas-card {
-    background: var(--surface); border-radius: 14px; padding: 14px 16px;
-    box-shadow: var(--shadow); margin-bottom: 10px; border-left: 4px solid var(--primary);
-  }
-  .tugas-card.high { border-left-color: var(--danger); }
-  .tugas-card.medium { border-left-color: var(--warning); }
-  .tugas-card.low { border-left-color: var(--success); }
-  .tugas-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-  .tugas-judul { font-size: 15px; font-weight: 800; flex: 1; }
-  .tugas-prioritas {
-    padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 800;
-    text-transform: uppercase;
-  }
-  .tugas-prioritas.high { background: #FFEBEE; color: var(--danger); }
-  .tugas-prioritas.medium { background: #FFF3E0; color: var(--warning); }
-  .tugas-prioritas.low { background: #E8F5E9; color: var(--success); }
-  .tugas-deskripsi { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.4; }
-  .tugas-footer { display: flex; justify-content: space-between; align-items: center; }
-  .tugas-deadline { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
-  .tugas-btn {
-    padding: 6px 14px; border-radius: 10px; border: none; font-size: 12px;
-    font-weight: 800; cursor: pointer; transition: all 0.15s;
-  }
-  .tugas-btn.selesai { background: var(--success); color: white; }
-  .tugas-btn.selesai:active { transform: scale(0.95); }
-
-
-  .chat-bubble.show { display: block; animation: popIn 0.3s ease-out; }
-  .bubble-close {
-    position: absolute; top: -8px; right: -8px;
-    width: 28px; height: 28px; background: var(--danger);
-    color: white; border: 2px solid white; border-radius: 50%;
-    font-size: 14px; font-weight: 800; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    z-index: 10;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-  }
-  .bubble-close:active { transform: scale(0.9); background: #C62828; }
-
-  /* ===== PICO MODAL ===== */
-  .pico-modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 4000;
-    display: none; align-items: center; justify-content: center;
-    padding: 20px; backdrop-filter: blur(8px);
-  }
-  .pico-modal-overlay.active { display: flex; }
-  .pico-modal-box {
-    background: white; border-radius: 24px; padding: 28px 24px;
-    text-align: center; max-width: 340px; width: 100%;
-    box-shadow: 0 24px 70px rgba(0,0,0,0.3);
-    animation: modalPop 0.4s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  @keyframes modalPop { from { transform: scale(0.8); opacity:0; } to { transform: scale(1); opacity:1; } }
-  .pico-modal-img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin: 0 auto 14px; display: block; }
-  .pico-modal-text { font-size: 18px; font-weight: 800; line-height: 1.4; }
-  .pico-modal-btn {
-    margin-top: 20px; padding: 14px 32px; border: none; border-radius: 14px;
-    color: white; font-size: 16px; font-weight: 800; cursor: pointer;
-    min-height: 50px; width: 100%;
-  }
-
-  /* ===== TABLES ===== */
-  .data-table { width: 100%; border-collapse: collapse; font-size: 15px; }
-  .data-table th { text-align: left; padding: 12px 8px; color: var(--text-secondary); font-weight: 700; font-size: 13px; text-transform: uppercase; border-bottom: 2px solid #E8ECF1; }
-  .data-table td { padding: 14px 8px; border-bottom: 1px solid #F1F3F4; }
-  .data-table tr:last-child td { border-bottom: none; }
-  .badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; }
-  .badge-green { background: #E8F5E9; color: #1E8E3E; }
-  .badge-red { background: #FFEBEE; color: #C62828; }
-  .badge-blue { background: var(--primary-light); color: var(--primary); }
-  .badge-orange { background: #FFF3E0; color: #E65100; }
-
-  /* ===== PERMISSION HELP ===== */
-  .perm-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 5000;
-    display: none; align-items: center; justify-content: center;
-    padding: 20px; backdrop-filter: blur(6px);
-  }
-  .perm-overlay.active { display: flex; }
-  .perm-box {
-    background: white; border-radius: 20px; padding: 24px;
-    max-width: 400px; width: 100%; max-height: 85vh; overflow-y: auto;
-    box-shadow: 0 24px 70px rgba(0,0,0,0.3);
-  }
-  .perm-title { font-size: 18px; font-weight: 900; margin-bottom: 12px; color: var(--danger); display: flex; align-items: center; gap: 8px; }
-  .perm-step { display: flex; gap: 12px; margin-bottom: 14px; align-items: flex-start; }
-  .perm-step-num { width: 28px; height: 28px; min-width: 28px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
-  .perm-step-text { font-size: 15px; line-height: 1.5; }
-  .perm-btn { width: 100%; padding: 14px; border: none; border-radius: 14px; background: var(--primary); color: white; font-size: 16px; font-weight: 800; cursor: pointer; margin-top: 6px; }
-  .perm-btn.secondary { background: var(--bg); color: var(--text); border: 2px solid #E8ECF1; }
-
-  /* ===== UTILS ===== */
-  .hidden { display: none !important; }
-
-  /* ===== STATUS FILTER CHIPS ===== */
-  .filter-chips { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
-  .filter-chip {
-    padding: 8px 16px; border-radius: 20px; border: 2px solid #E8ECF1;
-    background: white; font-size: 13px; font-weight: 700; cursor: pointer;
-    white-space: nowrap; transition: all 0.2s; flex-shrink: 0;
-  }
-  .filter-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
-  .filter-chip:active { transform: scale(0.95); }
-
-  /* ===== HISTORY CARDS ===== */
-  .history-card {
-    background: var(--surface); border-radius: 14px; padding: 14px 16px;
-    box-shadow: var(--shadow); margin-bottom: 10px; border-left: 4px solid #E8ECF1;
-  }
-  .history-card.pending { border-left-color: var(--warning); background: #FFF8E1; }
-  .history-card.approved { border-left-color: var(--success); background: #E8F5E9; }
-  .history-card.rejected { border-left-color: var(--danger); background: #FFEBEE; }
-  .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .history-title { font-size: 15px; font-weight: 800; }
-  .history-badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; }
-  .history-badge.pending { background: var(--warning); color: white; }
-  .history-badge.approved { background: var(--success); color: white; }
-  .history-badge.rejected { background: var(--danger); color: white; }
-  .history-meta { font-size: 13px; color: var(--text-secondary); font-weight: 500; line-height: 1.6; }
-  .history-empty { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 15px; font-weight: 600; }
-
-
-  .text-center { text-align: center; }
-  .mt-1 { margin-top: 8px; } .mt-2 { margin-top: 16px; }
-  .mb-1 { margin-bottom: 8px; } .mb-2 { margin-bottom: 16px; }
-  .flex { display: flex; } .items-center { align-items: center; } .gap-2 { gap: 8px; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0D8ABC">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Absensi">
+  <link rel="manifest" href="manifest.json">
+  <title>Absensi Karyawan</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --primary: #0D8ABC;
+      --primary-dark: #0a6a94;
+      --primary-light: #e8f4f9;
+      --success: #34C759;
+      --danger: #FF3B30;
+      --warning: #FF9500;
+      --gray: #8E8E93;
+      --gray-light: #F2F2F7;
+      --text: #1C1C1E;
+      --text-secondary: #6C6C70;
+      --white: #FFFFFF;
+      --card-shadow: 0 2px 12px rgba(13,138,188,0.08);
+      --radius-card: 16px;
+      --radius-btn: 14px;
+      --radius-input: 14px;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--gray-light);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    /* ===== SCREEN MANAGER ===== */
+    .screen { display: none; min-height: 100vh; flex-direction: column; }
+    .screen.active { display: flex; }
+    /* ===== LOGIN SCREEN ===== */
+    #loginScreen {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+    }
+    .login-card {
+      background: var(--white);
+      border-radius: 24px;
+      padding: 32px 24px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .login-logo {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .login-logo .logo-icon {
+      width: 72px; height: 72px;
+      background: var(--primary-light);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 12px;
+      font-size: 36px;
+    }
+    .login-logo h1 { font-size: 22px; font-weight: 700; color: var(--text); }
+    .login-logo p { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block; font-size: 13px; font-weight: 600;
+      color: var(--text-secondary); margin-bottom: 8px;
+    }
+    .form-control {
+      width: 100%; padding: 14px 16px;
+      border: 1.5px solid #E5E5EA;
+      border-radius: var(--radius-input);
+      font-size: 15px; color: var(--text);
+      background: var(--white);
+      transition: border-color 0.2s;
+      appearance: none;
+    }
+    .form-control:focus { outline: none; border-color: var(--primary); }
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 15px;
+      border: none; border-radius: var(--radius-btn);
+      font-size: 16px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: var(--white); }
+    .btn-primary:active { background: var(--primary-dark); transform: scale(0.98); }
+    .btn-success { background: var(--success); color: var(--white); }
+    .btn-danger { background: var(--danger); color: var(--white); }
+    .btn-warning { background: var(--warning); color: var(--white); }
+    .btn-outline {
+      background: transparent; border: 1.5px solid var(--primary);
+      color: var(--primary);
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    /* ===== MAIN APP ===== */
+    #mainApp { background: var(--gray-light); }
+    /* Topbar */
+    .topbar {
+      background: var(--primary);
+      padding: 48px 20px 16px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .topbar-content {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar h2 { color: var(--white); font-size: 18px; font-weight: 700; }
+    .topbar-subtitle { color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 2px; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .notif-btn {
+      width: 36px; height: 36px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      border: none; cursor: pointer; position: relative;
+    }
+    .notif-badge {
+      position: absolute; top: -4px; right: -4px;
+      width: 16px; height: 16px;
+      background: var(--danger);
+      border-radius: 50%;
+      font-size: 9px; color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+    }
+    .avatar {
+      width: 36px; height: 36px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700; color: white;
+      cursor: pointer; overflow: hidden;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    /* Tab content */
+    .tab-content { display: none; flex: 1; overflow-y: auto; padding-bottom: 80px; }
+    .tab-content.active { display: block; }
+    /* ===== BERANDA TAB ===== */
+    .section { padding: 16px; }
+    .section-title {
+      font-size: 13px; font-weight: 600;
+      color: var(--text-secondary); margin-bottom: 10px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    /* Shift card */
+    .shift-card {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      border-radius: var(--radius-card);
+      padding: 20px;
+      color: white;
+      margin-bottom: 16px;
+    }
+    .shift-card-header {
+      display: flex; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .shift-badge {
+      background: rgba(255,255,255,0.2);
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 600;
+    }
+    .shift-time {
+      font-size: 28px; font-weight: 700; margin-bottom: 4px;
+    }
+    .shift-info { font-size: 13px; opacity: 0.85; }
+    .shift-meta {
+      display: flex; gap: 16px; margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.2);
+    }
+    .shift-meta-item { font-size: 12px; opacity: 0.8; }
+    .shift-meta-item strong { display: block; font-size: 13px; opacity: 1; }
+    /* Stat cards */
+    .stat-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--white);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      box-shadow: var(--card-shadow);
+    }
+    .stat-value { font-size: 24px; font-weight: 700; color: var(--primary); }
+    .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+    /* Menu grid */
+    .menu-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    }
+    .menu-item {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 8px; cursor: pointer;
+    }
+    .menu-icon {
+      width: 56px; height: 56px;
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      box-shadow: var(--card-shadow);
+    }
+    .menu-label { font-size: 11px; font-weight: 500; color: var(--text-secondary); text-align: center; }
+    /* ===== ABSENSI TAB ===== */
+    .absensi-container { padding: 16px; }
+    /* GPS Badge */
+    .gps-badge {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px; font-weight: 600;
+      margin-bottom: 16px;
+      width: fit-content;
+    }
+    .gps-badge.valid { background: #e8f8ed; color: var(--success); }
+    .gps-badge.invalid { background: #fff0ee; color: var(--danger); }
+    .gps-badge.loading { background: var(--gray-light); color: var(--gray); }
+    /* Camera container */
+    .camera-container {
+      background: #000;
+      border-radius: 20px;
+      overflow: hidden;
+      aspect-ratio: 3/4;
+      position: relative;
+      margin-bottom: 16px;
+    }
+    #videoElement {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+    #capturedPhoto {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+    .camera-overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .face-guide {
+      width: 200px; height: 250px;
+      border: 3px solid rgba(255,255,255,0.6);
+      border-radius: 50%;
+      box-shadow: 0 0 0 4px rgba(255,255,255,0.1);
+    }
+    .capture-btn {
+      position: absolute; bottom: 16px;
+      left: 50%; transform: translateX(-50%);
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      border: 4px solid white;
+      background: var(--white);
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+    }
+    .retake-btn {
+      position: absolute; top: 12px; left: 12px;
+      background: rgba(0,0,0,0.5);
+      border: none; color: white;
+      padding: 6px 12px; border-radius: 20px;
+      font-size: 13px; cursor: pointer;
+      display: none;
+    }
+    /* Absensi form */
+    .absensi-form {
+      background: var(--white);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 16px;
+    }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+    /* Action buttons */
+    .action-buttons { display: flex; flex-direction: column; gap: 12px; }
+    /* ===== DATA ABSENSI TAB ===== */
+    .data-container { padding: 16px; }
+    .stat-grid-3 {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat-card-sm {
+      background: var(--white);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: var(--card-shadow);
+      text-align: center;
+    }
+    .stat-card-sm .val { font-size: 20px; font-weight: 700; color: var(--primary); }
+    .stat-card-sm .lbl { font-size: 10px; color: var(--text-secondary); margin-top: 2px; }
+    .menu-list { display: flex; flex-direction: column; gap: 10px; }
+    .menu-list-item {
+      background: var(--white);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      display: flex; align-items: center; gap: 14px;
+      box-shadow: var(--card-shadow);
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .menu-list-item:active { transform: scale(0.98); }
+    .menu-list-icon {
+      width: 44px; height: 44px;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    .menu-list-text { flex: 1; }
+    .menu-list-title { font-size: 15px; font-weight: 600; }
+    .menu-list-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+    .chevron { color: var(--gray); font-size: 18px; }
+    /* ===== BOTTOM NAV ===== */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--white);
+      border-top: 1px solid rgba(0,0,0,0.08);
+      display: flex; align-items: center;
+      padding: 8px 0 env(safe-area-inset-bottom);
+      z-index: 200;
+    }
+    .nav-item {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; gap: 4px;
+      cursor: pointer; padding: 6px;
+    }
+    .nav-icon { font-size: 22px; }
+    .nav-label { font-size: 10px; font-weight: 500; color: var(--gray); }
+    .nav-item.active .nav-label { color: var(--primary); }
+    /* FAB - Absensi center button */
+    .nav-fab {
+      flex: 1; display: flex; justify-content: center; cursor: pointer;
+    }
+    .fab-btn {
+      width: 56px; height: 56px;
+      background: var(--primary);
+      border-radius: 20px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 2px; margin-top: -28px;
+      box-shadow: 0 4px 16px rgba(13,138,188,0.4);
+      transition: transform 0.2s;
+    }
+    .fab-btn:active { transform: scale(0.94); }
+    .fab-btn .nav-icon { font-size: 24px; color: white; }
+    .fab-btn .nav-label { color: rgba(255,255,255,0.9); }
+    /* ===== MODAL ===== */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none; align-items: flex-end;
+      z-index: 300;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--white);
+      border-radius: 24px 24px 0 0;
+      padding: 24px 20px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: slideUp 0.3s ease;
+    }
+    .modal-center {
+      background: var(--white);
+      border-radius: 24px;
+      padding: 24px 20px;
+      margin: 16px;
+      animation: popIn 0.25s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    @keyframes popIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .modal-title { font-size: 18px; font-weight: 700; }
+    .modal-close {
+      width: 32px; height: 32px;
+      background: var(--gray-light);
+      border-radius: 50%; border: none;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; cursor: pointer;
+    }
+    /* ===== TOAST ===== */
+    .toast-container {
+      position: fixed; top: 16px; left: 16px; right: 16px;
+      z-index: 999; display: flex; flex-direction: column; gap: 8px;
+    }
+    .toast {
+      padding: 14px 16px;
+      border-radius: 14px;
+      font-size: 14px; font-weight: 500;
+      color: white; display: flex; align-items: center; gap: 10px;
+      animation: toastSlide 0.35s ease;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--danger); }
+    .toast.warning { background: var(--warning); }
+    .toast.info { background: var(--primary); }
+    @keyframes toastSlide {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    /* ===== JADWAL ===== */
+    .jadwal-week {
+      display: flex; gap: 8px; overflow-x: auto;
+      padding: 4px 0 12px; scrollbar-width: none;
+    }
+    .jadwal-day {
+      min-width: 80px; background: var(--white);
+      border-radius: 14px; padding: 12px 8px;
+      text-align: center; box-shadow: var(--card-shadow);
+    }
+    .jadwal-day.today { background: var(--primary); color: white; }
+    .jadwal-day-name { font-size: 11px; font-weight: 600; }
+    .jadwal-day-date { font-size: 20px; font-weight: 700; margin: 4px 0; }
+    .jadwal-day-shift { font-size: 10px; }
+    /* ===== LOADING ===== */
+    .loading-spinner {
+      width: 40px; height: 40px;
+      border: 4px solid var(--primary-light);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-overlay {
+      position: fixed; inset: 0;
+      background: rgba(255,255,255,0.8);
+      display: none; align-items: center;
+      justify-content: center; z-index: 500;
+      flex-direction: column; gap: 16px;
+    }
+    .loading-overlay.active { display: flex; }
+    .loading-overlay p { font-weight: 600; color: var(--text-secondary); }
+    /* ===== CHAT ===== */
+    .chat-messages {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .chat-bubble {
+      max-width: 80%; padding: 10px 14px;
+      border-radius: 18px; font-size: 14px;
+    }
+    .chat-bubble.sent {
+      background: var(--primary); color: white;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+    .chat-bubble.received {
+      background: var(--white); color: var(--text);
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+      box-shadow: var(--card-shadow);
+    }
+    .chat-sender { font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+    .chat-time { font-size: 10px; opacity: 0.7; margin-top: 4px; text-align: right; }
+    .chat-input-bar {
+      display: flex; gap: 10px; padding: 12px 16px;
+      background: var(--white);
+      border-top: 1px solid rgba(0,0,0,0.08);
+    }
+    /* ===== HISTORY TABLE ===== */
+    .history-item {
+      background: var(--white);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex; align-items: center; gap: 14px;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 10px;
+    }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+    .status-dot.ontime { background: var(--success); }
+    .status-dot.telat { background: var(--warning); }
+    .status-dot.alpa { background: var(--danger); }
+    .status-dot.izin { background: var(--gray); }
+    /* ===== PICO MASCOT ===== */
+    .pico-btn {
+      position: fixed; bottom: 90px; right: 16px;
+      width: 56px; height: 56px;
+      background: var(--warning);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(255,149,0,0.4);
+      z-index: 150;
+      animation: bounce 2s infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    /* ===== STATUS ABSENSI ===== */
+    .absen-status-card {
+      background: var(--white);
+      border-radius: var(--radius-card);
+      padding: 20px;
+      box-shadow: var(--card-shadow);
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .absen-status-icon { font-size: 48px; margin-bottom: 8px; }
+    .absen-status-title { font-size: 18px; font-weight: 700; }
+    .absen-status-sub { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+    /* Responsive for larger phones */
+    @media (min-width: 430px) {
+      .menu-grid { grid-template-columns: repeat(4, 1fr); }
+    }
   </style>
-
-  <base target="_blank">
-<base target="_blank">
 </head>
 <body>
 
-<!-- ===== LOGIN SCREEN ===== -->
-<div class="login-screen" id="loginScreen">
-  <div class="login-logo-wrap">
-    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-  </div>
-  <div class="login-app-name">Absensi Karyawan</div>
-  <div class="login-app-sub">Pilih nama Anda untuk masuk</div>
-  <div class="login-card">
-    <div class="login-error" id="loginError"></div>
-    <div class="login-label">Nama Karyawan</div>
-    <select class="login-select" id="loginSelect">
-      <option value="">Pilih Nama...</option>
-    </select>
-    <button class="login-btn" id="btnLogin" onclick="doLogin()">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
-      Masuk
-    </button>
-  </div>
-  <div class="login-footer">Aplikasi Absensi Multi-Toko v2.0</div>
+<!-- ===== TOAST CONTAINER ===== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ===== LOADING OVERLAY ===== -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <p id="loadingText">Memuat...</p>
 </div>
 
-<!-- ===== APP CONTENT ===== -->
-<div id="appContent" style="display:none;">
+<!-- ===== LOGIN SCREEN ===== -->
+<div class="screen active" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">📋</div>
+      <h1>Absensi Karyawan</h1>
+      <p>Sistem Absensi Multi-Toko v3.0</p>
+    </div>
+    <div class="form-group">
+      <label>Pilih Nama Karyawan</label>
+      <select class="form-control" id="selectKaryawan">
+        <option value="">-- Memuat data... --</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Toko</label>
+      <select class="form-control" id="selectToko">
+        <option value="">-- Pilih toko --</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Shift</label>
+      <select class="form-control" id="selectShift">
+        <option value="">-- Pilih shift --</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>PIN (4 digit)</label>
+      <input type="password" inputmode="numeric" maxlength="4" class="form-control" id="inputPin" placeholder="••••">
+    </div>
+    <button class="btn btn-primary" id="btnLogin" onclick="doLogin()">
+      <span>🔓</span> Masuk
+    </button>
+    <p style="text-align:center;margin-top:16px;font-size:12px;color:var(--gray);">v3.0.0 — © 2025 Sistem Absensi</p>
+  </div>
+</div>
 
-  <!-- Header -->
-  <div class="app-header">
-    <div class="app-header-left">
-      <div class="header-avatar" id="headerAvatar">
-        <span id="headerAvatarText">B</span>
-        <img id="headerAvatarImg" src="" style="display:none;" alt="">
+<!-- ===== MAIN APP ===== -->
+<div class="screen" id="mainApp">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-content">
+      <div>
+        <h2 id="topbarTitle">Beranda</h2>
+        <div class="topbar-subtitle" id="topbarDate"></div>
       </div>
-      <div class="header-info">
-        <h3 id="headerName">Budi Santoso</h3>
-        <p id="headerRole">Staff - Toko A</p>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:4px;">
-      <button class="header-notif" id="notifBell" onclick="toggleNotifBubble(event)">
-        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-        <div class="notif-badge hidden" id="notifBadge">0</div>
-      </button>
-      <button class="header-logout" onclick="logout()" title="Logout">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-      </button>
-    </div>
-    <div class="notif-bubble" id="notifBubble">
-      <div class="notif-bubble-header">
-        <span>Pemberitahuan</span>
-        <button class="notif-bubble-close" onclick="closeNotifBubble(event)">&#10005;</button>
-      </div>
-      <div class="notif-bubble-list" id="notifBubbleList">
-        <div class="notif-empty">Belum ada pemberitahuan</div>
+      <div class="topbar-right">
+        <button class="notif-btn" onclick="openModal('notifModal')">
+          📣
+          <div class="notif-badge" id="notifBadge" style="display:none">0</div>
+        </button>
+        <div class="avatar" id="userAvatar" onclick="openModal('profileModal')">N</div>
       </div>
     </div>
   </div>
 
-  <!-- TAB: BERANDA -->
+  <!-- Tab Contents -->
+
+  <!-- BERANDA -->
   <div class="tab-content active" id="tabBeranda">
-    <!-- Shift Info Card -->
-    <div class="card shift-card" style="margin-top: 12px;">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;min-width:70px;">
-        <img id="fotoTokoCard" src="" alt="Toko" style="width:56px;height:56px;border-radius:16px;object-fit:cover;background:#E8ECF1;display:none;border:2px solid var(--primary-light);">
-        <div id="namaTokoCard" style="font-size:12px;font-weight:800;color:var(--primary);text-align:center;max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">-</div>
-      </div>
-      <div class="shift-detail">
-        <h4 id="shiftNama">Reguler - 08:00 - 17:00</h4>
-        <p id="shiftTanggal">Senin, 16 Mei 2026</p>
-        <div class="status-line">
-          <span class="pending" id="statusMasuk">Masuk: --</span>
-          <span class="pending" id="statusPulang">Pulang: --</span>
+    <div class="section">
+      <!-- Shift Card -->
+      <div class="shift-card" id="shiftCard">
+        <div class="shift-card-header">
+          <span>Shift Hari Ini</span>
+          <span class="shift-badge" id="shiftBadgeName">—</span>
         </div>
-      </div>
-    </div>
-
-    <!-- Stat Card -->
-    <div class="card">
-      <div class="card-title">Rekap Bulan Ini <span id="statBulanLabel" style="font-size:13px;color:var(--text-secondary);font-weight:600;">-</span></div>
-      <div class="stat-grid">
-        <div class="stat-item">
-          <div class="stat-number" id="statHadir" style="color:var(--success);">0</div>
-          <div class="stat-label">Hadir</div>
-          <div class="stat-bar"><div class="stat-bar-fill" id="barHadir" style="width:0%;background:var(--success);"></div></div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number" id="statAlpa" style="color:var(--text);">0</div>
-          <div class="stat-label">Alpa</div>
-          <div class="stat-bar"><div class="stat-bar-fill" id="barAlpa" style="width:0%;background:var(--text);"></div></div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-number" id="statTelat" style="color:var(--danger);">0</div>
-          <div class="stat-label">Terlambat</div>
-          <div class="stat-bar"><div class="stat-bar-fill" id="barTelat" style="width:0%;background:var(--danger);"></div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Menu Utama -->
-    <div class="section-label">Menu Utama</div>
-    <div class="menu-grid">
-      <button class="menu-item" onclick="openModal('modalIzin')">
-        <div class="menu-icon" style="background:#E3F2FD;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#0D8ABC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-        </div>
-        <div class="menu-label">Izin</div>
-      </button>
-      <button class="menu-item" onclick="openModal('modalLembur')">
-        <div class="menu-icon" style="background:#FFF3E0;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        </div>
-        <div class="menu-label">Lembur</div>
-      </button>
-      <button class="menu-item" onclick="openModal('modalJadwal')">
-        <div class="menu-icon" style="background:#E8F5E9;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#34C759" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-        </div>
-        <div class="menu-label">Jadwal</div>
-      </button>
-      <button class="menu-item" onclick="showToast('Fitur Info Gaji segera hadir!', 'info')">
-        <div class="menu-icon" style="background:#F3E5F5;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#5856D6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
-        </div>
-        <div class="menu-label">Info Gaji</div>
-      </button>
-      <button class="menu-item" onclick="openModal('modalTugas'); renderTugasList();">
-        <div class="menu-icon" style="background:#E0F7FA;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#00ACC1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-        </div>
-        <div class="menu-label">Tugas</div>
-        <div class="menu-badge hidden" id="badgeTugas">0</div>
-      </button>
-      <button class="menu-item" onclick="openModal('modalBerita'); renderBeritaList();">
-        <div class="menu-icon" style="background:#FCE4EC;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#E91E63" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path><path d="M18 14h-8"></path><path d="M15 18h-5"></path><path d="M10 6h8v4h-8V6Z"></path></svg>
-        </div>
-        <div class="menu-label">Berita</div>
-        <div class="menu-badge hidden" id="badgeBerita">0</div>
-      </button>
-      <button class="menu-item" onclick="openModal('modalChat')">
-        <div class="menu-icon" style="background:#E8EAF6;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#5856D6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-        </div>
-        <div class="menu-label">Chat</div>
-        <div class="menu-badge hidden" id="badgeChat">0</div>
-      </button>
-      <button class="menu-item" onclick="openModal('modalTukerShift')">
-        <div class="menu-icon" style="background:#FCE4EC;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#E91E63" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
-        </div>
-        <div class="menu-label">Tuker Shift</div>
-        <div class="menu-badge hidden" id="badgeTukerShift">0</div>
-      </button>
-    </div>
-  </div>
-
-  <!-- TAB: ABSENSI -->
-  <div class="tab-content" id="tabAbsensi">
-    <!-- GPS Badge -->
-    <div style="padding: 12px 16px 0;">
-      <div class="gps-badge loading" id="gpsBadge">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-        <span id="gpsText">Mendeteksi lokasi...</span>
-      </div>
-    </div>
-
-    <!-- Camera -->
-    <div class="card" style="padding: 12px; margin-top: 8px;">
-      <div style="font-size: 14px; font-weight: 800; margin-bottom: 10px; color: var(--text-secondary);">AMBIL FOTO SELFIE</div>
-      <div class="camera-container" id="cameraContainer">
-        <div class="camera-start-overlay hidden" id="cameraOverlay">
-          <div class="camera-error-box hidden" id="cameraErrorBox"></div>
-        </div>
-        <video id="video" autoplay playsinline muted></video>
-        <img id="previewImg" class="preview-img" alt="Preview">
-        <canvas id="canvas" style="display:none;"></canvas>
-        <div class="camera-overlay">
-          <div class="face-frame" id="faceFrame">
+        <div class="shift-time" id="shiftTime">—</div>
+        <div class="shift-info" id="shiftInfo">Belum ada jadwal</div>
+        <div class="shift-meta">
+          <div class="shift-meta-item">
+            <strong id="shiftToko">—</strong>
+            Toko
+          </div>
+          <div class="shift-meta-item">
+            <strong id="shiftStatus">—</strong>
+            Status Absen
+          </div>
+          <div class="shift-meta-item">
+            <strong id="shiftJamMasuk">—</strong>
+            Jam Masuk
           </div>
         </div>
-        <button class="capture-btn" id="captureBtn" onclick="capturePhoto()"></button>
-        <button class="retake-btn" id="retakeBtn" onclick="retakePhoto()">Ulangi</button>
       </div>
-      <div style="font-size: 13px; color: var(--text-secondary); text-align: center; margin-top: 10px; font-weight: 500;">Pastikan pencahayaan cukup & wajah terlihat jelas</div>
-    </div>
 
-    <!-- Form -->
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Toko</label>
-        <select class="form-select" id="selectToko" onchange="onTokoChange()"><option value="">Pilih...</option></select>
+      <!-- Stat Cards -->
+      <div class="section-title">Bulan Ini</div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="statHadir">0</div>
+          <div class="stat-label">Hari Hadir</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--warning)" id="statTelat">0</div>
+          <div class="stat-label">Kali Telat</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--danger)" id="statAlpa">0</div>
+          <div class="stat-label">Hari Alpa</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--success)" id="statJamKerja">0j</div>
+          <div class="stat-label">Total Jam Kerja</div>
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Shift</label>
-        <select class="form-select" id="selectShift"><option value="">Pilih...</option></select>
-      </div>
-    </div>
 
-    <div class="card hidden" id="jamInfoCard" style="padding: 14px 16px;">
-      <div style="font-size: 15px; font-weight: 700; color: var(--text);">
-        <span id="infoJamMasuk">Jam Masuk: --:--</span> &nbsp;|&nbsp; <span id="infoJamPulang">Jam Pulang: --:--</span>
+      <!-- Menu Grid -->
+      <div class="section-title">Menu</div>
+      <div class="menu-grid">
+        <div class="menu-item" onclick="openModal('jadwalModal')">
+          <div class="menu-icon" style="background:#e8f4f9">🗓️</div>
+          <span class="menu-label">Jadwal</span>
+        </div>
+        <div class="menu-item" onclick="openModal('izinModal')">
+          <div class="menu-icon" style="background:#fef0e6">📝</div>
+          <span class="menu-label">Izin/Cuti</span>
+        </div>
+        <div class="menu-item" onclick="openModal('lemburModal')">
+          <div class="menu-icon" style="background:#e8f8ed">⏰</div>
+          <span class="menu-label">Lembur</span>
+        </div>
+        <div class="menu-item" onclick="openModal('tukerShiftModal')">
+          <div class="menu-icon" style="background:#f0e8f9">🔄</div>
+          <span class="menu-label">Tukar Shift</span>
+        </div>
+        <div class="menu-item" onclick="openModal('chatModal')">
+          <div class="menu-icon" style="background:#e8f4f9">💬</div>
+          <span class="menu-label">Chat</span>
+        </div>
+        <div class="menu-item" onclick="openModal('tugasModal')">
+          <div class="menu-icon" style="background:#fff0ee">📌</div>
+          <span class="menu-label">Tugas</span>
+        </div>
+        <div class="menu-item" onclick="openModal('beritaModal')">
+          <div class="menu-icon" style="background:#fef9e8">📢</div>
+          <span class="menu-label">Berita</span>
+        </div>
+        <div class="menu-item" onclick="openModal('raportModal')">
+          <div class="menu-icon" style="background:#e8f8ed">📊</div>
+          <span class="menu-label">Raport</span>
+        </div>
       </div>
-    </div>
-
-    <button class="btn btn-success" id="btnMasuk" onclick="absenMasuk()">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-      ABSEN MASUK
-    </button>
-    <div class="form-row">
-      <button class="btn btn-warning hidden" id="btnLembur" onclick="toggleLemburMode()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        MODE LEMBUR
-      </button>
-      <button class="btn btn-danger hidden" id="btnPulang" onclick="absenPulang()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-        ABSEN PULANG
-      </button>
     </div>
   </div>
 
-  <!-- TAB: DATA ABSENSI -->
+  <!-- ABSENSI -->
+  <div class="tab-content" id="tabAbsensi">
+    <div class="absensi-container">
+      <!-- GPS Badge -->
+      <div class="gps-badge loading" id="gpsBadge">📍 Memuat GPS...</div>
+
+      <!-- Status (jika sudah absen) -->
+      <div class="absen-status-card" id="absenStatusCard" style="display:none">
+        <div class="absen-status-icon" id="absenStatusIcon">✅</div>
+        <div class="absen-status-title" id="absenStatusTitle">Sudah Absen Masuk</div>
+        <div class="absen-status-sub" id="absenStatusSub">08:05 — Ontime</div>
+      </div>
+
+      <!-- Camera -->
+      <div class="camera-container" id="cameraContainer">
+        <video id="videoElement" autoplay playsinline muted></video>
+        <canvas id="captureCanvas" style="display:none"></canvas>
+        <img id="capturedPhoto" alt="Foto">
+        <div class="camera-overlay">
+          <div class="face-guide"></div>
+        </div>
+        <button class="capture-btn" id="captureBtn" onclick="capturePhoto()">📸</button>
+        <button class="retake-btn" id="retakeBtn" onclick="retakePhoto()">🔄 Ulangi</button>
+      </div>
+
+      <!-- Form -->
+      <div class="absensi-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Toko</label>
+            <select class="form-control" id="absenToko"></select>
+          </div>
+          <div class="form-group">
+            <label>Shift</label>
+            <select class="form-control" id="absenShift"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button class="btn btn-success" id="btnAbsenMasuk" onclick="doAbsenMasuk()">
+          ✅ Absen Masuk
+        </button>
+        <button class="btn btn-danger" id="btnAbsenPulang" onclick="doAbsenPulang()" style="display:none">
+          🚪 Absen Pulang
+        </button>
+        <button class="btn btn-warning" id="btnLembur" onclick="openModal('lemburModal')" style="display:none">
+          ⏰ Ajukan Lembur
+        </button>
+        <button class="btn btn-outline" onclick="openModal('izinModal')">
+          📝 Ajukan Izin Mendadak
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATA ABSENSI -->
   <div class="tab-content" id="tabData">
-    <div class="card" style="margin-top: 12px;">
-      <div class="card-title">Rekap Absensi <span id="dataBulanLabel" style="font-size:13px;color:var(--text-secondary);font-weight:600;">-</span></div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;">
-        <div class="text-center">
-          
-<!-- ===== CONTINUATION FROM CUT OFF ===== -->
+    <div class="data-container">
+      <div class="section-title">Statistik Bulan Ini</div>
+      <div class="stat-grid-3">
+        <div class="stat-card-sm"><div class="val" id="d-hadir">0</div><div class="lbl">Hadir</div></div>
+        <div class="stat-card-sm"><div class="val" style="color:var(--warning)" id="d-telat">0</div><div class="lbl">Telat</div></div>
+        <div class="stat-card-sm"><div class="val" style="color:var(--danger)" id="d-alpa">0</div><div class="lbl">Alpa</div></div>
+        <div class="stat-card-sm"><div class="val" style="color:var(--success)" id="d-izin">0</div><div class="lbl">Izin</div></div>
+        <div class="stat-card-sm"><div class="val" id="d-lembur">0</div><div class="lbl">Lembur</div></div>
+        <div class="stat-card-sm"><div class="val" id="d-jam">0j</div><div class="lbl">Total Jam</div></div>
+      </div>
 
-          <div style="font-size:22px;font-weight:800;color:var(--success);" id="dataHadir">0</div>
-          <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">Hadir</div>
+      <div class="section-title">Aksi</div>
+      <div class="menu-list">
+        <div class="menu-list-item" onclick="openModal('raportModal')">
+          <div class="menu-list-icon" style="background:#e8f8ed">📊</div>
+          <div class="menu-list-text">
+            <div class="menu-list-title">Raport Bulanan</div>
+            <div class="menu-list-sub">Lihat rekap kehadiran bulan ini</div>
+          </div>
+          <span class="chevron">›</span>
         </div>
-        <div class="text-center">
-          <div style="font-size:22px;font-weight:800;color:var(--danger);" id="dataTelat">0</div>
-          <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">Terlambat</div>
+        <div class="menu-list-item" onclick="openModal('izinModal')">
+          <div class="menu-list-icon" style="background:#fef0e6">📝</div>
+          <div class="menu-list-text">
+            <div class="menu-list-title">Riwayat Izin & Cuti</div>
+            <div class="menu-list-sub">Pengajuan izin kamu</div>
+          </div>
+          <span class="chevron">›</span>
         </div>
-        <div class="text-center">
-          <div style="font-size:22px;font-weight:800;color:var(--text);" id="dataAlpa">0</div>
-          <div style="font-size:12px;color:var(--text-secondary);font-weight:600;">Alpa</div>
+        <div class="menu-list-item" onclick="openModal('lemburModal')">
+          <div class="menu-list-icon" style="background:#e8f4f9">⏰</div>
+          <div class="menu-list-text">
+            <div class="menu-list-title">Riwayat Lembur</div>
+            <div class="menu-list-sub">Status approval lembur</div>
+          </div>
+          <span class="chevron">›</span>
         </div>
-      </div>
-      <div class="filter-chips" id="filterChips">
-        <button class="filter-chip active" data-filter="all" onclick="filterHistory('all')">Semua</button>
-        <button class="filter-chip" data-filter="hadir" onclick="filterHistory('hadir')">Hadir</button>
-        <button class="filter-chip" data-filter="telat" onclick="filterHistory('telat')">Telat</button>
-        <button class="filter-chip" data-filter="izin" onclick="filterHistory('izin')">Izin</button>
-        <button class="filter-chip" data-filter="lembur" onclick="filterHistory('lembur')">Lembur</button>
-      </div>
-      <div id="historyList" class="data-list">
-        <div class="history-empty">Memuat data...</div>
+        <div class="menu-list-item" onclick="openHistoriAbsensi()">
+          <div class="menu-list-icon" style="background:#f0e8f9">📋</div>
+          <div class="menu-list-text">
+            <div class="menu-list-title">Histori Absensi</div>
+            <div class="menu-list-sub">Log absensi harian</div>
+          </div>
+          <span class="chevron">›</span>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- TAB: JADWAL -->
-  <div class="tab-content" id="tabJadwal">
-    <div class="card" style="margin-top: 12px;">
-      <div class="card-title">Jadwal Kerja <span id="jadwalBulanLabel" style="font-size:13px;color:var(--text-secondary);font-weight:600;">-</span></div>
-      <div id="jadwalList">
-        <div class="history-empty">Memuat jadwal...</div>
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" id="nav-beranda" onclick="switchTab('beranda')">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">Beranda</span>
+    </div>
+    <div class="nav-fab" onclick="switchTab('absensi')" id="nav-absensi">
+      <div class="fab-btn">
+        <span class="nav-icon">📷</span>
+        <span class="nav-label" style="font-size:9px;color:rgba(255,255,255,0.9)">Absensi</span>
       </div>
     </div>
-  </div>
-
-  <!-- TAB: CHAT -->
-  <div class="tab-content" id="tabChat">
-    <div class="card" style="margin-top: 12px; padding: 0; overflow: hidden;">
-      <div style="padding: 16px; border-bottom: 1px solid #E8ECF1; display: flex; align-items: center; gap: 12px;">
-        <div style="width: 44px; height: 44px; border-radius: 50%; background: var(--primary-light); display: flex; align-items: center; justify-content: center;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-        </div>
-        <div>
-          <div style="font-size: 16px; font-weight: 800;">Chat Kantor</div>
-          <div style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Diskusi dengan tim</div>
-        </div>
-      </div>
-      <div id="chatMessages" style="padding: 16px; max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch;">
-        <div class="history-empty">Belum ada pesan</div>
-      </div>
-      <div style="padding: 12px 16px; border-top: 1px solid #E8ECF1; display: flex; gap: 8px; align-items: center; background: #FAFAFA;">
-        <input type="text" id="chatInput" placeholder="Tulis pesan..." style="flex: 1; padding: 12px 16px; border: 2px solid #E8ECF1; border-radius: 24px; font-size: 15px; outline: none;" onkeydown="if(event.key==='Enter')sendChat()">
-        <button onclick="sendChat()" style="width: 44px; height: 44px; border-radius: 50%; background: var(--primary); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-        </button>
-      </div>
+    <div class="nav-item" id="nav-data" onclick="switchTab('data')">
+      <span class="nav-icon">📋</span>
+      <span class="nav-label">Data Absensi</span>
     </div>
-  </div>
-
-</div> <!-- end appContent -->
-
-<!-- ===== BOTTOM NAVIGATION ===== -->
-<div class="bottom-nav" id="bottomNav">
-  <button class="nav-item active" data-tab="tabBeranda" onclick="switchTab('tabBeranda')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-    <span>Beranda</span>
-  </button>
-  <button class="nav-item" data-tab="tabJadwal" onclick="switchTab('tabJadwal')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-    <span>Jadwal</span>
-  </button>
-  <div class="nav-fab-wrap">
-    <button class="nav-fab" onclick="switchTab('tabAbsensi')" title="Absensi">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
-    </button>
-    <span style="font-size:10px;font-weight:700;color:var(--text-secondary);margin-top:4px;">Absensi</span>
-  </div>
-  <button class="nav-item" data-tab="tabChat" onclick="switchTab('tabChat')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-    <span>Chat</span>
-    <div class="menu-badge hidden" id="navBadgeChat" style="position:absolute;top:2px;right:8px;width:16px;height:16px;font-size:9px;">0</div>
-  </button>
-  <button class="nav-item" data-tab="tabData" onclick="switchTab('tabData')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-    <span>Data</span>
-  </button>
+  </nav>
 </div>
 
-<!-- ===== PICO MASCOT ===== -->
-<div class="pico-container" id="picoContainer">
-  <div class="chat-bubble" id="picoBubble">
-    <button class="bubble-close" onclick="closePicoBubble(event)">&#10005;</button>
-    <div id="picoBubbleText">Halo! Ada yang bisa saya bantu?</div>
-  </div>
-  <img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png" class="pico-mascot" id="picoMascot" onclick="togglePicoBubble()" alt="Pico">
-</div>
+<!-- ===== MODALS ===== -->
 
-<!-- ===== MODAL: IZIN ===== -->
-<div class="modal-overlay" id="modalIzin" onclick="if(event.target===this)closeModal('modalIzin')">
-  <div class="modal-sheet">
+<!-- IZIN MODAL -->
+<div class="modal-overlay" id="izinModal">
+  <div class="modal">
     <div class="modal-header">
-      <h2>Ajukan Izin</h2>
-      <button class="modal-close" onclick="closeModal('modalIzin')">&#10005;</button>
+      <h3 class="modal-title">📝 Pengajuan Izin/Cuti</h3>
+      <button class="modal-close" onclick="closeModal('izinModal')">✕</button>
     </div>
-    <div class="modal-body">
-      <div class="form-label">Jenis Izin</div>
-      <div class="izin-chips" id="izinChips">
-        <button class="izin-chip active" data-type="Sakit" onclick="selectIzinType(this)">Sakit</button>
-        <button class="izin-chip" data-type="Cuti" onclick="selectIzinType(this)">Cuti</button>
-        <button class="izin-chip" data-type="Izin" onclick="selectIzinType(this)">Izin</button>
-        <button class="izin-chip" data-type="Dinas" onclick="selectIzinType(this)">Dinas</button>
-      </div>
-      <div class="form-row" style="margin:0 0 12px 0;">
-        <div class="form-group">
-          <label class="form-label">Dari Tanggal</label>
-          <input type="date" class="form-select" id="izinDari">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Sampai Tanggal</label>
-          <input type="date" class="form-select" id="izinSampai">
-        </div>
-      </div>
-      <div class="form-label">Keterangan</div>
-      <textarea class="form-input" id="izinKeterangan" placeholder="Jelaskan alasan izin..."></textarea>
-      <div class="form-label" style="margin-top:12px;">Lampiran (opsional)</div>
-      <input type="file" class="form-select" id="izinFile" accept="image/*,.pdf">
-      <button class="btn btn-primary" style="margin-top:16px;width:100%;" onclick="submitIzin()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-        Kirim Pengajuan
-      </button>
+    <div class="form-group">
+      <label>Jenis Izin</label>
+      <select class="form-control" id="izinJenis"></select>
     </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Tanggal Mulai</label>
+        <input type="date" class="form-control" id="izinTglMulai">
+      </div>
+      <div class="form-group">
+        <label>Tanggal Selesai</label>
+        <input type="date" class="form-control" id="izinTglSelesai">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Alasan</label>
+      <textarea class="form-control" id="izinAlasan" rows="3" placeholder="Tulis alasan..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Lampiran (opsional)</label>
+      <input type="file" class="form-control" id="izinLampiran" accept="image/*">
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer">
+        <input type="checkbox" id="izinEmergency"> Izin Mendadak (Emergency)
+      </label>
+    </div>
+    <div id="izinHistory" style="margin-bottom:16px;"></div>
+    <button class="btn btn-primary" onclick="submitIzin()">Ajukan Izin</button>
   </div>
 </div>
 
-<!-- ===== MODAL: LEMBUR ===== -->
-<div class="modal-overlay" id="modalLembur" onclick="if(event.target===this)closeModal('modalLembur')">
-  <div class="modal-sheet">
+<!-- LEMBUR MODAL -->
+<div class="modal-overlay" id="lemburModal">
+  <div class="modal">
     <div class="modal-header">
-      <h2>Ajukan Lembur</h2>
-      <button class="modal-close" onclick="closeModal('modalLembur')">&#10005;</button>
+      <h3 class="modal-title">⏰ Pengajuan Lembur</h3>
+      <button class="modal-close" onclick="closeModal('lemburModal')">✕</button>
     </div>
-    <div class="modal-body">
-      <div class="form-row" style="margin:0 0 12px 0;">
-        <div class="form-group">
-          <label class="form-label">Tanggal</label>
-          <input type="date" class="form-select" id="lemburTanggal">
+    <div class="form-group">
+      <label>Perkiraan Jam Selesai</label>
+      <input type="time" class="form-control" id="lemburJamSelesai">
+    </div>
+    <div class="form-group">
+      <label>Alasan Lembur</label>
+      <textarea class="form-control" id="lemburAlasan" rows="3" placeholder="Tulis alasan lembur..."></textarea>
+    </div>
+    <div id="lemburHistory" style="margin-bottom:16px;"></div>
+    <button class="btn btn-warning" onclick="submitLembur()">Ajukan Lembur</button>
+  </div>
+</div>
+
+<!-- JADWAL MODAL -->
+<div class="modal-overlay" id="jadwalModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">🗓️ Jadwal Mingguan</h3>
+      <button class="modal-close" onclick="closeModal('jadwalModal')">✕</button>
+    </div>
+    <div class="jadwal-week" id="jadwalWeek"></div>
+  </div>
+</div>
+
+<!-- CHAT MODAL -->
+<div class="modal-overlay" id="chatModal" style="align-items:stretch">
+  <div style="background:var(--white);width:100%;height:100vh;display:flex;flex-direction:column">
+    <div style="background:var(--primary);padding:48px 20px 16px;display:flex;align-items:center;gap:12px">
+      <button style="background:none;border:none;color:white;font-size:24px;cursor:pointer" onclick="closeModal('chatModal')">←</button>
+      <h3 style="color:white;font-size:18px;font-weight:700">💬 Chat Karyawan</h3>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-bar">
+      <input type="text" class="form-control" id="chatInput" placeholder="Tulis pesan..." style="flex:1">
+      <input type="file" id="chatFile" accept="image/*" style="display:none" onchange="sendChatFile()">
+      <button onclick="document.getElementById('chatFile').click()" style="background:var(--gray-light);border:none;padding:12px;border-radius:12px;cursor:pointer">📎</button>
+      <button onclick="sendChat()" style="background:var(--primary);border:none;padding:12px 16px;border-radius:12px;color:white;font-weight:600;cursor:pointer">Kirim</button>
+    </div>
+  </div>
+</div>
+
+<!-- TUKAR SHIFT MODAL -->
+<div class="modal-overlay" id="tukerShiftModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">🔄 Tukar Shift</h3>
+      <button class="modal-close" onclick="closeModal('tukerShiftModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Karyawan Tujuan</label>
+      <select class="form-control" id="tukerKaryawan"></select>
+    </div>
+    <div class="form-group">
+      <label>Tanggal Tukar</label>
+      <input type="date" class="form-control" id="tukerTanggal">
+    </div>
+    <div class="form-group">
+      <label>Alasan</label>
+      <textarea class="form-control" id="tukerAlasan" rows="2" placeholder="Alasan tukar shift..."></textarea>
+    </div>
+    <button class="btn btn-primary" onclick="submitTukerShift()">Ajukan Tukar</button>
+  </div>
+</div>
+
+<!-- TUGAS MODAL -->
+<div class="modal-overlay" id="tugasModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">📌 Daftar Tugas</h3>
+      <button class="modal-close" onclick="closeModal('tugasModal')">✕</button>
+    </div>
+    <div id="tugasList"></div>
+  </div>
+</div>
+
+<!-- BERITA MODAL -->
+<div class="modal-overlay" id="beritaModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">📢 Berita & Pengumuman</h3>
+      <button class="modal-close" onclick="closeModal('beritaModal')">✕</button>
+    </div>
+    <div id="beritaList"></div>
+  </div>
+</div>
+
+<!-- RAPORT MODAL -->
+<div class="modal-overlay" id="raportModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">📊 Raport Bulanan</h3>
+      <button class="modal-close" onclick="closeModal('raportModal')">✕</button>
+    </div>
+    <div id="raportContent"></div>
+  </div>
+</div>
+
+<!-- NOTIF MODAL -->
+<div class="modal-overlay" id="notifModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">📣 Notifikasi</h3>
+      <button class="modal-close" onclick="closeModal('notifModal')">✕</button>
+    </div>
+    <div id="notifList"></div>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">👤 Profil</h3>
+      <button class="modal-close" onclick="closeModal('profileModal')">✕</button>
+    </div>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:64px;margin-bottom:8px" id="profileAvatar">👤</div>
+      <h3 id="profileName">—</h3>
+      <p style="color:var(--text-secondary);font-size:14px" id="profileJabatan">—</p>
+    </div>
+    <div id="profileInfo" style="margin-bottom:20px"></div>
+    <button class="btn btn-outline" onclick="doLogout()" style="border-color:var(--danger);color:var(--danger)">🚪 Keluar</button>
+  </div>
+</div>
+
+<!-- PICO MASCOT -->
+<div class="pico-btn" id="picoBtn" onclick="openModal('picoModal')" title="Tutorial">🤖</div>
+<div class="modal-overlay" id="picoModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">🤖 PICO — Panduan</h3>
+      <button class="modal-close" onclick="closeModal('picoModal')">✕</button>
+    </div>
+    <div id="picoContent">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:64px">🤖</div>
+        <p style="font-weight:600;margin-top:8px">Halo! Aku PICO, asisten absensimu.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="background:var(--primary-light);border-radius:14px;padding:14px">
+          <b>📷 Cara Absen Masuk</b>
+          <p style="font-size:13px;margin-top:6px;color:var(--text-secondary)">1. Buka tab Absensi<br>2. Pastikan GPS aktif & dalam radius toko<br>3. Arahkan wajah ke kamera<br>4. Tekan tombol kamera<br>5. Tekan "Absen Masuk"</p>
         </div>
-        <div class="form-group">
-          <label class="form-label">Durasi (jam)</label>
-          <select class="form-select" id="lemburDurasi">
-            <option value="1">1 Jam</option>
-            <option value="2">2 Jam</option>
-            <option value="3">3 Jam</option>
-            <option value="4">4 Jam</option>
-            <option value="5">5 Jam</option>
-            <option value="6">6 Jam</option>
-          </select>
+        <div style="background:#e8f8ed;border-radius:14px;padding:14px">
+          <b>📝 Cara Ajukan Izin</b>
+          <p style="font-size:13px;margin-top:6px;color:var(--text-secondary)">1. Tap menu "Izin/Cuti"<br>2. Pilih jenis izin<br>3. Isi tanggal & alasan<br>4. Upload lampiran jika perlu<br>5. Tap "Ajukan Izin"</p>
+        </div>
+        <div style="background:#fff0ee;border-radius:14px;padding:14px">
+          <b>⏰ Cara Ajukan Lembur</b>
+          <p style="font-size:13px;margin-top:6px;color:var(--text-secondary)">1. Absen masuk dulu<br>2. Tap "Ajukan Lembur"<br>3. Isi perkiraan jam selesai & alasan<br>4. Tunggu approval admin</p>
         </div>
       </div>
-      <div class="form-label">Keterangan Pekerjaan</div>
-      <textarea class="form-input" id="lemburKeterangan" placeholder="Jelaskan pekerjaan lembur..."></textarea>
-      <button class="btn btn-warning" style="margin-top:16px;width:100%;" onclick="submitLembur()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-        Ajukan Lembur
-      </button>
     </div>
   </div>
 </div>
 
-<!-- ===== MODAL: JADWAL DETAIL ===== -->
-<div class="modal-overlay" id="modalJadwal" onclick="if(event.target===this)closeModal('modalJadwal')">
-  <div class="modal-sheet">
-    <div class="modal-header">
-      <h2>Jadwal Saya</h2>
-      <button class="modal-close" onclick="closeModal('modalJadwal')">&#10005;</button>
-    </div>
-    <div class="modal-body">
-      <div id="jadwalDetailContent">
-        <div class="history-empty">Memuat jadwal...</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== MODAL: TUGAS ===== -->
-<div class="modal-overlay" id="modalTugas" onclick="if(event.target===this)closeModal('modalTugas')">
-  <div class="modal-sheet">
-    <div class="modal-header">
-      <h2>Daftar Tugas</h2>
-      <button class="modal-close" onclick="closeModal('modalTugas')">&#10005;</button>
-    </div>
-    <div class="modal-body">
-      <div id="tugasListContent">
-        <div class="history-empty">Tidak ada tugas aktif</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== MODAL: BERITA ===== -->
-<div class="modal-overlay" id="modalBerita" onclick="if(event.target===this)closeModal('modalBerita')">
-  <div class="modal-sheet">
-    <div class="modal-header">
-      <h2>Berita & Pengumuman</h2>
-      <button class="modal-close" onclick="closeModal('modalBerita')">&#10005;</button>
-    </div>
-    <div class="modal-body">
-      <div id="beritaListContent">
-        <div class="history-empty">Belum ada berita</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== MODAL: CHAT ROOM ===== -->
-<div class="modal-overlay" id="modalChat" onclick="if(event.target===this)closeModal('modalChat')">
-  <div class="modal-sheet" style="max-height: 95vh;">
-    <div class="modal-header">
-      <h2>Chat</h2>
-      <button class="modal-close" onclick="closeModal('modalChat')">&#10005;</button>
-    </div>
-    <div class="modal-body" style="padding: 0; display: flex; flex-direction: column; height: 70vh;">
-      <div id="modalChatMessages" style="flex: 1; overflow-y: auto; padding: 16px; -webkit-overflow-scrolling: touch;">
-        <div class="history-empty">Belum ada pesan</div>
-      </div>
-      <div style="padding: 12px 16px; border-top: 1px solid #E8ECF1; display: flex; gap: 8px; align-items: center; background: #FAFAFA;">
-        <input type="text" id="modalChatInput" placeholder="Tulis pesan..." style="flex: 1; padding: 12px 16px; border: 2px solid #E8ECF1; border-radius: 24px; font-size: 15px; outline: none;" onkeydown="if(event.key==='Enter')sendModalChat()">
-        <button onclick="sendModalChat()" style="width: 44px; height: 44px; border-radius: 50%; background: var(--primary); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== MODAL: TUKER SHIFT ===== -->
-<div class="modal-overlay" id="modalTukerShift" onclick="if(event.target===this)closeModal('modalTukerShift')">
-  <div class="modal-sheet">
-    <div class="modal-header">
-      <h2>Tukar Shift</h2>
-      <button class="modal-close" onclick="closeModal('modalTukerShift')">&#10005;</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-label">Pilih Karyawan</div>
-      <select class="form-select" id="tukerKaryawan" style="margin-bottom: 12px;">
-        <option value="">Pilih karyawan...</option>
-      </select>
-      <div class="form-row" style="margin:0 0 12px 0;">
-        <div class="form-group">
-          <label class="form-label">Tanggal Tukar</label>
-          <input type="date" class="form-select" id="tukerTanggal">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Alasan</label>
-          <input type="text" class="form-select" id="tukerAlasan" placeholder="Alasan tukar...">
-        </div>
-      </div>
-      <button class="btn btn-primary" style="width:100%;" onclick="submitTukerShift()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
-        Ajukan Tukar
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- ===== PICO MODAL ===== -->
-<div class="pico-modal-overlay" id="picoModal" onclick="if(event.target===this)closePicoModal()">
-  <div class="pico-modal-box">
-    <img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png" class="pico-modal-img" alt="Pico">
-    <div class="pico-modal-text" id="picoModalText">Halo! Saya Pico, asisten virtual Anda.</div>
-    <button class="pico-modal-btn" style="background: var(--primary);" onclick="closePicoModal()">Mengerti</button>
-  </div>
-</div>
-
-<!-- ===== TOAST ===== -->
-<div class="toast" id="toast"></div>
-
-<!-- ===== PERMISSION OVERLAY ===== -->
-<div class="perm-overlay" id="permOverlay">
-  <div class="perm-box">
-    <div class="perm-title">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-      Izin Diperlukan
-    </div>
-    <div id="permContent"></div>
-    <button class="perm-btn" onclick="retryPermission()">Coba Lagi</button>
-    <button class="perm-btn secondary" onclick="closePermOverlay()">Lewati</button>
-  </div>
-</div>
-
+<!-- ===== JAVASCRIPT ===== -->
 <script>
-// ==================== GLOBAL STATE ====================
-const APP = {
+'use strict';
+
+// =====================================================
+// CONFIG
+// =====================================================
+const BACKEND_URL = 'YOUR_APPS_SCRIPT_WEB_APP_URL'; // Ganti dengan URL GAS kamu
+const SESSION_KEY = 'absensi_session_v3';
+
+// =====================================================
+// STATE
+// =====================================================
+let state = {
   user: null,
+  session: null,
+  karyawanList: [],
   tokoList: [],
   shiftList: [],
-  karyawanList: [],
-  currentTab: 'tabBeranda',
-  cameraStream: null,
-  capturedPhoto: null,
-  gpsLocation: null,
-  izinType: 'Sakit',
-  lemburMode: false,
-  historyFilter: 'all',
-  chatMessages: [],
-  notifList: [],
-  tugasList: [],
-  beritaList: [],
-  jadwalList: []
+  absenStatus: null, // null | 'masuk' | 'pulang'
+  photoBase64: null,
+  gpsData: null,
+  currentTab: 'beranda',
 };
 
-const SCRIPT_URL = '<?= ScriptApp.getService().getUrl() ?>';
+// =====================================================
+// INIT
+// =====================================================
+window.addEventListener('DOMContentLoaded', () => {
+  // Update topbar date
+  document.getElementById('topbarDate').textContent = formatDate(new Date());
 
-// ==================== INIT ====================
-document.addEventListener('DOMContentLoaded', () => {
-  initLogin();
-  setTodayDates();
-  initPico();
-});
-
-function setTodayDates() {
-  const today = new Date().toISOString().split('T')[0];
-  const elms = ['izinDari','izinSampai','lemburTanggal','tukerTanggal'];
-  elms.forEach(id => { const e = document.getElementById(id); if(e) e.value = today; });
-}
-
-// ==================== LOGIN ====================
-function initLogin() {
-  google.script.run.withSuccessHandler(data => {
-    APP.karyawanList = data.karyawan || [];
-    APP.tokoList = data.toko || [];
-    const sel = document.getElementById('loginSelect');
-    sel.innerHTML = '<option value="">Pilih Nama...</option>' +
-      APP.karyawanList.map(k => `<option value="${k.id}">${k.nama} - ${k.tokoNama}</option>`).join('');
-  }).withFailureHandler(err => {
-    showToast('Gagal memuat data: ' + err.message, 'error');
-  }).getLoginData();
-}
-
-function doLogin() {
-  const id = document.getElementById('loginSelect').value;
-  const err = document.getElementById('loginError');
-  const btn = document.getElementById('btnLogin');
-  if (!id) { err.textContent = 'Pilih nama karyawan terlebih dahulu'; err.classList.add('show'); return; }
-  err.classList.remove('show');
-  btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div>';
-  google.script.run.withSuccessHandler(user => {
-    if (!user) { err.textContent = 'Data tidak ditemukan'; err.classList.add('show'); btn.disabled = false; btn.innerHTML = 'Masuk'; return; }
-    APP.user = user;
-    document.getElementById('loginScreen').classList.add('hidden');
-    setTimeout(() => {
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('appContent').style.display = 'block';
-      initApp();
-    }, 400);
-  }).withFailureHandler(e => {
-    err.textContent = e.message; err.classList.add('show'); btn.disabled = false; btn.innerHTML = 'Masuk';
-  }).doLogin(id);
-}
-
-function logout() {
-  if (!confirm('Yakin ingin keluar?')) return;
-  APP.user = null;
-  location.reload();
-}
-
-// ==================== APP INIT ====================
-function initApp() {
-  updateHeader();
-  loadShiftInfo();
-  loadStats();
-  loadHistory();
-  loadJadwal();
-  loadNotif();
-  loadTugas();
-  loadBerita();
-  loadChat();
-  initCamera();
-  initGPS();
-  populateTokoShift();
-  populateTukerKaryawan();
-  updateDateLabels();
-}
-
-function updateHeader() {
-  if (!APP.user) return;
-  document.getElementById('headerName').textContent = APP.user.nama;
-  document.getElementById('headerRole').textContent = `${APP.user.jabatan || 'Staff'} - ${APP.user.tokoNama || '-'}`;
-  const avatarText = document.getElementById('headerAvatarText');
-  const avatarImg = document.getElementById('headerAvatarImg');
-  if (APP.user.foto) { avatarImg.src = APP.user.foto; avatarImg.style.display = 'block'; avatarText.style.display = 'none'; }
-  else { avatarText.textContent = (APP.user.nama || 'B').charAt(0).toUpperCase(); avatarImg.style.display = 'none'; avatarText.style.display = 'flex'; }
-}
-
-function updateDateLabels() {
-  const now = new Date();
-  const bln = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
-  const tgl = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  document.getElementById('statBulanLabel').textContent = bln;
-  document.getElementById('dataBulanLabel').textContent = bln;
-  document.getElementById('jadwalBulanLabel').textContent = bln;
-  document.getElementById('shiftTanggal').textContent = tgl;
-}
-
-// ==================== TAB SWITCHING ====================
-function switchTab(tabId) {
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.getElementById(tabId).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelectorAll(`.nav-item[data-tab="${tabId}"]`).forEach(n => n.classList.add('active'));
-  APP.currentTab = tabId;
-  if (tabId === 'tabData') loadHistory();
-  if (tabId === 'tabJadwal') loadJadwal();
-  if (tabId === 'tabChat') loadChat();
-  window.scrollTo(0, 0);
-}
-
-// ==================== NOTIFICATION BUBBLE ====================
-function toggleNotifBubble(e) {
-  e.stopPropagation();
-  const bubble = document.getElementById('notifBubble');
-  bubble.classList.toggle('show');
-  if (bubble.classList.contains('show')) loadNotif();
-}
-function closeNotifBubble(e) {
-  e.stopPropagation();
-  document.getElementById('notifBubble').classList.remove('show');
-}
-document.addEventListener('click', (e) => {
-  const bubble = document.getElementById('notifBubble');
-  const bell = document.getElementById('notifBell');
-  if (bubble.classList.contains('show') && !bubble.contains(e.target) && !bell.contains(e.target)) {
-    bubble.classList.remove('show');
+  // Check existing session
+  const saved = localStorage.getItem(SESSION_KEY);
+  if (saved) {
+    try {
+      const s = JSON.parse(saved);
+      if (s.expiry > Date.now()) {
+        state.user = s.user;
+        state.session = s;
+        startApp();
+        return;
+      }
+    } catch(e) {}
+    localStorage.removeItem(SESSION_KEY);
   }
+
+  // Load login data
+  loadLoginData();
 });
 
-function loadNotif() {
-  if (!APP.user) return;
-  google.script.run.withSuccessHandler(list => {
-    APP.notifList = list || [];
-    renderNotif();
-  }).getNotif(APP.user.id);
+// =====================================================
+// API HELPER
+// =====================================================
+async function callAPI(action, data = {}) {
+  try {
+    const payload = { action, ...data };
+    const res = await fetch(BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json();
+  } catch (e) {
+    return { success: false, message: 'Koneksi gagal: ' + e.message };
+  }
 }
 
-function renderNotif() {
-  const container = document.getElementById('notifBubbleList');
-  const badge = document.getElementById('notifBadge');
-  const unread = APP.notifList.filter(n => !n.read).length;
-  badge.textContent = unread;
-  badge.classList.toggle('hidden', unread === 0);
-  if (!APP.notifList.length) { container.innerHTML = '<div class="notif-empty">Belum ada pemberitahuan</div>'; return; }
-  container.innerHTML = APP.notifList.map(n => `
-    <div class="notif-item ${n.status || ''}" onclick="markNotifRead('${n.id}')">
-      <div class="notif-item-title">${n.title}</div>
-      <div class="notif-item-text">${n.text}</div>
-      <div class="notif-item-date">${n.date || ''}</div>
-    </div>
-  `).join('');
+// =====================================================
+// LOGIN
+// =====================================================
+async function loadLoginData() {
+  showLoading('Memuat data...');
+  const res = await callAPI('getKaryawanList');
+  hideLoading();
+
+  if (!res.success) { showToast('Gagal memuat data karyawan', 'error'); return; }
+  state.karyawanList = res.data || [];
+
+  const sel = document.getElementById('selectKaryawan');
+  sel.innerHTML = '<option value="">-- Pilih Nama --</option>';
+  state.karyawanList.forEach(k => {
+    sel.innerHTML += `<option value="${k.ID_Karyawan}" data-toko="${k.Toko_Default}" data-shift="${k.Shift_Default}">${k.Nama}</option>`;
+  });
+
+  sel.addEventListener('change', onKaryawanChange);
+
+  const tokoRes = await callAPI('getTokoList');
+  if (tokoRes.success) {
+    state.tokoList = tokoRes.data || [];
+    fillTokoSelect('selectToko');
+  }
 }
 
-function markNotifRead(id) {
-  google.script.run.withSuccessHandler(() => {
-    loadNotif();
-  }).markNotifRead(id);
+function onKaryawanChange() {
+  const opt = this.options[this.selectedIndex];
+  const tokoDefault = opt.dataset.toko;
+  const shiftDefault = opt.dataset.shift;
+  if (tokoDefault) {
+    document.getElementById('selectToko').value = tokoDefault;
+    onTokoChange(tokoDefault, shiftDefault);
+  }
 }
 
-// ==================== SHIFT INFO ====================
-function loadShiftInfo() {
-  if (!APP.user) return;
-  google.script.run.withSuccessHandler(data => {
-    if (data) {
-      document.getElementById('shiftNama').textContent = data.nama || 'Reguler';
-      const masuk = data.jamMasuk ? formatTime(data.jamMasuk) : '--:--';
-      const pulang = data.jamPulang ? formatTime(data.jamPulang) : '--:--';
-      document.getElementById('infoJamMasuk').textContent = 'Jam Masuk: ' + masuk;
-      document.getElementById('infoJamPulang').textContent = 'Jam Pulang: ' + pulang;
-      document.getElementById('jamInfoCard').classList.remove('hidden');
-    }
-    // Update status masuk/pulang hari ini
-    google.script.run.withSuccessHandler(status => {
-      const sm = document.getElementById('statusMasuk');
-      const sp = document.getElementById('statusPulang');
-      if (status.masuk) { sm.textContent = 'Masuk: ' + status.masuk; sm.classList.remove('pending'); sm.classList.add('ok'); }
-      if (status.pulang) { sp.textContent = 'Pulang: ' + status.pulang; sp.classList.remove('pending'); sp.classList.add('ok'); }
-    }).getTodayStatus(APP.user.id);
-  }).getShiftHariIni(APP.user.id);
+async function onTokoChange(idToko, defaultShift) {
+  const res = await callAPI('getShiftByToko', { idToko });
+  state.shiftList = res.data || [];
+  fillShiftSelect('selectShift');
+  if (defaultShift) document.getElementById('selectShift').value = defaultShift;
 }
 
-function formatTime(val) {
-  if (!val) return '--:--';
-  if (typeof val === 'string' && val.includes(':')) return val.substring(0, 5);
-  const d = new Date(val);
-  if (isNaN(d.getTime())) return String(val).substring(0, 5);
-  return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+function fillTokoSelect(selId) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- Pilih Toko --</option>';
+  state.tokoList.filter(t => t.Status === 'Aktif').forEach(t => {
+    sel.innerHTML += `<option value="${t.ID_Toko}">${t.Nama_Toko}</option>`;
+  });
 }
 
-// ==================== STATS ====================
-function loadStats() {
-  if (!APP.user) return;
-  google.script.run.withSuccessHandler(stats => {
-    const total = (stats.hadir || 0) + (stats.alpa || 0) + (stats.telat || 0);
-    const max = Math.max(total, 1);
-    document.getElementById('statHadir').textContent = stats.hadir || 0;
-    document.getElementById('statAlpa').textContent = stats.alpa || 0;
-    document.getElementById('statTelat').textContent = stats.telat || 0;
-    document.getElementById('barHadir').style.width = ((stats.hadir || 0) / max * 100) + '%';
-    document.getElementById('barAlpa').style.width = ((stats.alpa || 0) / max * 100) + '%';
-    document.getElementById('barTelat').style.width = ((stats.telat || 0) / max * 100) + '%';
-  }).getStatsBulanIni(APP.user.id);
+function fillShiftSelect(selId) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- Pilih Shift --</option>';
+  state.shiftList.forEach(s => {
+    sel.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${s.Jam_Masuk}–${s.Jam_Pulang})</option>`;
+  });
 }
 
-// ==================== CAMERA ====================
-function initCamera() {
-  const video = document.getElementById('video');
-  const overlay = document.getElementById('cameraOverlay');
-  const errorBox = document.getElementById('cameraErrorBox');
+async function doLogin() {
+  const idKaryawan = document.getElementById('selectKaryawan').value;
+  const idToko = document.getElementById('selectToko').value;
+  const idShift = document.getElementById('selectShift').value;
+  const pin = document.getElementById('inputPin').value;
 
-  // Auto-start camera
+  if (!idKaryawan || !idToko || !idShift || !pin) {
+    showToast('Lengkapi semua field', 'warning'); return;
+  }
+  if (pin.length !== 4) { showToast('PIN harus 4 angka', 'warning'); return; }
+
+  showLoading('Login...');
+  const res = await callAPI('login', { idKaryawan, idToko, idShift, pin });
+  hideLoading();
+
+  if (!res.success) { showToast(res.message || 'Login gagal', 'error'); return; }
+
+  state.user = res.user;
+  state.session = { user: res.user, expiry: Date.now() + 30 * 24 * 60 * 60 * 1000 };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
+  startApp();
+}
+
+function doLogout() {
+  localStorage.removeItem(SESSION_KEY);
+  state.user = null; state.session = null; state.photoBase64 = null;
+  closeModal('profileModal');
+  document.getElementById('loginScreen').classList.add('active');
+  document.getElementById('mainApp').classList.remove('active');
+  document.getElementById('inputPin').value = '';
+  stopCamera();
+}
+
+// =====================================================
+// START APP
+// =====================================================
+async function startApp() {
+  // Switch screens
+  document.getElementById('loginScreen').classList.remove('active');
+  document.getElementById('mainApp').classList.add('active');
+
+  // Update UI
+  const u = state.user;
+  const initial = u.Nama ? u.Nama[0].toUpperCase() : 'U';
+  document.getElementById('userAvatar').textContent = initial;
+  if (u.Foto_URL) {
+    document.getElementById('userAvatar').innerHTML = `<img src="${u.Foto_URL}" alt="foto">`;
+  }
+
+  // Profile modal
+  document.getElementById('profileName').textContent = u.Nama;
+  document.getElementById('profileJabatan').textContent = u.Jabatan || '—';
+  document.getElementById('profileAvatar').textContent = initial;
+  document.getElementById('profileInfo').innerHTML = `
+    <div style="background:var(--gray-light);border-radius:14px;padding:14px;font-size:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="color:var(--text-secondary)">ID Karyawan</span><b>${u.ID_Karyawan}</b>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="color:var(--text-secondary)">Toko</span><b>${u.Toko_Default || '—'}</b>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:var(--text-secondary)">No. HP</span><b>${u.No_HP || '—'}</b>
+      </div>
+    </div>`;
+
+  // Load absensi fills
+  fillTokoSelect('absenToko');
+  document.getElementById('absenToko').value = u.Toko_Default || '';
+  fillKaryawanForTuker();
+  loadJenisIzin();
+  loadNotifBadge();
+
+  // Shift info
+  fillShiftCard();
+
+  // Start GPS
+  startGPS();
+
+  // Load stats
+  loadStats();
+
+  // Start camera on absensi tab
   startCamera();
 
-  function startCamera() {
-    if (APP.cameraStream) return;
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
-      .then(stream => {
-        APP.cameraStream = stream;
-        video.srcObject = stream;
-        overlay.classList.add('hidden');
-        errorBox.classList.add('hidden');
-      })
-      .catch(err => {
-        overlay.classList.remove('hidden');
-        errorBox.textContent = 'Kamera tidak bisa diakses: ' + err.message;
-        errorBox.classList.remove('hidden');
-      });
+  // Check absensi status
+  checkAbsenStatus();
+}
+
+// =====================================================
+// TAB SWITCHING
+// =====================================================
+function switchTab(tab) {
+  state.currentTab = tab;
+  // Nav items
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (tab !== 'absensi') {
+    document.getElementById('nav-' + tab)?.classList.add('active');
+  }
+  // Tab contents
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tabBeranda').classList.toggle('active', tab === 'beranda');
+  document.getElementById('tabAbsensi').classList.toggle('active', tab === 'absensi');
+  document.getElementById('tabData').classList.toggle('active', tab === 'data');
+
+  document.getElementById('topbarTitle').textContent =
+    tab === 'beranda' ? 'Beranda' : tab === 'absensi' ? 'Absensi' : 'Data Absensi';
+
+  if (tab === 'absensi') startCamera();
+  else stopCamera();
+}
+
+// =====================================================
+// GPS
+// =====================================================
+function startGPS() {
+  const badge = document.getElementById('gpsBadge');
+  badge.className = 'gps-badge loading';
+  badge.textContent = '📍 Memuat GPS...';
+
+  if (!navigator.geolocation) {
+    badge.className = 'gps-badge invalid';
+    badge.textContent = '❌ GPS tidak didukung';
+    return;
+  }
+
+  navigator.geolocation.watchPosition(
+    pos => {
+      state.gpsData = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+      if (pos.coords.accuracy < 100) {
+        badge.className = 'gps-badge valid';
+        badge.textContent = `✅ GPS Aktif (±${Math.round(pos.coords.accuracy)}m)`;
+      } else {
+        badge.className = 'gps-badge invalid';
+        badge.textContent = `⚠️ GPS kurang akurat (±${Math.round(pos.coords.accuracy)}m)`;
+      }
+    },
+    err => {
+      badge.className = 'gps-badge invalid';
+      badge.textContent = '❌ GPS gagal: ' + err.message;
+      state.gpsData = null;
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+  );
+}
+
+// =====================================================
+// CAMERA
+// =====================================================
+let cameraStream = null;
+
+async function startCamera() {
+  if (cameraStream) return;
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    document.getElementById('videoElement').srcObject = cameraStream;
+    document.getElementById('videoElement').style.display = 'block';
+    document.getElementById('capturedPhoto').style.display = 'none';
+    document.getElementById('captureBtn').style.display = 'flex';
+    document.getElementById('retakeBtn').style.display = 'none';
+    state.photoBase64 = null;
+  } catch (e) {
+    showToast('Kamera tidak dapat diakses: ' + e.message, 'error');
+  }
+}
+
+function stopCamera() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
   }
 }
 
 function capturePhoto() {
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  const preview = document.getElementById('previewImg');
-  const btn = document.getElementById('captureBtn');
-  if (!video.videoWidth) { showToast('Kamera belum siap', 'error'); return; }
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  const video = document.getElementById('videoElement');
+  const canvas = document.getElementById('captureCanvas');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
   const ctx = canvas.getContext('2d');
-  ctx.translate(canvas.width, 0);
-  ctx.scale(-1, 1);
-  ctx.drawImage(video, 0, 0);
-  APP.capturedPhoto = canvas.toDataURL('image/jpeg', 0.85);
-  preview.src = APP.capturedPhoto;
-  preview.style.display = 'block';
-  video.style.display = 'none';
-  btn.classList.add('disabled');
-  document.getElementById('faceFrame').classList.add('active');
-  showToast('Foto berhasil diambil', 'success');
+  ctx.save(); ctx.scale(-1, 1); ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height); ctx.restore();
+  state.photoBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+  document.getElementById('capturedPhoto').src = canvas.toDataURL('image/jpeg', 0.7);
+  document.getElementById('capturedPhoto').style.display = 'block';
+  document.getElementById('videoElement').style.display = 'none';
+  document.getElementById('captureBtn').style.display = 'none';
+  document.getElementById('retakeBtn').style.display = 'block';
 }
 
 function retakePhoto() {
-  const video = document.getElementById('video');
-  const preview = document.getElementById('previewImg');
-  const btn = document.getElementById('captureBtn');
-  preview.style.display = 'none';
-  video.style.display = 'block';
-  btn.classList.remove('disabled');
-  APP.capturedPhoto = null;
-  document.getElementById('faceFrame').classList.remove('active');
+  state.photoBase64 = null;
+  document.getElementById('capturedPhoto').style.display = 'none';
+  document.getElementById('videoElement').style.display = 'block';
+  document.getElementById('captureBtn').style.display = 'flex';
+  document.getElementById('retakeBtn').style.display = 'none';
 }
 
-// ==================== GPS ====================
-function initGPS() {
-  const badge = document.getElementById('gpsBadge');
-  const text = document.getElementById('gpsText');
-  if (!navigator.geolocation) {
-    badge.className = 'gps-badge bad';
-    text.textContent = 'GPS tidak didukung';
+// =====================================================
+// ABSENSI
+// =====================================================
+async function checkAbsenStatus() {
+  if (!state.user) return;
+  const res = await callAPI('getAbsenStatus', {
+    idKaryawan: state.user.ID_Karyawan,
+    tanggal: todayStr()
+  });
+  if (res.success && res.data) {
+    const d = res.data;
+    updateAbsenUI(d);
+  }
+}
+
+function updateAbsenUI(data) {
+  const card = document.getElementById('absenStatusCard');
+  const btnMasuk = document.getElementById('btnAbsenMasuk');
+  const btnPulang = document.getElementById('btnAbsenPulang');
+  const btnLembur = document.getElementById('btnLembur');
+
+  if (data && data.Jam_Masuk && !data.Jam_Pulang) {
+    // Sudah masuk, belum pulang
+    card.style.display = 'block';
+    document.getElementById('absenStatusIcon').textContent = '✅';
+    document.getElementById('absenStatusTitle').textContent = 'Sudah Absen Masuk';
+    document.getElementById('absenStatusSub').textContent = `${data.Jam_Masuk} — ${data.Status_Masuk || 'Ontime'}`;
+    btnMasuk.style.display = 'none';
+    btnPulang.style.display = 'flex';
+    btnLembur.style.display = 'flex';
+    state.absenStatus = 'masuk';
+    document.getElementById('shiftStatus').textContent = 'Hadir';
+    document.getElementById('shiftJamMasuk').textContent = data.Jam_Masuk;
+  } else if (data && data.Jam_Pulang) {
+    // Sudah pulang
+    card.style.display = 'block';
+    document.getElementById('absenStatusIcon').textContent = '🏠';
+    document.getElementById('absenStatusTitle').textContent = 'Sudah Absen Pulang';
+    document.getElementById('absenStatusSub').textContent = `${data.Jam_Masuk} – ${data.Jam_Pulang} (${data.Jam_Kerja})`;
+    btnMasuk.style.display = 'none';
+    btnPulang.style.display = 'none';
+    btnLembur.style.display = 'none';
+    state.absenStatus = 'pulang';
+    document.getElementById('shiftStatus').textContent = 'Selesai';
+  }
+}
+
+async function doAbsenMasuk() {
+  if (!state.photoBase64) { showToast('Ambil foto dahulu', 'warning'); return; }
+  if (!state.gpsData) { showToast('GPS belum aktif', 'warning'); return; }
+
+  const idToko = document.getElementById('absenToko').value;
+  const idShift = document.getElementById('absenShift').value;
+  if (!idToko || !idShift) { showToast('Pilih toko dan shift', 'warning'); return; }
+
+  showLoading('Menyimpan absensi masuk...');
+  const res = await callAPI('absenMasuk', {
+    idKaryawan: state.user.ID_Karyawan,
+    idToko, idShift,
+    fotoBase64: state.photoBase64,
+    lat: state.gpsData.lat,
+    lng: state.gpsData.lng,
+    faceData: { detected: true }
+  });
+  hideLoading();
+
+  if (res.success) {
+    showToast('✅ Absen masuk berhasil! ' + (res.status || ''), 'success');
+    updateAbsenUI(res.data);
+    loadStats();
+  } else {
+    showToast(res.message || 'Absen masuk gagal', 'error');
+  }
+}
+
+async function doAbsenPulang() {
+  if (!state.photoBase64) { showToast('Ambil foto dahulu', 'warning'); return; }
+  if (!state.gpsData) { showToast('GPS belum aktif', 'warning'); return; }
+
+  showLoading('Menyimpan absensi pulang...');
+  const res = await callAPI('absenPulang', {
+    idKaryawan: state.user.ID_Karyawan,
+    fotoBase64: state.photoBase64,
+    lat: state.gpsData.lat,
+    lng: state.gpsData.lng
+  });
+  hideLoading();
+
+  if (res.success) {
+    showToast('🏠 Absen pulang berhasil! Durasi: ' + (res.jamKerja || '—'), 'success');
+    updateAbsenUI(res.data);
+    loadStats();
+  } else {
+    showToast(res.message || 'Absen pulang gagal', 'error');
+  }
+}
+
+// =====================================================
+// IZIN
+// =====================================================
+async function loadJenisIzin() {
+  const res = await callAPI('getJenisIzinList');
+  if (!res.success) return;
+  const sel = document.getElementById('izinJenis');
+  sel.innerHTML = '<option value="">-- Pilih Jenis Izin --</option>';
+  (res.data || []).forEach(j => {
+    sel.innerHTML += `<option value="${j.ID_Jenis}">${j.Nama} (max ${j.Max_Hari || j.Kuota_Tahun} hari)</option>`;
+  });
+}
+
+async function submitIzin() {
+  const idJenis = document.getElementById('izinJenis').value;
+  const tglMulai = document.getElementById('izinTglMulai').value;
+  const tglSelesai = document.getElementById('izinTglSelesai').value;
+  const alasan = document.getElementById('izinAlasan').value;
+  const emergency = document.getElementById('izinEmergency').checked;
+
+  if (!idJenis || !tglMulai || !tglSelesai || !alasan) { showToast('Lengkapi semua field', 'warning'); return; }
+  if (tglMulai > tglSelesai) { showToast('Tanggal tidak valid', 'warning'); return; }
+
+  // Handle file
+  let lampiranBase64 = null;
+  const fileInput = document.getElementById('izinLampiran');
+  if (fileInput.files[0]) {
+    lampiranBase64 = await fileToBase64(fileInput.files[0]);
+  }
+
+  showLoading('Mengajukan izin...');
+  const res = await callAPI('ajukanIzin', {
+    idKaryawan: state.user.ID_Karyawan,
+    idJenis, tglMulai, tglSelesai, alasan, lampiranBase64, emergency
+  });
+  hideLoading();
+
+  if (res.success) {
+    showToast('✅ Izin berhasil diajukan', 'success');
+    closeModal('izinModal');
+  } else {
+    showToast(res.message || 'Gagal mengajukan izin', 'error');
+  }
+}
+
+// =====================================================
+// LEMBUR
+// =====================================================
+async function submitLembur() {
+  const jamSelesai = document.getElementById('lemburJamSelesai').value;
+  const alasan = document.getElementById('lemburAlasan').value;
+  if (!jamSelesai || !alasan) { showToast('Lengkapi field lembur', 'warning'); return; }
+
+  showLoading('Mengajukan lembur...');
+  const res = await callAPI('ajukanLembur', {
+    idKaryawan: state.user.ID_Karyawan,
+    idToko: state.user.Toko_Default,
+    perkiraanJamSelesai: jamSelesai,
+    alasan
+  });
+  hideLoading();
+
+  if (res.success) {
+    showToast('✅ Lembur berhasil diajukan', 'success');
+    closeModal('lemburModal');
+  } else {
+    showToast(res.message || 'Gagal mengajukan lembur', 'error');
+  }
+}
+
+// =====================================================
+// JADWAL
+// =====================================================
+async function loadJadwal() {
+  if (!state.user) return;
+  const res = await callAPI('getJadwalMingguan', {
+    idKaryawan: state.user.ID_Karyawan,
+    tanggalReferensi: todayStr()
+  });
+
+  const container = document.getElementById('jadwalWeek');
+  container.innerHTML = '';
+
+  const days = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+  const today = new Date();
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today); d.setDate(today.getDate() - today.getDay() + i);
+    const dayData = res.data ? res.data.find(j => j.Hari === i) : null;
+    const isToday = d.toDateString() === today.toDateString();
+
+    container.innerHTML += `
+      <div class="jadwal-day ${isToday ? 'today' : ''}">
+        <div class="jadwal-day-name">${days[i]}</div>
+        <div class="jadwal-day-date">${d.getDate()}</div>
+        <div class="jadwal-day-shift">${dayData ? dayData.Nama_Shift : 'Libur'}</div>
+      </div>`;
+  }
+}
+
+// =====================================================
+// SHIFT CARD
+// =====================================================
+async function fillShiftCard() {
+  if (!state.user) return;
+  const res = await callAPI('getJadwalHariIni', { idKaryawan: state.user.ID_Karyawan });
+  const d = res.data;
+  if (d) {
+    document.getElementById('shiftBadgeName').textContent = d.Nama_Shift || '—';
+    document.getElementById('shiftTime').textContent = `${d.Jam_Masuk}–${d.Jam_Pulang}`;
+    document.getElementById('shiftInfo').textContent = d.Keterangan || 'Jadwal hari ini';
+    document.getElementById('shiftToko').textContent = d.Nama_Toko || '—';
+  }
+}
+
+// =====================================================
+// STATS
+// =====================================================
+async function loadStats() {
+  if (!state.user) return;
+  const now = new Date();
+  const res = await callAPI('getAbsensiPeriode', {
+    idKaryawan: state.user.ID_Karyawan,
+    tglMulai: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`,
+    tglAkhir: todayStr(),
+    mode: 'bulanan'
+  });
+
+  if (!res.success) return;
+  const s = res.statistik || {};
+  document.getElementById('statHadir').textContent = s.hadir || 0;
+  document.getElementById('statTelat').textContent = s.telat || 0;
+  document.getElementById('statAlpa').textContent = s.alpa || 0;
+  document.getElementById('statJamKerja').textContent = (s.totalJam || 0) + 'j';
+  document.getElementById('d-hadir').textContent = s.hadir || 0;
+  document.getElementById('d-telat').textContent = s.telat || 0;
+  document.getElementById('d-alpa').textContent = s.alpa || 0;
+  document.getElementById('d-izin').textContent = s.izin || 0;
+  document.getElementById('d-lembur').textContent = s.lembur || 0;
+  document.getElementById('d-jam').textContent = (s.totalJam || 0) + 'j';
+}
+
+// =====================================================
+// CHAT
+// =====================================================
+async function loadChat() {
+  const res = await callAPI('getChatMessages', { limit: 50, offset: 0 });
+  const container = document.getElementById('chatMessages');
+  container.innerHTML = '';
+  if (!res.success) return;
+  (res.data || []).forEach(m => {
+    const isMine = m.ID_Karyawan === state.user.ID_Karyawan;
+    container.innerHTML += `
+      <div class="chat-bubble ${isMine ? 'sent' : 'received'}">
+        ${!isMine ? `<div class="chat-sender">${m.Nama}</div>` : ''}
+        ${m.Pesan}
+        <div class="chat-time">${formatTime(m.Timestamp)}</div>
+      </div>`;
+  });
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  await callAPI('sendChatMessage', {
+    idKaryawan: state.user.ID_Karyawan,
+    nama: state.user.Nama,
+    pesan: msg,
+    tipe: 'text'
+  });
+  loadChat();
+}
+
+async function sendChatFile() {
+  const file = document.getElementById('chatFile').files[0];
+  if (!file) return;
+  const base64 = await fileToBase64(file);
+  await callAPI('sendChatMessage', {
+    idKaryawan: state.user.ID_Karyawan,
+    nama: state.user.Nama,
+    pesan: '📎 Lampiran',
+    tipe: 'file',
+    fileBase64: base64,
+    namaFile: file.name
+  });
+  loadChat();
+}
+
+// =====================================================
+// TUGAS
+// =====================================================
+async function loadTugas() {
+  const res = await callAPI('getTugasList', {
+    idKaryawan: state.user.ID_Karyawan,
+    idToko: state.user.Toko_Default
+  });
+  const container = document.getElementById('tugasList');
+  if (!res.success || !res.data?.length) {
+    container.innerHTML = '<p style="text-align:center;color:var(--gray);padding:20px">Tidak ada tugas aktif</p>';
     return;
   }
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      APP.gpsLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      badge.className = 'gps-badge ok';
-      text.textContent = 'Lokasi terdeteksi';
-    },
-    err => {
-      badge.className = 'gps-badge bad';
-      text.textContent = 'GPS tidak aktif';
-    },
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-  );
+  container.innerHTML = (res.data || []).map(t => `
+    <div class="history-item">
+      <div class="status-dot" style="background:${t.Prioritas==='Tinggi'?'var(--danger)':t.Prioritas==='Menengah'?'var(--warning)':'var(--success)'}"></div>
+      <div style="flex:1">
+        <div style="font-weight:600">${t.Judul}</div>
+        <div style="font-size:12px;color:var(--text-secondary)">${t.Deadline} — ${t.Status}</div>
+      </div>
+      <button onclick="selesaikanTugas('${t.ID}')" style="background:var(--primary-light);border:none;padding:6px 12px;border-radius:10px;color:var(--primary);font-size:12px;cursor:pointer">Selesai</button>
+    </div>`).join('');
 }
 
-// ==================== TOKO & SHIFT ====================
-function populateTokoShift() {
-  const tokoSel = document.getElementById('selectToko');
-  tokoSel.innerHTML = '<option value="">Pilih...</option>' +
-    APP.tokoList.map(t => `<option value="${t.id}">${t.nama}</option>`).join('');
-  if (APP.user && APP.user.tokoId) { tokoSel.value = APP.user.tokoId; onTokoChange(); }
+async function selesaikanTugas(id) {
+  const res = await callAPI('updateTugasStatus', { idTugas: id, status: 'Selesai', idKaryawan: state.user.ID_Karyawan });
+  if (res.success) { showToast('Tugas ditandai selesai', 'success'); loadTugas(); }
 }
 
-function onTokoChange() {
-  const tokoId = document.getElementById('selectToko').value;
-  const shiftSel = document.getElementById('selectShift');
-  if (!tokoId) { shiftSel.innerHTML = '<option value="">Pilih...</option>'; return; }
-  google.script.run.withSuccessHandler(shifts => {
-    APP.shiftList = shifts || [];
-    shiftSel.innerHTML = '<option value="">Pilih...</option>' +
-      APP.shiftList.map(s => `<option value="${s.id}">${s.nama} (${s.jamMasuk}-${s.jamPulang})</option>`).join('');
-  }).getShiftByToko(tokoId);
+// =====================================================
+// BERITA
+// =====================================================
+async function loadBerita() {
+  const res = await callAPI('getBeritaList', { limit: 10 });
+  const container = document.getElementById('beritaList');
+  if (!res.success || !res.data?.length) {
+    container.innerHTML = '<p style="text-align:center;color:var(--gray);padding:20px">Belum ada berita</p>';
+    return;
+  }
+  container.innerHTML = (res.data || []).map(b => `
+    <div style="background:var(--gray-light);border-radius:14px;padding:14px;margin-bottom:10px">
+      ${b.Gambar_URL ? `<img src="${b.Gambar_URL}" style="width:100%;border-radius:10px;margin-bottom:10px">` : ''}
+      <div style="font-weight:700;margin-bottom:4px">${b.Judul}</div>
+      <div style="font-size:13px;color:var(--text-secondary)">${b.Isi}</div>
+      <div style="font-size:11px;color:var(--gray);margin-top:8px">${b.Tgl_Publish}</div>
+    </div>`).join('');
 }
 
-// ==================== ABSENSI ====================
-function absenMasuk() {
-  doAbsen('masuk');
+// =====================================================
+// RAPORT
+// =====================================================
+async function loadRaport() {
+  if (!state.user) return;
+  const now = new Date();
+  const res = await callAPI('getAbsensiPeriode', {
+    idKaryawan: state.user.ID_Karyawan,
+    tglMulai: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`,
+    tglAkhir: todayStr(),
+    mode: 'bulanan'
+  });
+  const container = document.getElementById('raportContent');
+  if (!res.success) { container.innerHTML = '<p style="color:var(--danger)">Gagal memuat raport</p>'; return; }
+  const s = res.statistik || {};
+  container.innerHTML = `
+    <div style="background:var(--primary-light);border-radius:14px;padding:16px;margin-bottom:16px">
+      <h4 style="margin-bottom:12px;color:var(--primary)">📊 Rekap ${now.toLocaleString('id',{month:'long',year:'numeric'})}</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="text-align:center;background:white;border-radius:10px;padding:10px">
+          <div style="font-size:24px;font-weight:700;color:var(--success)">${s.hadir||0}</div>
+          <div style="font-size:12px;color:var(--gray)">Hadir</div>
+        </div>
+        <div style="text-align:center;background:white;border-radius:10px;padding:10px">
+          <div style="font-size:24px;font-weight:700;color:var(--warning)">${s.telat||0}</div>
+          <div style="font-size:12px;color:var(--gray)">Telat</div>
+        </div>
+        <div style="text-align:center;background:white;border-radius:10px;padding:10px">
+          <div style="font-size:24px;font-weight:700;color:var(--danger)">${s.alpa||0}</div>
+          <div style="font-size:12px;color:var(--gray)">Alpa</div>
+        </div>
+        <div style="text-align:center;background:white;border-radius:10px;padding:10px">
+          <div style="font-size:24px;font-weight:700;color:var(--gray)">${s.izin||0}</div>
+          <div style="font-size:12px;color:var(--gray)">Izin</div>
+        </div>
+      </div>
+    </div>
+    <div style="background:var(--white);border-radius:14px;padding:16px;box-shadow:var(--card-shadow)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="color:var(--text-secondary)">Total Jam Kerja</span><b>${s.totalJam||0} jam</b>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="color:var(--text-secondary)">Total Jam Lembur</span><b>${s.totalLembur||0} jam</b>
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <span style="color:var(--text-secondary)">Sisa Kuota Cuti</span><b>${s.sisaCuti||'-'} hari</b>
+      </div>
+    </div>`;
 }
-function absenPulang() {
-  doAbsen('pulang');
-}
 
-function doAbsen(type) {
-  if (!APP.user) return;
-  if (!APP.capturedPhoto) { showToast('Ambil foto selfie terlebih dahulu', 'error'); return; }
-  const tokoId = document.getElementById('selectToko').value;
-  const shiftId = document.getElementById('selectShift').value;
-  if (!tokoId || !shiftId) { showToast('Pilih toko dan shift', 'error'); return; }
-
-  const btn = document.getElementById(type === 'masuk' ? 'btnMasuk' : 'btnPulang');
-  btn.disabled = true;
-
-  const data = {
-    userId: APP.user.id,
-    type: type,
-    tokoId: tokoId,
-    shiftId: shiftId,
-    foto: APP.capturedPhoto,
-    gps: APP.gpsLocation,
-    lembur: APP.lemburMode
-  };
-
-  google.script.run.withSuccessHandler(res => {
-    btn.disabled = false;
-    showToast(res.message, res.success ? 'success' : 'error');
-    if (res.success) {
-      retakePhoto();
-      loadShiftInfo();
-      loadStats();
-      loadHistory();
-    }
-  }).withFailureHandler(err => {
-    btn.disabled = false;
-    showToast(err.message, 'error');
-  }).submitAbsen(data);
-}
-
-function toggleLemburMode() {
-  APP.lemburMode = !APP.lemburMode;
-  const btn = document.getElementById('btnLembur');
-  if (APP.lemburMode) {
-    btn.style.background = 'linear-gradient(135deg, #FF9500, #E65100)';
-    btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> MODE LEMBUR AKTIF`;
-    showToast('Mode lembur aktif', 'info');
-  } else {
-    btn.style.background = '';
-    btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> MODE LEMBUR`;
+// =====================================================
+// NOTIFIKASI
+// =====================================================
+async function loadNotifBadge() {
+  const res = await callAPI('getMyApprovals', { idKaryawan: state.user.ID_Karyawan });
+  if (res.success && res.pending > 0) {
+    document.getElementById('notifBadge').textContent = res.pending;
+    document.getElementById('notifBadge').style.display = 'flex';
   }
 }
 
-// ==================== HISTORY / DATA ABSENSI ====================
-function loadHistory() {
-  if (!APP.user) return;
-  google.script.run.withSuccessHandler(list => {
-    APP.historyList = list || [];
-    renderHistory();
-  }).getHistory(APP.user.id);
-}
-
-function renderHistory() {
-  const container = document.getElementById('historyList');
-  const filtered = APP.historyFilter === 'all' ? APP.historyList : APP.historyList.filter(h => h.type === APP.historyFilter);
-  document.getElementById('dataHadir').textContent = APP.historyList.filter(h => h.status === 'Hadir').length;
-  document.getElementById('dataTelat').textContent = APP.historyList.filter(h => h.status === 'Telat').length;
-  document.getElementById('dataAlpa').textContent = APP.historyList.filter(h => h.status === 'Alpa').length;
-  if (!filtered.length) { container.innerHTML = '<div class="history-empty">Tidak ada data</div>'; return; }
-  container.innerHTML = filtered.map(h => `
-    <div class="history-card ${h.statusClass || ''}">
-      <div class="history-header">
-        <span class="history-title">${h.tanggal || '-'}</span>
-        <span class="history-badge ${h.statusClass || ''}">${h.status || '-'}</span>
+async function loadNotif() {
+  const res = await callAPI('getMyApprovals', { idKaryawan: state.user.ID_Karyawan });
+  const container = document.getElementById('notifList');
+  if (!res.success || !res.data?.length) {
+    container.innerHTML = '<p style="text-align:center;color:var(--gray);padding:20px">Tidak ada notifikasi</p>';
+    return;
+  }
+  container.innerHTML = (res.data || []).map(n => `
+    <div class="history-item">
+      <div class="status-dot" style="background:${n.Status==='Approved'?'var(--success)':n.Status==='Rejected'?'var(--danger)':'var(--warning)'}"></div>
+      <div style="flex:1">
+        <div style="font-weight:600">${n.Tipe||'Approval'}</div>
+        <div style="font-size:13px;color:var(--text-secondary)">${n.Keterangan||''}</div>
+        <div style="font-size:11px;color:var(--gray);margin-top:4px">${n.Status}</div>
       </div>
-      <div class="history-meta">
-        <div>${h.jamMasuk ? 'Masuk: ' + h.jamMasuk : ''} ${h.jamPulang ? '| Pulang: ' + h.jamPulang : ''}</div>
-        <div>${h.toko || ''} ${h.shift ? '| ' + h.shift : ''}</div>
-      </div>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
-function filterHistory(type) {
-  APP.historyFilter = type;
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-  document.querySelector(`.filter-chip[data-filter="${type}"]`).classList.add('active');
-  renderHistory();
+function openHistoriAbsensi() {
+  // Simple redirect / load
+  showToast('Membuka histori absensi...', 'info');
 }
 
-// ==================== JADWAL ====================
-function loadJadwal() {
-  if (!APP.user) return;
-  google.script.run.withSuccessHandler(list => {
-    APP.jadwalList = list || [];
-    renderJadwal();
-  }).getJadwal(APP.user.id);
-}
-
-function renderJadwal() {
-  const container = document.getElementById('jadwalList');
-  if (!APP.jadwalList.length) { container.innerHTML = '<div class="history-empty">Belum ada jadwal</div>'; return; }
-  container.innerHTML = APP.jadwalList.map(j => `
-    <div class="data-list-item">
-      <div class="data-list-icon" style="background:${j.color || 'var(--primary-light)'};">
-        <svg viewBox="0 0 24 24" fill="none" stroke="${j.iconColor || 'var(--primary)'}" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-      </div>
-      <div class="data-list-text">
-        <h4>${j.hari || '-'} - ${j.shiftNama || 'Libur'}</h4>
-        <p>${j.jamMasuk && j.jamPulang ? j.jamMasuk + ' - ' + j.jamPulang : 'Libur'}</p>
-      </div>
-    </div>
-  `).join('');
-}
-
-// ==================== CHAT ====================
-function loadChat() {
-  if (!APP.user) return;
-  google.script.run.withSuccessHandler(list => {
-    APP.chatMessages = list || [];
-    renderChat();
-    renderModalChat();
-  }).getChatMessages();
-}
-
-function renderChat() {
-  const container = document.getElementById('chatMessages');
-  if (!APP.chatMessages.length) { container.innerHTML = '<div class="history-empty">Belum ada pesan</div>'; return; }
-  container.innerHTML = APP.chatMessages.map(m => renderChatMsg(m)).join('');
-  container.scrollTop = container.scrollHeight;
-}
-
-function renderModalChat() {
-  const container = document.getElementById('modalChatMessages');
-  if (!APP.chatMessages.length) { container.innerHTML = '<div class="history-empty">Belum ada pesan</div>'; return; }
-  container.innerHTML = APP.chatMessages.map(m => renderChatMsg(m)).join('');
-  container.scrollTop = container.scrollHeight;
-}
-
-function renderChatMsg(m) {
-  const isMe = m.fromId === (APP.user ? APP.user.id : '');
-  return `
-    <div style="display:flex;${isMe ? 'justify-content:flex-end;' : 'justify-content:flex-start;'}margin-bottom:10px;">
-      <div style="max-width:75%;padding:10px 14px;border-radius:18px;font-size:14px;line-height:1.4;${isMe ? 'background:var(--primary);color:white;border-bottom-right-radius:4px;' : 'background:#F1F3F4;color:var(--text);border-bottom-left-radius:4px;'}">
-        <div style="font-size:11px;font-weight:700;opacity:0.8;margin-bottom:2px;">${m.fromName || 'Anonim'}</div>
-        <div>${m.text || ''}</div>
-        <div style="font-size:10px;opacity:0.6;margin-top:4px;text-align:right;">${m.time || ''}</div>
-      </div>
-    </div>
-  `;
-}
-
-function sendChat() {
-  const input = document.getElementById('chatInput');
-  const text = input.value.trim();
-  if (!text || !APP.user) return;
-  input.value = '';
-  const msg = { fromId: APP.user.id, fromName: APP.user.nama, text: text, time: new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'}) };
-  APP.chatMessages.push(msg);
-  renderChat();
-  google.script.run.withSuccessHandler(() => {
-    loadChat();
-  }).sendChatMessage(msg);
-}
-
-function sendModalChat() {
-  const input = document.getElementById('modalChatInput');
-  const text = input.value.trim();
-  if (!text || !APP.user) return;
-  input.value = '';
-  const msg = { fromId: APP.user.id, fromName: APP.user.nama, text: text, time: new Date().toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'}) };
-  APP.chatMessages.push(msg);
-  renderModalChat();
-  google.script.run.withSuccessHandler(() => {
-    loadChat();
-  }).sendChatMessage(msg);
-}
-
-// ==================== TUGAS ====================
-function loadTugas() {
-  if (!APP.user) return;
-  google.script.run.withSuccessHandler(list => {
-    APP.tugasList = list || [];
-    renderTugasBadge();
-  }).getTugas(APP.user.id);
-}
-
-function renderTugasBadge() {
-  const active = APP.tugasList.filter(t => t.status !== 'Selesai').length;
-  const badge = document.getElementById('badgeTugas');
-  badge.textContent = active;
-  badge.classList.toggle('hidden', active === 0);
-}
-
-function renderTugasList() {
-  const container = document.getElementById('tugasListContent');
-  if (!APP.tugasList.length) { container.innerHTML = '<div class="history-empty">Tidak ada tugas aktif</div>'; return; }
-  container.innerHTML = APP.tugasList.map(t => `
-    <div class="tugas-card ${t.prioritas || 'low'}">
-      <div class="tugas-header">
-        <div class="tugas-judul">${t.judul || '-'}</div>
-        <span class="tugas-prioritas ${t.prioritas || 'low'}">${t.prioritas || 'low'}</span>
-      </div>
-      <div class="tugas-deskripsi">${t.deskripsi || ''}</div>
-      <div class="tugas-footer">
-        <span class="tugas-deadline">${t.deadline || ''}</span>
-        ${t.status !== 'Selesai' ? `<button class="tugas-btn selesai" onclick="selesaiTugas('${t.id}')">Selesai</button>` : '<span style="color:var(--success);font-weight:700;font-size:12px;">&#10004; Selesai</span>'}
-      </div>
-    </div>
-  `).join('');
-}
-
-function selesaiTugas(id) {
-  google.script.run.withSuccessHandler(() => {
-    showToast('Tugas diselesaikan!', 'success');
-    loadTugas();
-    renderTugasList();
-  }).selesaiTugas(id);
-}
-
-// ==================== BERITA ====================
-function loadBerita() {
-  google.script.run.withSuccessHandler(list => {
-    APP.beritaList = list || [];
-    renderBeritaBadge();
-  }).getBerita();
-}
-
-function renderBeritaBadge() {
-  const unread = APP.beritaList.filter(b => !b.read).length;
-  const badge = document.getElementById('badgeBerita');
-  badge.textContent = unread;
-  badge.classList.toggle('hidden', unread === 0);
-}
-
-function renderBeritaList() {
-  const container = document.getElementById('beritaListContent');
-  if (!APP.beritaList.length) { container.innerHTML = '<div class="history-empty">Belum ada berita</div>'; return; }
-  container.innerHTML = APP.beritaList.map(b => `
-    <div class="berita-card">
-      ${b.gambar ? `<img src="${b.gambar}" class="berita-img" alt="${b.judul}">` : ''}
-      <div class="berita-body">
-        <span class="berita-kategori" style="background:${b.kategoriColor || 'var(--primary-light)'};color:${b.kategoriText || 'var(--primary)'};">${b.kategori || 'Umum'}</span>
-        <div class="berita-judul">${b.judul || '-'}</div>
-        <div class="berita-isi">${b.isi || ''}</div>
-        <div class="berita-tgl">${b.tanggal || ''}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-// ==================== IZIN ====================
-function selectIzinType(el) {
-  document.querySelectorAll('.izin-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  APP.izinType = el.dataset.type;
-}
-
-function submitIzin() {
-  if (!APP.user) return;
-  const dari = document.getElementById('izinDari').value;
-  const sampai = document.getElementById('izinSampai').value;
-  const keterangan = document.getElementById('izinKeterangan').value.trim();
-  if (!dari || !sampai || !keterangan) { showToast('Lengkapi semua field', 'error'); return; }
-  const data = { userId: APP.user.id, type: APP.izinType, dari: dari, sampai: sampai, keterangan: keterangan };
-  google.script.run.withSuccessHandler(res => {
-    showToast(res.message, res.success ? 'success' : 'error');
-    if (res.success) { closeModal('modalIzin'); document.getElementById('izinKeterangan').value = ''; }
-  }).submitIzin(data);
-}
-
-// ==================== LEMBUR ====================
-function submitLembur() {
-  if (!APP.user) return;
-  const tanggal = document.getElementById('lemburTanggal').value;
-  const durasi = document.getElementById('lemburDurasi').value;
-  const keterangan = document.getElementById('lemburKeterangan').value.trim();
-  if (!tanggal || !keterangan) { showToast('Lengkapi semua field', 'error'); return; }
-  const data = { userId: APP.user.id, tanggal: tanggal, durasi: durasi, keterangan: keterangan };
-  google.script.run.withSuccessHandler(res => {
-    showToast(res.message, res.success ? 'success' : 'error');
-    if (res.success) { closeModal('modalLembur'); document.getElementById('lemburKeterangan').value = ''; }
-  }).submitLembur(data);
-}
-
-// ==================== TUKER SHIFT ====================
-function populateTukerKaryawan() {
+async function fillKaryawanForTuker() {
+  const res = await callAPI('getKaryawanList');
   const sel = document.getElementById('tukerKaryawan');
-  if (!sel || !APP.karyawanList.length) return;
-  const others = APP.karyawanList.filter(k => k.id !== (APP.user ? APP.user.id : ''));
-  sel.innerHTML = '<option value="">Pilih karyawan...</option>' +
-    others.map(k => `<option value="${k.id}">${k.nama} - ${k.tokoNama}</option>`).join('');
+  sel.innerHTML = '<option value="">-- Pilih Karyawan --</option>';
+  (res.data || []).filter(k => k.ID_Karyawan !== state.user?.ID_Karyawan).forEach(k => {
+    sel.innerHTML += `<option value="${k.ID_Karyawan}">${k.Nama}</option>`;
+  });
 }
 
-function submitTukerShift() {
-  if (!APP.user) return;
-  const karyawanId = document.getElementById('tukerKaryawan').value;
+async function submitTukerShift() {
+  const idKaryawanTujuan = document.getElementById('tukerKaryawan').value;
   const tanggal = document.getElementById('tukerTanggal').value;
-  const alasan = document.getElementById('tukerAlasan').value.trim();
-  if (!karyawanId || !tanggal || !alasan) { showToast('Lengkapi semua field', 'error'); return; }
-  const data = { userId: APP.user.id, karyawanId: karyawanId, tanggal: tanggal, alasan: alasan };
-  google.script.run.withSuccessHandler(res => {
-    showToast(res.message, res.success ? 'success' : 'error');
-    if (res.success) { closeModal('modalTukerShift'); document.getElementById('tukerAlasan').value = ''; }
-  }).submitTukerShift(data);
+  const alasan = document.getElementById('tukerAlasan').value;
+  if (!idKaryawanTujuan || !tanggal) { showToast('Lengkapi field tukar shift', 'warning'); return; }
+
+  showLoading('Mengajukan tukar shift...');
+  const res = await callAPI('ajukanTukerShift', {
+    idKaryawan: state.user.ID_Karyawan,
+    idKaryawanTujuan, tanggal, alasan,
+    idTokoSaya: state.user.Toko_Default
+  });
+  hideLoading();
+
+  if (res.success) { showToast('✅ Permintaan tukar shift terkirim', 'success'); closeModal('tukerShiftModal'); }
+  else showToast(res.message || 'Gagal', 'error');
 }
 
-// ==================== MODALS ====================
+// =====================================================
+// MODAL HELPERS
+// =====================================================
 function openModal(id) {
-  const modal = document.getElementById(id);
-  if (modal) modal.classList.add('active');
-  document.body.style.overflow = 'hidden';
+  document.getElementById(id).classList.add('active');
+  // Load content
+  if (id === 'jadwalModal') loadJadwal();
+  else if (id === 'chatModal') loadChat();
+  else if (id === 'tugasModal') loadTugas();
+  else if (id === 'beritaModal') loadBerita();
+  else if (id === 'raportModal') loadRaport();
+  else if (id === 'notifModal') loadNotif();
 }
+
 function closeModal(id) {
-  const modal = document.getElementById(id);
-  if (modal) modal.classList.remove('active');
-  document.body.style.overflow = '';
+  document.getElementById(id).classList.remove('active');
 }
 
-// ==================== PICO MASCOT ====================
-function initPico() {
-  const pico = document.getElementById('picoMascot');
-  if (!pico) return;
-  // Show bubble after 3 seconds
-  setTimeout(() => {
-    const bubble = document.getElementById('picoBubble');
-    if (bubble && !localStorage.getItem('picoClosed')) {
-      bubble.classList.add('show');
-    }
-  }, 3000);
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('active');
+  });
+});
+
+// ===================================================
+// UTILITY HELPERS
+// ===================================================
+function showToast(msg, type = 'info', duration = 3000) {
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${icons[type]||''}</span><span>${msg}</span>`;
+  document.getElementById('toastContainer').appendChild(t);
+  setTimeout(() => t.remove(), duration);
 }
 
-function togglePicoBubble() {
-  const bubble = document.getElementById('picoBubble');
-  if (bubble) bubble.classList.toggle('show');
+function showLoading(text = 'Memuat...') {
+  document.getElementById('loadingText').textContent = text;
+  document.getElementById('loadingOverlay').classList.add('active');
 }
 
-function closePicoBubble(e) {
-  e.stopPropagation();
-  const bubble = document.getElementById('picoBubble');
-  if (bubble) {
-    bubble.classList.remove('show');
-    localStorage.setItem('picoClosed', 'true');
-  }
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('active');
 }
 
-function openPicoModal(text) {
-  const modal = document.getElementById('picoModal');
-  const txt = document.getElementById('picoModalText');
-  if (txt) txt.textContent = text || 'Halo! Saya Pico.';
-  if (modal) modal.classList.add('active');
-}
-function closePicoModal() {
-  const modal = document.getElementById('picoModal');
-  if (modal) modal.classList.remove('active');
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-// ==================== TOAST ====================
-function showToast(msg, type) {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.className = 'toast show toast-' + (type || 'info');
-  setTimeout(() => toast.classList.remove('show'), 3000);
+function formatDate(d) {
+  return d.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 }
 
-// ==================== PERMISSION OVERLAY ====================
-function showPermOverlay(content) {
-  document.getElementById('permContent').innerHTML = content;
-  document.getElementById('permOverlay').classList.add('active');
+function formatTime(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
 }
-function closePermOverlay() {
-  document.getElementById('permOverlay').classList.remove('active');
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
-function retryPermission() {
-  closePermOverlay();
-  initCamera();
-  initGPS();
+
+// Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 </script>
-
 </body>
 </html>
