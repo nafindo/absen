@@ -1,15 +1,13 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0D8ABC">
 <title>Absensi Karyawan</title>
-  <style>
-
+<style>
   :root {
     --primary: #0D8ABC; --primary-dark: #0A6B8E; --primary-light: #E3F2FD;
     --success: #34C759; --success-dark: #2DAF4A; --danger: #FF3B30;
@@ -634,10 +632,13 @@
   .mt-1 { margin-top: 8px; } .mt-2 { margin-top: 16px; }
   .mb-1 { margin-bottom: 8px; } .mb-2 { margin-bottom: 16px; }
   .flex { display: flex; } .items-center { align-items: center; } .gap-2 { gap: 8px; }
-  </style>
+</style>
+<base target="_blank">
+<base target="_blank">
+<base target="_blank">
 </head>
 <body>
-  
+
 <!-- ===== LOGIN SCREEN ===== -->
 <div class="login-screen" id="loginScreen">
   <div class="login-logo-wrap">
@@ -1316,471 +1317,1711 @@
 <audio id="soundError" src="https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3"></audio>
 <audio id="soundNotif" src="https://assets.mixkit.co/active_storage/sfx/2866/2866-preview.mp3"></audio>
 
+<script>
+// ==================== STATE ====================
+let state = {
+  user: null, photoData: null, gps: { lat:null, lng:null, accuracy:null, jarak:null },
+  absenStatus: 'belum_masuk', isLemburMode: false, jadwalOffset: 0, stream: null,
+  tokoList: [], shiftList: [], karyawanList: [], notifList: [], notifShown: false,
+  lemburStream: null, lemburPhotoData: null, audioUnlocked: false
+};
 
-  <script>
-    // ============================================================
-    // JAVASCRIPT v3.0 - SEMUA BUG DIperbaiki
-    // ============================================================
-    
-    // ==================== STATE ====================
-    let state = {
-      user: null, 
-      photoData: null, 
-      gps: { lat:null, lng:null, accuracy:null, jarak:null },
-      absenStatus: 'belum_masuk', 
-      isLemburMode: false, 
-      jadwalOffset: 0, 
-      stream: null,
-      tokoList: [], 
-      shiftList: [], 
-      karyawanList: [], 
-      notifList: [], 
-      notifShown: false,
-      lemburStream: null, 
-      lemburPhotoData: null, 
-      audioUnlocked: false,
-      chatMessages: [],
-      chatAttachment: null,
-      chatCameraStream: null,
-      chatPollInterval: null,
-      statusPollInterval: null
-    };
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySMzB3SsqaMqJITxhXu1eWorAB_I5BboEcqNcncwLfSo4Iu_vDvGu50rth3IM6g2I/exec';
+const LS_KEY = 'absensi_user_v2';
+const pathGambar = "https://lh3.googleusercontent.com/d/";
+const picoImages = {
+  sukses: "1Tnf4KogLXDeGaXjzi7nT-6D0XDsLQJtI", gps_jauh: "1t3Ip_ioGD55TEWbkKPgtnYtDciidJuDZ",
+  wajah_gagal: "1znuTlrMgr6b_qpWdrTwdW5FnPsbsd3cE", lembur_pending: "1q5q5rsFG0ZrhaGJyEulwU8MJjXAtFyKc",
+  izin_sakit: "1wf65GL6UGY_qDfnGEhSYHxvYL5pRXJwf", izin_telat: "115BmzgFQ2uJHXk8khNGAhdYD0tRVrh1h",
+  izin_pulang: "152ZtNSBruDX5KQOpo7fMv7SDws0u1VlF", izin_cuti: "1Tnxa9YDmJD0N0evyv7RGg9wRERDBm3zJ",
+  error: "1Q5WxPZ2uulbNdZsggdCQ2HZhyJiFoJKV"
+};
+const picoBtnColors = {
+  sukses:'#34C759', gps_jauh:'#FF3B30', wajah_gagal:'#FF9500', lembur_pending:'#0D8ABC',
+  izin_sakit:'#8B95A5', izin_telat:'#FF9500', izin_pulang:'#FF9500', izin_cuti:'#00ACC1', error:'#C62828'
+};
 
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySMzB3SsqaMqJITxhXu1eWorAB_I5BboEcqNcncwLfSo4Iu_vDvGu50rth3IM6g2I/exec';
-    const LS_KEY = 'absensi_user_v2';
-    
-    // ==================== API CALL (Dengan Retry & CORS) ====================
-    async function apiCall(action, payload = {}) {
-      const maxRetries = 2;
-      let lastError;
-
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-          const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action, ...payload }),
-            redirect: 'follow'
-          });
-
-          if (!response.ok) {
-            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
-          }
-
-          const text = await response.text();
-          if (!text || !text.trim()) {
-            throw new Error('Response kosong dari server');
-          }
-
-          let data;
-          try {
-            data = JSON.parse(text);
-          } catch (e) {
-            const m = text.match(/\{[\s\S]*\}/);
-            if (m) {
-              try { data = JSON.parse(m[0]); } catch (e2) { 
-                throw new Error('Parse error: ' + text.substring(0, 100)); 
-              }
-            } else {
-              throw new Error('Invalid response: ' + text.substring(0, 100));
-            }
-          }
-
-          if (!data || typeof data !== 'object') {
-            throw new Error('Invalid response format');
-          }
-
-          return data;
-
-        } catch (error) {
-          lastError = error;
-          console.warn(`[API] ${action} attempt ${attempt + 1} failed:`, error.message);
-          if (attempt < maxRetries) {
-            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-          }
-        }
-      }
-
-      console.error('[API]', action, 'All retries failed:', lastError);
-      throw lastError;
+// ==================== LOCAL STORAGE LOGIN ====================
+function saveLogin(userData) {
+  const data = { ...userData, loggedAt: Date.now() };
+  localStorage.setItem(LS_KEY, JSON.stringify(data));
+}
+function loadLogin() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    // Valid 30 hari
+    const days30 = 30 * 24 * 60 * 60 * 1000;
+    if (Date.now() - data.loggedAt > days30) {
+      localStorage.removeItem(LS_KEY);
+      return null;
     }
+    return data;
+  } catch (e) { return null; }
+}
+function clearLogin() {
+  localStorage.removeItem(LS_KEY);
+}
 
-    // ==================== LOGIN (Tanpa Verifikasi PIN) ====================
-    async function doLogin() {
+// ==================== AUDIO UNLOCK ====================
+function unlockAudio() {
+  if (state.audioUnlocked) return;
+  ['soundSuccess','soundError','soundNotif'].forEach(id => {
+    const a = document.getElementById(id);
+    if (a) { a.play().catch(()=>{}); a.pause(); a.currentTime = 0; }
+  });
+  state.audioUnlocked = true;
+}
+
+function playSound(type) {
+  if (!state.audioUnlocked) return;
+  const audio = document.getElementById(type === 'success' ? 'soundSuccess' : type === 'error' ? 'soundError' : 'soundNotif');
+  if (audio) { audio.currentTime = 0; audio.play().catch(()=>{}); }
+}
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded', async () => {
+  updateDate();
+  initGPS();
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('izinTglMulai').value = today;
+  document.getElementById('izinTglSelesai').value = today;
+
+  // Test connection first
+  await testBackendConnection();
+
+  // Load karyawan list untuk dropdown login
+  await loadKaryawanDropdown();
+
+  // Cek localStorage login
+  const saved = loadLogin();
+  if (saved && saved.id) {
+    // Auto login dari localStorage
+    state.user = { id: saved.id, name: saved.name, role: saved.role, tokoDefault: saved.tokoDefault, shiftDefault: saved.shiftDefault };
+    state.currentUser = state.user;
+    unlockAudio();
+    showApp();
+    setupUserUI(saved.fotoUrl || '');
+    await loadTokoData();
+    if (state.user.tokoDefault) {
+      document.getElementById('selectToko').value = state.user.tokoDefault;
+      await onTokoChange();
+      if (state.user.shiftDefault) {
+        document.getElementById('selectShift').value = state.user.shiftDefault;
+        updateShiftInfo();
+      }
+    }
+    await checkAbsenStatus();
+    stopCamera();
+    showCameraOverlay();
+    checkMyApprovals();
+  }
+  // Jika tidak ada saved login, login screen tetap tampil
+});
+
+async function testBackendConnection() {
+  try {
+    const res = await apiCall('testConnection');
+    if (res.success) {
+      console.log('[CONN] ✅ Backend connected:', res.message, res.timestamp);
+      showToast('Terhubung ke server', 'success');
+    } else {
+      console.warn('[CONN] ⚠️ Backend error:', res.error);
+      showToast('Server error: ' + res.error, 'error');
+    }
+  } catch (e) {
+    console.error('[CONN] ❌ Connection failed:', e.message);
+    showToast('Koneksi gagal: ' + e.message, 'error');
+  }
+}
+
+function showApp() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('appContent').style.display = 'block';
+}
+
+function setupUserUI(fotoUrl) {
+  document.getElementById('headerName').textContent = state.user.name;
+  document.getElementById('headerRole').textContent = (state.user.role || 'Staff');
+  setHeaderAvatar(state.user.name, fotoUrl);
+}
+
+function setHeaderAvatar(name, fotoUrl) {
+  const textEl = document.getElementById('headerAvatarText');
+  const imgEl = document.getElementById('headerAvatarImg');
+  if (fotoUrl && fotoUrl.trim()) {
+    imgEl.src = fotoUrl; imgEl.style.display = 'block'; textEl.style.display = 'none';
+  } else {
+    textEl.textContent = (name || 'U').charAt(0).toUpperCase();
+    textEl.style.display = 'flex'; imgEl.style.display = 'none';
+  }
+}
+
+// ==================== LOGIN ====================
+async function doLogin() {
+  const sel = document.getElementById('loginSelect');
+  const id = sel.value;
+  const errBox = document.getElementById('loginError');
+  const btn = document.getElementById('btnLogin');
+
+  if (!id) {
+    errBox.textContent = 'Pilih nama karyawan terlebih dahulu!';
+    errBox.classList.add('show'); return;
+  }
+
+  const opt = sel.options[sel.selectedIndex];
+  const name = opt.text;
+  const role = opt.getAttribute('data-role') || 'Staff';
+  const tokoId = opt.getAttribute('data-toko') || '';
+  const shiftId = opt.getAttribute('data-shift') || '';
+  const fotoUrl = opt.getAttribute('data-foto') || '';
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Memuat...';
+  errBox.classList.remove('show');
+
+  // Simulasi verifikasi ke backend (tanpa password)
+  try {
+    // Optional: verify ke backend
+    const res = await apiCall('getKaryawanById', { idKaryawan: id });
+    if (!res.success) {
+      // Fallback: tetap lanjut pakai data dari dropdown
+    }
+  } catch (e) {}
+
+  state.user = { id, name, role, tokoDefault: tokoId, shiftDefault: shiftId };
+  state.currentUser = state.user;
+
+  // Simpan ke localStorage
+  saveLogin({ id, name, role, tokoDefault: tokoId, shiftDefault: shiftId, fotoUrl });
+
+  // Unlock audio context (user gesture)
+  unlockAudio();
+
+  showApp();
+  setupUserUI(fotoUrl);
+
+  await loadTokoData();
+  if (tokoId) {
+    document.getElementById('selectToko').value = tokoId;
+    await onTokoChange();
+    if (shiftId) {
+      document.getElementById('selectShift').value = shiftId;
+      updateShiftInfo();
+    }
+  }
+  checkAbsenStatus();
+  updateTokoCardInfo();
+  stopCamera();
+  showCameraOverlay();
+  checkMyApprovals();
+  showToast('Selamat datang, ' + name + '!', 'success');
+  playSound('success');
+
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> Masuk`;
+}
+
+// ==================== KARYAWAN DROPDOWN ====================
+async function loadKaryawanDropdown() {
+  try {
+    const res = await apiCall('getKaryawanList');
+    if (res.success && Array.isArray(res.data)) {
+      state.karyawanList = res.data.filter(k => k.Status === 'Aktif');
       const sel = document.getElementById('loginSelect');
-      const id = sel.value;
-      const errBox = document.getElementById('loginError');
-      const btn = document.getElementById('btnLogin');
-
-      if (!id) {
-        errBox.textContent = 'Pilih nama karyawan terlebih dahulu!';
-        errBox.classList.add('show'); 
-        return;
-      }
-
-      const opt = sel.options[sel.selectedIndex];
-      const name = opt.text;
-      const role = opt.getAttribute('data-role') || 'Staff';
-      const tokoId = opt.getAttribute('data-toko') || '';
-      const shiftId = opt.getAttribute('data-shift') || '';
-      const fotoUrl = opt.getAttribute('data-foto') || '';
-
-      btn.disabled = true;
-      btn.innerHTML = '<div class="spinner"></div> Memuat...';
-      errBox.classList.remove('show');
-
-      // Mode tanpa login: langsung set user dari dropdown
-      state.user = { 
-        id, 
-        name, 
-        role, 
-        tokoDefault: tokoId, 
-        shiftDefault: shiftId 
-      };
-      state.currentUser = state.user;
-      saveLogin({ id, name, role, tokoDefault: tokoId, shiftDefault: shiftId, fotoUrl });
-      unlockAudio();
-
-      showApp();
-      setupUserUI(fotoUrl);
-      
-      // Load semua data secara paralel
-      await Promise.all([
-        loadTokoData(),
-        loadJadwalHariIni(),
-        loadSisaKuota(),
-        loadTukerShiftHistory()
-      ]);
-
-      if (tokoId) {
-        document.getElementById('selectToko').value = tokoId;
-        await onTokoChange();
-        if (shiftId) {
-          document.getElementById('selectShift').value = shiftId;
-          updateShiftInfo();
-        }
-      }
-      
-      await checkAbsenStatus();
-      updateTokoCardInfo();
-      stopCamera();
-      showCameraOverlay();
-      checkMyApprovals();
-      loadStatistikBulanan();
-      
-      // Start status polling
-      startStatusPolling();
-      
-      showToast('Selamat datang, ' + name + '!', 'success');
-      playSound('success');
-
-      btn.disabled = false;
-      btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> Masuk`;
+      sel.innerHTML = '<option value="">Pilih Nama...</option>';
+      state.karyawanList.forEach(k => {
+        const fotoUrl = k.Foto_URL || k.Foto_Profil || k.fotoUrl || '';
+        sel.innerHTML += `<option value="${k.ID_Karyawan}" data-toko="${k.Toko_Default || ''}" data-shift="${k.Shift_Default || ''}" data-role="${k.Jabatan || 'Staff'}" data-foto="${fotoUrl}">${k.Nama}</option>`;
+      });
     }
+  } catch (e) { console.log('loadKaryawanDropdown error:', e); }
+}
 
-    // ==================== LOAD JADWAL HARI INI ====================
-    async function loadJadwalHariIni() {
-      if (!state.user || !state.user.id) return;
-      try {
-        const res = await apiCall('getJadwalHariIni', { idKaryawan: state.user.id });
-        if (res.success && res.jadwal) {
-          const j = res.jadwal;
-          document.getElementById('shiftNama').textContent = 
-            j.namaShift + ' - ' + j.jamMasuk + ' - ' + j.jamPulang;
-          if (j.idToko) {
-            document.getElementById('selectToko').value = j.idToko;
-            await onTokoChange();
-            if (j.idShift) {
-              document.getElementById('selectShift').value = j.idShift;
-              updateShiftInfo();
-            }
-          }
-          updateTokoCardInfo();
-        }
-      } catch (e) { 
-        console.log('loadJadwalHariIni error:', e); 
-      }
-    }
+// ==================== TAB SWITCHING ====================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector('.nav-fab').style.background = '';
 
-    // ==================== LOAD SISA KUOTA ====================
-    async function loadSisaKuota() {
-      if (!state.user || !state.user.id) return;
-      try {
-        const res = await apiCall('getSisaKuota', { idKaryawan: state.user.id });
-        if (res.success && res.kuota) {
-          const kuota = res.kuota;
-          let infoText = 'Sisa kuota: ';
-          const items = [];
-          Object.keys(kuota).forEach(kode => {
-            if (kuota[kode].sisa !== null) {
-              items.push(kuota[kode].nama + ' <strong>' + kuota[kode].sisa + '</strong>');
-            }
-          });
-          infoText += items.length > 0 ? items.join(' | ') : 'Tidak ada kuota';
-          const el = document.getElementById('kuotaInfo');
-          if (el) el.innerHTML = infoText;
-        }
-      } catch (e) { 
-        console.log('loadSisaKuota error:', e); 
-        const el = document.getElementById('kuotaInfo');
-        if (el) el.innerHTML = 'Sisa kuota: <strong>-</strong> (Gagal memuat)';
-      }
-    }
+  if (tab === 'beranda') {
+    document.getElementById('tabBeranda').classList.add('active');
+    document.getElementById('navBeranda').classList.add('active');
+    stopCamera();
+  } else if (tab === 'absensi') {
+    document.getElementById('tabAbsensi').classList.add('active');
+    document.getElementById('navAbsensi').style.background = 'linear-gradient(135deg, #0A6B8E, #065473)';
+    // Auto-start camera after tab switch animation
+    setTimeout(() => autoStartCamera(), 350);
+  } else if (tab === 'data') {
+    document.getElementById('tabData').classList.add('active');
+    document.getElementById('navData').classList.add('active');
+    stopCamera();
+  }
+}
 
-    // ==================== LOAD TUKER SHIFT HISTORY ====================
-    async function loadTukerShiftHistory() {
-      if (!state.user || !state.user.id) return;
-      try {
-        const res = await apiCall('getTukerShiftHistory', { idKaryawan: state.user.id });
-        if (res.success && Array.isArray(res.data)) {
-          const pendingCount = res.data.filter(t => t.status === 'Pending').length;
-          const badge = document.getElementById('badgeTukerShift');
-          if (badge) {
-            badge.textContent = pendingCount;
-            badge.classList.toggle('hidden', pendingCount === 0);
-          }
-        }
-      } catch (e) { 
-        console.log('loadTukerShiftHistory error:', e); 
-      }
-    }
+function toggleAbsensiTab() {
+  const tabAbsensi = document.getElementById('tabAbsensi');
+  if (tabAbsensi.classList.contains('active')) {
+    // Already on absensi tab -> go back to beranda (close)
+    switchTab('beranda');
+    showToast('Kembali ke Beranda', 'info');
+  } else {
+    // Open absensi tab -> auto start camera
+    switchTab('absensi');
+  }
+}
 
-    // ==================== LOAD STATISTIK BULANAN ====================
-    async function loadStatistikBulanan() {
-      if (!state.user || !state.user.id) return;
-      try {
-        const now = new Date();
-        const res = await apiCall('getRaportBulanan', { 
-          idKaryawan: state.user.id, 
-          bulan: now.getMonth() + 1, 
-          tahun: now.getFullYear() 
-        });
-        if (res.success) {
-          document.getElementById('statHadir').textContent = res.totalHadir || 0;
-          document.getElementById('statAlpa').textContent = (res.totalHadir === 0 ? 0 : Math.max(0, 20 - res.totalHadir)); // Estimasi
-          document.getElementById('statTelat').textContent = res.totalTelat || 0;
-          
-          // Update bars
-          const total = Math.max(res.totalHadir + res.totalTelat, 1);
-          document.getElementById('barHadir').style.width = Math.round((res.totalHadir / total) * 100) + '%';
-          document.getElementById('barTelat').style.width = Math.round((res.totalTelat / total) * 100) + '%';
-        }
-      } catch (e) {
-        console.log('loadStatistikBulanan error:', e);
-      }
-    }
+// ==================== CAMERA ====================
+function showCameraOverlay() {
+  document.getElementById('cameraOverlay').classList.remove('hidden');
+}
+function hideCameraOverlay() {
+  document.getElementById('cameraOverlay').classList.add('hidden');
+}
+function showCameraError(msg) {
+  const box = document.getElementById('cameraErrorBox');
+  box.innerHTML = msg + ' <a href="#" onclick="showPermHelp();return false;" style="color:#8ab4f8;text-decoration:underline;font-weight:800;">Lihat Panduan</a>';
+  box.classList.remove('hidden');
+}
 
-    // ==================== STATUS POLLING ====================
-    function startStatusPolling() {
-      if (state.statusPollInterval) clearInterval(state.statusPollInterval);
-      state.statusPollInterval = setInterval(() => {
-        if (state.user && state.user.id) {
-          checkAbsenStatus();
-        }
-      }, 30000); // Every 30 seconds
-    }
-
-    function stopStatusPolling() {
-      if (state.statusPollInterval) {
-        clearInterval(state.statusPollInterval);
-        state.statusPollInterval = null;
-      }
-    }
-
-    // ==================== TAB SWITCHING (Dengan Data Loading) ====================
-    function switchTab(tab) {
-      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      document.querySelector('.nav-fab').style.background = '';
-
-      if (tab === 'beranda') {
-        document.getElementById('tabBeranda').classList.add('active');
-        document.getElementById('navBeranda').classList.add('active');
-        stopCamera();
-        loadStatistikBulanan();
-      } else if (tab === 'absensi') {
-        document.getElementById('tabAbsensi').classList.add('active');
-        document.getElementById('navAbsensi').style.background = 'linear-gradient(135deg, #0A6B8E, #065473)';
-        setTimeout(() => autoStartCamera(), 350);
-      } else if (tab === 'data') {
-        document.getElementById('tabData').classList.add('active');
-        document.getElementById('navData').classList.add('active');
-        stopCamera();
-        loadDataAbsensi();
-      }
-    }
-
-    // ==================== LOAD DATA ABSENSI ====================
-    async function loadDataAbsensi() {
-      if (!state.user || !state.user.id) return;
-      try {
-        const now = new Date();
-        const res = await apiCall('getRaportBulanan', { 
-          idKaryawan: state.user.id, 
-          bulan: now.getMonth() + 1, 
-          tahun: now.getFullYear() 
-        });
-        if (res.success) {
-          document.getElementById('dataHadir').textContent = res.totalHadir || 0;
-          document.getElementById('dataTelat').textContent = res.totalTelat || 0;
-          document.getElementById('dataSakit').textContent = '0'; // Perlu endpoint terpisah
-          document.getElementById('dataIzin').textContent = '0'; // Perlu endpoint terpisah
-          document.getElementById('dataCuti').textContent = '0'; // Perlu endpoint terpisah
-          document.getElementById('dataLembur').textContent = res.totalJamLembur || 0;
-          document.getElementById('dataPulangCepat').textContent = '0'; // Perlu kalkulasi
-        }
-      } catch (e) {
-        console.log('loadDataAbsensi error:', e);
-      }
-    }
-
-    // ==================== ON TOKO CHANGE (Dengan Auto Update) ====================
-    async function onTokoChange() {
-      const tokoId = document.getElementById('selectToko').value;
-      const shiftSel = document.getElementById('selectShift');
-      
-      if (!tokoId) { 
-        shiftSel.innerHTML = '<option value="">Pilih...</option>'; 
-        document.getElementById('jamInfoCard').classList.add('hidden'); 
-        return; 
-      }
-      
-      try {
-        const res = await apiCall('getShiftByToko', { idToko: tokoId });
-        if (res.success && Array.isArray(res.data)) {
-          state.shiftList = res.data;
-          shiftSel.innerHTML = '<option value="">Pilih...</option>';
-          res.data.forEach(s => {
-            const jm = formatTimeFromResponse(s.Jam_Masuk);
-            const jp = formatTimeFromResponse(s.Jam_Pulang);
-            shiftSel.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${jm} - ${jp})</option>`;
-          });
-          
-          // Auto-select default shift
-          if (state.user && state.user.shiftDefault) { 
-            const ex = res.data.some(s => s.ID_Shift === state.user.shiftDefault); 
-            if (ex) shiftSel.value = state.user.shiftDefault; 
-          }
-          
-          // Auto update shift info
-          updateShiftInfo();
-        }
-      } catch (e) { 
-        console.log('onTokoChange error:', e); 
-      }
-      
-      // Re-init GPS untuk toko baru
-      initGPS();
-      updateTokoCardInfo();
-    }
-
-    // ==================== CAMERA (Dengan Auto Start) ====================
-    function showCameraOverlay() {
-      const overlay = document.getElementById('cameraOverlay');
-      overlay.classList.remove('hidden');
-      overlay.innerHTML = `
-        <div style="text-align:center; padding: 20px;">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" style="margin-bottom: 12px;">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-            <circle cx="12" cy="13" r="4"></circle>
-          </svg>
-          <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">Kamera Selfie</div>
-          <div style="font-size: 14px; opacity: 0.8; margin-bottom: 16px;">Aktifkan kamera untuk absen</div>
-          <button class="camera-start-btn" onclick="autoStartCamera()">Nyalakan Kamera</button>
-        </div>
-        <div class="camera-error-box hidden" id="cameraErrorBox"></div>
-      `;
-    }
-
-    async function autoStartCamera() {
-      await new Promise(r => setTimeout(r, 400));
+// Auto-start camera when tab opens - no manual button needed
+async function autoStartCamera() {
+  // Small delay to let previous stream fully release
+  await new Promise(r => setTimeout(r, 400));
+  try {
+    await startCameraStream();
+    hideCameraOverlay();
+  } catch (err) {
+    if (err.name === 'NotAllowedError') { showCameraError('Izin kamera ditolak.'); showPermHelp(); }
+    else if (err.name === 'NotFoundError') showCameraError('Kamera tidak ditemukan.');
+    else if (err.name === 'NotReadableError') {
+      // Retry once after a longer delay for mobile browsers
+      showCameraError('Kamera sedang dipakai, mencoba ulang...');
+      await new Promise(r => setTimeout(r, 1500));
       try {
         await startCameraStream();
         hideCameraOverlay();
-      } catch (err) {
-        if (err.name === 'NotAllowedError') { 
-          showCameraError('Izin kamera ditolak.'); 
-          showPermHelp(); 
-        }
-        else if (err.name === 'NotFoundError') showCameraError('Kamera tidak ditemukan.');
-        else if (err.name === 'NotReadableError') {
-          showCameraError('Kamera sedang dipakai, mencoba ulang...');
-          await new Promise(r => setTimeout(r, 1500));
-          try {
-            await startCameraStream();
-            hideCameraOverlay();
-            document.getElementById('cameraErrorBox').classList.add('hidden');
-          } catch (err2) {
-            showCameraError('Kamera sedang dipakai aplikasi lain.');
-          }
-        }
-        else showCameraError('Gagal: ' + err.message);
+        document.getElementById('cameraErrorBox').classList.add('hidden');
+      } catch (err2) {
+        showCameraError('Kamera sedang dipakai aplikasi lain.');
       }
     }
+    else showCameraError('Gagal: ' + err.message);
+  }
+}
 
-    // ==================== LOGOUT (Dengan Cleanup) ====================
-    function logout() {
-      if (confirm('Yakin ingin logout?')) {
-        stopStatusPolling();
-        stopCamera();
-        clearLogin();
-        showToast('Logout berhasil', 'info');
-        setTimeout(() => location.reload(), 500);
+function stopCamera() {
+  if (state.stream) {
+    state.stream.getTracks().forEach(t => { t.stop(); });
+    state.stream = null;
+  }
+  const video = document.getElementById('video');
+  if (video) {
+    video.srcObject = null;
+    video.pause();
+    video.load(); // Force release
+  }
+  // Don't show "Kamera mati" text since we removed faceLabel
+  document.getElementById('faceFrame').classList.remove('active');
+}
+
+async function startCameraStream() {
+  const video = document.getElementById('video');
+  stopCamera();
+
+  // Ensure video element is fully reset
+  video.style.display = 'block';
+  video.removeAttribute('src');
+
+  const constraints = {
+    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
+  };
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia(constraints);
+  } catch (err) {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+  }
+  state.stream = stream;
+  video.srcObject = stream;
+
+  // Wait for video to be ready with better promise handling
+  await new Promise((resolve, reject) => {
+    const onLoaded = () => {
+      video.play().then(() => {
+        resolve();
+      }).catch(reject);
+    };
+    video.onloadedmetadata = onLoaded;
+    video.onloadeddata = onLoaded;
+    video.onerror = reject;
+    setTimeout(() => reject(new Error('Timeout')), 10000);
+  });
+
+  document.getElementById('faceFrame').classList.add('active');
+}
+
+function capturePhoto() {
+  if (document.getElementById('captureBtn').classList.contains('disabled')) return;
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const preview = document.getElementById('previewImg');
+  if (!video.videoWidth || video.readyState < 2) {
+    showToast('Kamera belum siap', 'error'); return;
+  }
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0);
+  state.photoData = canvas.toDataURL('image/jpeg', 0.7);
+  preview.src = state.photoData; preview.style.display = 'block';
+  video.style.display = 'none'; document.getElementById('retakeBtn').style.display = 'block';
+  document.getElementById('captureBtn').classList.add('disabled');
+  stopCamera();
+  showToast('Foto berhasil diambil', 'success'); playSound('success');
+}
+
+function retakePhoto() {
+  document.getElementById('previewImg').style.display = 'none';
+  document.getElementById('video').style.display = 'block';
+  document.getElementById('retakeBtn').style.display = 'none';
+  document.getElementById('captureBtn').classList.remove('disabled');
+  state.photoData = null;
+  stopCamera();
+  // Auto-restart camera after retake
+  setTimeout(() => autoStartCamera(), 300);
+}
+
+// ==================== GPS ====================
+function initGPS() {
+  const badge = document.getElementById('gpsBadge');
+  const text = document.getElementById('gpsText');
+  if (!navigator.geolocation) {
+    badge.className = 'gps-badge bad'; text.textContent = 'GPS tidak didukung'; return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      state.gps.lat = pos.coords.latitude; state.gps.lng = pos.coords.longitude; state.gps.accuracy = pos.coords.accuracy;
+      const toko = state.tokoList.find(t => t.ID_Toko === document.getElementById('selectToko').value);
+      if (toko && toko.Lat && toko.Long) {
+        const jarak = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(toko.Lat), parseFloat(toko.Long));
+        state.gps.jarak = Math.round(jarak);
+        const radius = parseFloat(toko.Radius_M) || 50;
+        if (jarak <= radius) { badge.className = 'gps-badge ok'; text.textContent = `${Math.round(jarak)}m - Valid`; }
+        else { badge.className = 'gps-badge bad'; text.textContent = `${Math.round(jarak)}m - Jauh (max ${radius}m)`; }
+      } else {
+        badge.className = 'gps-badge ok'; text.textContent = `GPS aktif (${Math.round(pos.coords.accuracy)}m)`;
       }
+    },
+    (err) => {
+      badge.className = 'gps-badge bad';
+      let msg = 'Gagal mendapatkan lokasi';
+      if (err.code === 1) msg = 'Izin GPS ditolak';
+      else if (err.code === 2) msg = 'Lokasi tidak tersedia';
+      else if (err.code === 3) msg = 'Timeout';
+      text.textContent = msg;
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+function hitungJarak(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ==================== TOKO & SHIFT ====================
+async function loadTokoData() {
+  try {
+    const res = await apiCall('getTokoList');
+    if (res.success && Array.isArray(res.data)) {
+      state.tokoList = res.data.filter(t => t.Status === 'Aktif');
+      const sel = document.getElementById('selectToko');
+      sel.innerHTML = '<option value="">Pilih...</option>';
+      state.tokoList.forEach(t => { sel.innerHTML += `<option value="${t.ID_Toko}">${t.Nama_Toko}</option>`; });
+      const selLembur = document.getElementById('lemburToko');
+      selLembur.innerHTML = '';
+      state.tokoList.forEach(t => { selLembur.innerHTML += `<option value="${t.ID_Toko}">${t.Nama_Toko}</option>`; });
     }
+  } catch (e) { console.log('loadTokoData error:', e); }
+}
 
-    // ... [SEMUA FUNGSI LAINNYA SAMA DENGAN VERSI ASLI, TAPI DENGAN BUG FIX]
+async function onTokoChange() {
+  const tokoId = document.getElementById('selectToko').value;
+  const shiftSel = document.getElementById('selectShift');
+  if (!tokoId) { shiftSel.innerHTML = '<option value="">Pilih...</option>'; document.getElementById('jamInfoCard').classList.add('hidden'); return; }
+  try {
+    const res = await apiCall('getShiftByToko', { idToko: tokoId });
+    if (res.success && Array.isArray(res.data)) {
+      state.shiftList = res.data;
+      shiftSel.innerHTML = '<option value="">Pilih...</option>';
+      res.data.forEach(s => {
+        const jm = formatTimeFromResponse(s.Jam_Masuk);
+        const jp = formatTimeFromResponse(s.Jam_Pulang);
+        shiftSel.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${jm} - ${jp})</option>`;
+      });
+      if (state.user.shiftDefault) { const ex = res.data.some(s => s.ID_Shift === state.user.shiftDefault); if (ex) shiftSel.value = state.user.shiftDefault; }
+      updateShiftInfo();
+    }
+  } catch (e) { console.log('onTokoChange error:', e); }
+  initGPS();
+  updateTokoCardInfo();
+}
 
-    // ==================== INIT ====================
-    document.addEventListener('DOMContentLoaded', async () => {
-      updateDate();
-      initGPS();
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('izinTglMulai').value = today;
-      document.getElementById('izinTglSelesai').value = today;
+function updateShiftInfo() {
+  const shiftId = document.getElementById('selectShift').value;
+  const shift = state.shiftList.find(s => s.ID_Shift === shiftId);
+  if (shift) {
+    document.getElementById('jamInfoCard').classList.remove('hidden');
+    const jamMasuk = formatTimeFromResponse(shift.Jam_Masuk);
+    const jamPulang = formatTimeFromResponse(shift.Jam_Pulang);
+    document.getElementById('infoJamMasuk').textContent = 'Jam Masuk: ' + jamMasuk;
+    document.getElementById('infoJamPulang').textContent = 'Jam Pulang: ' + jamPulang;
+    document.getElementById('shiftNama').textContent = (shift.Nama_Shift || 'Reguler') + ' - ' + jamMasuk + ' - ' + jamPulang;
+  } else {
+    document.getElementById('jamInfoCard').classList.add('hidden');
+    document.getElementById('shiftNama').textContent = 'Reguler - --:-- - --:--';
+  }
+}
 
-      await testBackendConnection();
-      await loadKaryawanDropdown();
+function updateDate() {
+  const now = new Date();
+  const opt = { weekday:'long', day:'numeric', month:'long', year:'numeric' };
+  document.getElementById('shiftTanggal').textContent = now.toLocaleDateString('id-ID', opt);
+  const bulanOpt = { month:'long', year:'numeric' };
+  const bulanLabel = document.getElementById('statBulanLabel');
+  const dataBulanLabel = document.getElementById('dataBulanLabel');
+  const bulanStr = now.toLocaleDateString('id-ID', bulanOpt);
+  if (bulanLabel) bulanLabel.textContent = bulanStr;
+  if (dataBulanLabel) dataBulanLabel.textContent = bulanStr;
+}
 
-      const saved = loadLogin();
-      if (saved && saved.id) {
-        state.user = { 
-          id: saved.id, 
-          name: saved.name, 
-          role: saved.role, 
-          tokoDefault: saved.tokoDefault, 
-          shiftDefault: saved.shiftDefault 
-        };
-        state.currentUser = state.user;
-        unlockAudio();
-        showApp();
-        setupUserUI(saved.fotoUrl || '');
-        
-        await Promise.all([
-          loadTokoData(),
-          loadJadwalHariIni(),
-          loadSisaKuota(),
-          loadTukerShiftHistory()
-        ]);
-        
-        if (state.user.tokoDefault) {
-          document.getElementById('selectToko').value = state.user.tokoDefault;
-          await onTokoChange();
-          if (state.user.shiftDefault) {
-            document.getElementById('selectShift').value = state.user.shiftDefault;
-            updateShiftInfo();
-          }
-        }
-        
-        await checkAbsenStatus();
-        updateTokoCardInfo();
-        stopCamera();
-        showCameraOverlay();
-        checkMyApprovals();
-        loadStatistikBulanan();
-        startStatusPolling();
+// ==================== TOKO CARD INFO ====================
+function updateTokoCardInfo() {
+  const tokoId = document.getElementById('selectToko').value;
+  const toko = state.tokoList.find(t => t.ID_Toko === tokoId);
+  const img = document.getElementById('fotoTokoCard');
+  const nama = document.getElementById('namaTokoCard');
+  if (toko) {
+    nama.textContent = toko.Nama_Toko || '-';
+    if (toko.Foto_URL || toko.Gambar || toko.fotoUrl) {
+      img.src = toko.Foto_URL || toko.Gambar || toko.fotoUrl;
+      img.style.display = 'block';
+    } else {
+      img.style.display = 'none';
+    }
+  } else {
+    nama.textContent = '-';
+    img.style.display = 'none';
+  }
+}
+
+// ==================== ABSEN ====================
+async function checkAbsenStatus() {
+  if (!state.user || !state.user.id) { state.absenStatus = 'belum_masuk'; updateButtonVisibility(); return; }
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const res = await apiCall('getAbsenHariIni', { idKaryawan: state.user.id, tanggal: today });
+    if (res.success && res.data) {
+      const d = res.data;
+      if (d.jamPulang) {
+        state.absenStatus = 'sudah_pulang';
+        document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.jamMasuk);
+        document.getElementById('statusMasuk').className = 'ok';
+        document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(d.jamPulang);
+        document.getElementById('statusPulang').className = 'ok';
+      } else if (d.jamMasuk) {
+        state.absenStatus = 'sudah_masuk';
+        document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.jamMasuk);
+        document.getElementById('statusMasuk').className = 'ok';
+        document.getElementById('statusPulang').textContent = 'Pulang: --';
+        document.getElementById('statusPulang').className = 'pending';
+      } else {
+        state.absenStatus = 'belum_masuk';
+        document.getElementById('statusMasuk').textContent = 'Masuk: --';
+        document.getElementById('statusMasuk').className = 'pending';
+        document.getElementById('statusPulang').textContent = 'Pulang: --';
+        document.getElementById('statusPulang').className = 'pending';
       }
+    } else {
+      state.absenStatus = 'belum_masuk';
+    }
+  } catch (e) {
+    console.log('checkAbsenStatus error:', e);
+    state.absenStatus = 'belum_masuk';
+  }
+  updateButtonVisibility();
+}
+
+function updateButtonVisibility() {
+  const bm = document.getElementById('btnMasuk');
+  const bp = document.getElementById('btnPulang');
+  const bl = document.getElementById('btnLembur');
+  if (state.absenStatus === 'belum_masuk') {
+    bm.classList.remove('hidden');
+    bp.classList.add('hidden');
+    bl.classList.add('hidden');
+  } else if (state.absenStatus === 'sudah_masuk') {
+    bm.classList.add('hidden');
+    bp.classList.remove('hidden');
+    bl.classList.remove('hidden');
+  } else if (state.absenStatus === 'sudah_pulang') {
+    // All buttons hidden after pulang
+    bm.classList.add('hidden');
+    bp.classList.add('hidden');
+    bl.classList.add('hidden');
+  } else {
+    bm.classList.add('hidden');
+    bp.classList.add('hidden');
+    bl.classList.add('hidden');
+  }
+}
+
+async function absenMasuk() {
+  if (!state.photoData) { tampilPicoModal('wajah_gagal', 'Ambil foto selfie dulu ya!'); return; }
+  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); playSound('error'); return; }
+  if (!document.getElementById('selectToko').value) { showToast('Pilih toko dulu!', 'error'); return; }
+  if (!document.getElementById('selectShift').value) { showToast('Pilih shift dulu!', 'error'); return; }
+
+  const toko = state.tokoList.find(t => t.ID_Toko === document.getElementById('selectToko').value);
+  if (toko && state.gps.jarak !== null) {
+    const radius = parseFloat(toko.Radius_M) || 50;
+    if (state.gps.jarak > radius) { tampilPicoModal('gps_jauh', `Anda ${state.gps.jarak}m dari toko. Max ${radius}m.<br>Mendekatlah!`); return; }
+  }
+
+  const shiftSelect = document.getElementById('selectShift');
+  const shiftName = shiftSelect.options[shiftSelect.selectedIndex].text.split(' (')[0];
+  const btn = document.getElementById('btnMasuk');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Memproses...';
+
+  try {
+    const res = await apiCall('absenMasuk', {
+      idKaryawan: state.user.id, nama: state.user.name,
+      idToko: document.getElementById('selectToko').value, namaToko: toko ? toko.Nama_Toko : '',
+      idShift: document.getElementById('selectShift').value, namaShift: shiftName,
+      fotoBase64: state.photoData, lat: state.gps.lat, lng: state.gps.lng
     });
-  </script>
+    if (res.success) {
+      state.absenStatus = 'sudah_masuk'; updateButtonVisibility();
+      tampilPicoModal('sukses', `<b>Absen Masuk Berhasil!</b><br>Jam: ${formatTimeFromResponse(res.jamMasuk)}<br>Status: ${res.statusMasuk}`);
+      document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(res.jamMasuk);
+      document.getElementById('statusMasuk').className = 'ok';
+      // Refresh status so button changes to Pulang
+      await checkAbsenStatus();
+      retakePhoto();
+    } else { tampilPicoModal('error', res.error || 'Gagal absen masuk'); }
+  } catch (e) { tampilPicoModal('error', 'Gagal: ' + e.message); }
+  finally { btn.disabled = false; btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> ABSEN MASUK`; }
+}
+
+async function absenPulang() {
+  if (!state.photoData) { tampilPicoModal('wajah_gagal', 'Ambil foto selfie dulu ya!'); return; }
+  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+  const btn = document.getElementById('btnPulang');
+  btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Memproses...';
+  try {
+    const res = await apiCall('absenPulang', {
+      idKaryawan: state.user.id, nama: state.user.name,
+      fotoBase64: state.photoData, lat: state.gps.lat, lng: state.gps.lng
+    });
+    if (res.success) {
+      state.absenStatus = 'sudah_pulang'; updateButtonVisibility();
+      tampilPicoModal('izin_pulang', `<b>Absen Pulang Berhasil!</b><br>Durasi: ${res.durasiKerja || '-'}<br>Jam: ${formatTimeFromResponse(res.jamPulang)}`);
+      document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(res.jamPulang);
+      document.getElementById('statusPulang').className = 'ok';
+      // Refresh status so buttons hide
+      await checkAbsenStatus();
+      retakePhoto();
+    } else { tampilPicoModal('error', res.error || 'Gagal absen pulang'); }
+  } catch (e) { tampilPicoModal('error', 'Gagal: ' + e.message); }
+  finally { btn.disabled = false; btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> ABSEN PULANG`; }
+}
+
+function toggleLemburMode() { openModal('modalLembur'); }
+
+// ==================== LEMBUR ====================
+async function submitLembur() {
+  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+  const tokoId = document.getElementById('lemburToko').value;
+  const toko = state.tokoList.find(t => t.ID_Toko === tokoId);
+  try {
+    await apiCall('ajukanLembur', {
+      idKaryawan: state.user.id, nama: state.user.name,
+      idToko: tokoId, namaToko: toko ? toko.Nama_Toko : '',
+      alasan: document.getElementById('lemburAlasanType').value,
+      fotoBase64: state.lemburPhotoData || ''
+    });
+    closeModal('modalLembur');
+    tampilPicoModal('lembur_pending', 'Pengajuan lembur terkirim!<br>Tunggu approve dari Bos ya!');
+    retakeLemburPhoto();
+  } catch (e) { showToast('Gagal ajukan lembur', 'error'); }
+}
+
+function toggleLemburAlasan() {
+  document.getElementById('lemburAlasanManual').classList.toggle('hidden', document.getElementById('lemburAlasanType').value !== 'lainnya');
+}
+
+let lemburStream = null, lemburPhotoData = null;
+async function startLemburCamera() {
+  const video = document.getElementById('lemburVideo');
+  const overlay = document.getElementById('lemburCameraOverlay');
+  const captureBtn = document.getElementById('lemburCaptureBtn');
+  try {
+    if (lemburStream) lemburStream.getTracks().forEach(t => t.stop());
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    lemburStream = stream; video.srcObject = stream; await video.play();
+    overlay.style.display = 'none'; video.style.display = 'block'; captureBtn.style.display = 'block';
+  } catch (err) { showToast('Gagal nyalakan kamera lembur: ' + err.message, 'error'); }
+}
+function captureLemburPhoto() {
+  const video = document.getElementById('lemburVideo');
+  const canvas = document.getElementById('lemburCanvas');
+  const preview = document.getElementById('lemburPreview');
+  if (!video.videoWidth) { showToast('Kamera belum siap', 'error'); return; }
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0);
+  lemburPhotoData = canvas.toDataURL('image/jpeg', 0.7);
+  preview.src = lemburPhotoData; preview.style.display = 'block';
+  video.style.display = 'none'; document.getElementById('lemburCaptureBtn').style.display = 'none';
+  document.getElementById('lemburRetakeBtn').style.display = 'block';
+  if (lemburStream) { lemburStream.getTracks().forEach(t => t.stop()); lemburStream = null; }
+  showToast('Foto lembur berhasil', 'success'); playSound('success');
+}
+function retakeLemburPhoto() {
+  document.getElementById('lemburPreview').style.display = 'none';
+  document.getElementById('lemburVideo').style.display = 'none';
+  document.getElementById('lemburCaptureBtn').style.display = 'none';
+  document.getElementById('lemburRetakeBtn').style.display = 'none';
+  document.getElementById('lemburCameraOverlay').style.display = 'flex';
+  lemburPhotoData = null;
+}
+
+// ==================== IZIN ====================
+function selectIzin(el, type) {
+  document.querySelectorAll('.izin-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+async function submitIzin() {
+  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+  const tglMulai = document.getElementById('izinTglMulai').value;
+  const tglSelesai = document.getElementById('izinTglSelesai').value;
+  const alasan = document.getElementById('izinAlasan').value;
+  if (!tglMulai || !tglSelesai) { showToast('Pilih tanggal dulu!', 'error'); return; }
+  if (!alasan.trim()) { showToast('Isi alasan dulu!', 'error'); return; }
+  const activeChip = document.querySelector('.izin-chip.active');
+  const namaJenis = activeChip ? activeChip.textContent.trim() : 'Izin';
+  const idJenis = 'JI_' + namaJenis.toUpperCase();
+  try {
+    await apiCall('ajukanIzin', {
+      idKaryawan: state.user.id, nama: state.user.name,
+      idJenisIzin: idJenis, namaJenis: namaJenis,
+      tglMulai, tglSelesai, alasan, lampiranBase64: ''
+    });
+    closeModal('modalIzin');
+    tampilPicoModal('izin_cuti', 'Pengajuan izin terkirim!<br>Menunggu approve admin');
+  } catch (e) { showToast('Gagal ajukan izin', 'error'); }
+}
+
+// ==================== JADWAL ====================
+function navJadwal(dir) { state.jadwalOffset += dir; renderJadwal(); }
+
+async function renderJadwal() {
+  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+  try {
+    const now = new Date(); now.setDate(now.getDate() + state.jadwalOffset * 7);
+    const res = await apiCall('getJadwalMingguan', { idKaryawan: state.user.id, tanggalReferensi: now.toISOString() });
+    if (res.success) {
+      const tbody = document.getElementById('jadwalTbody');
+      tbody.innerHTML = res.minggu.map(j => {
+        const jm = formatTimeFromResponse(j.jamMasuk);
+        const jp = formatTimeFromResponse(j.jamPulang);
+        return `<tr class="${j.libur ? 'libur' : ''} ${j.namaHari === new Date().toLocaleDateString('id-ID',{weekday:'long'}) && state.jadwalOffset===0 ? 'today' : ''}">
+          <td><div style="font-weight:800;font-size:15px;">${j.namaHari}</div><div style="font-size:13px;color:var(--text-secondary);">${j.tanggal}</div></td>
+          <td>${j.toko !== '-' ? '<span class="badge badge-blue">'+j.toko+'</span>' : '-'}</td>
+          <td>${j.shift !== '-' ? '<span class="badge badge-green">'+j.shift+'</span>' : '-'}</td>
+          <td>${j.jamMasuk !== '-' ? jm + ' - ' + jp : '-'}</td>
+        </tr>`;
+      }).join('');
+      const senin = new Date(now); senin.setDate(now.getDate() - now.getDay() + 1);
+      const minggu = new Date(senin); minggu.setDate(senin.getDate() + 6);
+      document.getElementById('jadwalPeriode').textContent = senin.toLocaleDateString('id-ID',{day:'numeric',month:'short'}) + ' - ' + minggu.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+    }
+  } catch (e) { console.log('renderJadwal error:', e); }
+}
+
+// ==================== RAPORT ====================
+async function renderRaport() {
+  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+  try {
+    const now = new Date();
+    const res = await apiCall('getRaportBulanan', { idKaryawan: state.user.id, bulan: now.getMonth()+1, tahun: now.getFullYear() });
+    if (res.success) {
+      document.getElementById('raportHadir').textContent = res.totalHadir;
+      document.getElementById('raportTelat').textContent = res.totalTelat;
+      const tbody = document.getElementById('raportTbody');
+      tbody.innerHTML = (res.detailHarian || []).map(d => `
+        <tr>
+          <td>${d.tanggal}</td><td>${d.toko}</td><td>${d.shift}</td>
+          <td>${d.status==='Ontime' ? '<span class="badge badge-green">Ontime</span>' : '<span class="badge badge-red">Telat '+(d.menitTelat||0)+'m</span>'}</td>
+        </tr>
+      `).join('');
+    }
+  } catch (e) { console.log('renderRaport error:', e); }
+}
+
+// ==================== NOTIFIKASI ====================
+async function checkMyApprovals() {
+  if (!state.user || !state.user.id) return;
+  try {
+    const res = await apiCall('getMyApprovals', { idKaryawan: state.user.id });
+    if (res.success && Array.isArray(res.data)) {
+      state.notifList = res.data;
+      updateNotifBadge(); updateNotifBubble();
+      const unread = res.data.filter(n => n.status !== 'Pending');
+      if (unread.length > 0 && !state.notifShown) {
+        const latest = unread[0];
+        showToast(`Pengajuan ${latest.tipe} Anda ${latest.status === 'Approved' ? 'disetujui' : 'ditolak'}!`, latest.status === 'Approved' ? 'success' : 'error');
+        state.notifShown = true;
+      }
+    }
+  } catch (e) { console.log('checkMyApprovals error:', e); }
+}
+
+function updateNotifBadge() {
+  const badge = document.getElementById('notifBadge');
+  const bell = document.getElementById('notifBell');
+  const count = state.notifList ? state.notifList.filter(n => n.status !== 'Pending').length : 0;
+  if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.classList.remove('hidden'); }
+  else { badge.classList.add('hidden'); }
+}
+
+function updateNotifBubble() {
+  const list = document.getElementById('notifBubbleList');
+  if (!state.notifList || state.notifList.length === 0) { list.innerHTML = '<div class="notif-empty">Belum ada pemberitahuan</div>'; return; }
+  list.innerHTML = state.notifList.map(n => `
+    <div class="notif-item ${n.status === 'Approved' ? 'approved' : n.status === 'Rejected' ? 'rejected' : ''}">
+      <div class="notif-item-title">${n.tipe === 'lembur' ? 'Lembur' : 'Izin/Cuti'}</div>
+      <div class="notif-item-text">Pengajuan tanggal ${n.tanggal} telah <strong>${n.status === 'Approved' ? 'disetujui' : n.status === 'Rejected' ? 'ditolak' : 'diproses'}</strong></div>
+      <div class="notif-item-date">${n.approvedAt || n.tanggal}</div>
+    </div>
+  `).join('');
+}
+
+function toggleNotifBubble(e) { e.stopPropagation(); document.getElementById('notifBubble').classList.toggle('show'); }
+function closeNotifBubble(e) { e.stopPropagation(); document.getElementById('notifBubble').classList.remove('show'); }
+document.addEventListener('click', function(e) {
+  const bubble = document.getElementById('notifBubble');
+  const bell = document.getElementById('notifBell');
+  if (bubble && bell && !bubble.contains(e.target) && !bell.contains(e.target)) bubble.classList.remove('show');
+  // Close chat attachment menu when clicking outside
+  const attachMenu = document.getElementById('chatAttachMenu');
+  const attachBtn = e.target.closest('button[onclick*="toggleChatAttachMenu"]');
+  if (attachMenu && attachMenu.style.display === 'block' && !attachMenu.contains(e.target) && !attachBtn) {
+    attachMenu.style.display = 'none';
+  }
+});
+
+// ==================== MODAL UTILS ====================
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+  document.body.style.overflow = 'hidden';
+  if (id === 'modalJadwal') renderJadwal();
+  if (id === 'modalChat') { loadChatMessages(); startChatPolling(); }
+  if (id === 'modalTukerShift') populateTukerShiftModal();
+  if (id === 'modalTugas') renderTugasList();
+  if (id === 'modalBerita') renderBeritaList();
+}
+function closeModal(id) { 
+  document.getElementById(id).classList.remove('active'); 
+  document.body.style.overflow = ''; 
+  if (id === 'modalChat') stopChatPolling();
+}
+function closeModalOnOverlay(e, id) { if (e.target.id === id) closeModal(id); }
+
+function showToast(msg, type = 'info') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg; toast.className = `toast toast-${type} show`;
+  setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+// ==================== PICO ====================
+function tampilPicoModal(tipe, pesan, callback=null) {
+  const modal = document.getElementById('pico-modal');
+  const img = document.getElementById('pico-modal-img');
+  const text = document.getElementById('pico-modal-text');
+  const btn = document.getElementById('pico-modal-btn');
+  img.src = pathGambar + (picoImages[tipe] || picoImages.error);
+  text.innerHTML = pesan;
+  btn.style.backgroundColor = picoBtnColors[tipe] || '#0D8ABC';
+  btn.onclick = () => { closePicoModal(); if (callback) callback(); };
+  modal.classList.add('active');
+  playSound(tipe === 'sukses' ? 'success' : 'error');
+}
+function closePicoModal() { document.getElementById('pico-modal').classList.remove('active'); }
+
+let stepIndex = 0, typingEffect, isTyping = false, bubbleTimer = null;
+const tutorialSteps = [
+  "<b>Semangat Pagi!</b><br>Ayo absen dulu sama PICO biar rezeki makin lancar!",
+  "<b>Langkah 1:</b><br>Ambil foto selfie bening, biar PICO gampang ngenalin wajahmu!",
+  "<b>Langkah 2:</b><br>Pilih Toko & Shift. Data sudah auto-isi kalau sudah di-setting!",
+  "<b>Langkah 3:</b><br>Pastikan GPS nyala & kamu sudah dekat toko ya!",
+  "<b>Langkah 4:</b><br>Klik <b>'Mode Lembur'</b> setelah absen masuk untuk ajukan lembur.",
+  "<b>Langkah 5:</b><br>Absen Pulang = foto lagi + GPS di lokasi toko.",
+  "<b>Gagal Wajah?</b><br>Jangan ketutup masker/topi, cari tempat terang!",
+  "<b>Gagal Jarak?</b><br>GPS harus aktif Mode Akurasi Tinggi. Maksimal 50m dari titik toko!",
+  "<b>Masalah Jaringan?</b><br>Ganti ke data seluler atau cari sinyal lebih stabil.",
+  "<b>Pinguin Cell!</b><br>Kerja jujur itu hebat. Tetap semangat!"
+];
+const instruksiPencet = [
+  "Tekan PICO untuk lanjut...","Pencet PICO kalau sudah paham...","Klik PICO lagi...",
+  "Ayo tekan PICO...","Pencet PICO lanjut ke tips...","Lanjut? Klik PICO...",
+  "Cek tips GPS, pencet PICO...","Pencet PICO lagi ya...","Hampir selesai, klik PICO...","Tekan PICO untuk ulangi..."
+];
+
+function picoAction() {
+  const mascot = document.getElementById('pinguin-mascot');
+  mascot.style.transform = 'scale(0.88)'; setTimeout(() => mascot.style.transform = '', 200);
+  tampilTutorial();
+}
+function closeBubble(e) {
+  if(e) { e.stopPropagation(); e.preventDefault(); }
+  const bubble = document.getElementById('chat-bubble');
+  if (bubble) {
+    bubble.classList.remove('show');
+    bubble.style.display = 'none';
+  }
+  clearTimeout(bubbleTimer);
+  isTyping = false;
+  clearTimeout(typingEffect);
+}
+function tampilTutorial() {
+  if (isTyping) { closeBubble(); setTimeout(() => tampilTutorial(), 300); return; }
+  const bubble = document.getElementById('chat-bubble');
+  const textContainer = document.getElementById('tutorial-text');
+  bubble.style.display = 'block'; bubble.classList.add('show');
+  clearTimeout(typingEffect); textContainer.innerHTML = ""; isTyping = true;
+  let fullText = tutorialSteps[stepIndex] + `<br><br><span style="font-size:12px;color:var(--text-secondary);font-style:italic;">(${instruksiPencet[stepIndex]})</span>`;
+  let charIndex = 0;
+  function typeWriter() {
+    if (charIndex < fullText.length) {
+      if (fullText.charAt(charIndex) === '<') {
+        let tagEnd = fullText.indexOf('>', charIndex);
+        textContainer.innerHTML += fullText.substring(charIndex, tagEnd + 1); charIndex = tagEnd + 1;
+      } else { textContainer.innerHTML += fullText.charAt(charIndex); charIndex++; }
+      typingEffect = setTimeout(typeWriter, 28);
+    } else { isTyping = false; }
+  }
+  typeWriter();
+  stepIndex++; if (stepIndex >= tutorialSteps.length) stepIndex = 0;
+  clearTimeout(bubbleTimer); bubbleTimer = setTimeout(() => closeBubble(), 8000);
+}
+
+// ==================== PERMISSION HELP ====================
+function detectBrowser() {
+  const ua = navigator.userAgent;
+  if (/CriOS\/|Chrome\//.test(ua) && /iPhone|iPad|iPod/.test(ua)) return 'chrome-ios';
+  if (/Safari\//.test(ua) && /iPhone|iPad|iPod/.test(ua)) return 'safari-ios';
+  if (/SamsungBrowser\//.test(ua)) return 'samsung';
+  if (/Edg\//.test(ua)) return 'edge';
+  if (/Chrome\//.test(ua)) return 'chrome-android';
+  if (/Firefox\//.test(ua)) return 'firefox';
+  return 'chrome-android';
+}
+const browserSteps = {
+  'chrome-android': [
+    { t: 'Buka <strong>⋮ (titik tiga)</strong> di pojok kanan atas Chrome.' },
+    { t: 'Pilih <strong>Pengaturan → Privasi dan keamanan → Izin situs</strong>.' },
+    { t: 'Ketuk <strong>Kamera</strong>, cari situs ini, lalu pilih <strong>Izinkan</strong>.' },
+    { t: 'Kembali ke halaman ini dan tekan <strong>Coba Nyalakan Kamera</strong>.' }
+  ],
+  'chrome-ios': [
+    { t: 'Buka <strong>Pengaturan iPhone</strong> (Settings).' },
+    { t: 'Gulir ke bawah, cari dan ketuk <strong>Chrome</strong>.' },
+    { t: 'Pastikan <strong>Kamera</strong> dalam posisi <strong>NYALA (Hijau)</strong>.' },
+    { t: 'Kembali ke Chrome, refresh halaman, lalu coba lagi.' }
+  ],
+  'safari-ios': [
+    { t: 'Buka <strong>Pengaturan iPhone</strong> (Settings).' },
+    { t: 'Gulir ke bawah, cari dan ketuk <strong>Safari</strong>.' },
+    { t: 'Ketuk <strong>Kamera</strong> di bawah bagian <strong>Izin</strong>.' },
+    { t: 'Pilih <strong>Izinkan</strong> atau <strong>Tanya</strong>.' },
+    { t: 'Kembali ke Safari, refresh halaman, lalu coba lagi.' }
+  ],
+  'samsung': [
+    { t: 'Buka <strong>⋮ (titik tiga)</strong> di pojok kanan bawah.' },
+    { t: 'Pilih <strong>Pengaturan → Situs dan unduhan → Izin situs</strong>.' },
+    { t: 'Ketuk <strong>Kamera</strong>, cari situs ini, pilih <strong>Izinkan</strong>.' },
+    { t: 'Kembali ke halaman ini dan tekan <strong>Coba Nyalakan Kamera</strong>.' }
+  ],
+  'firefox': [
+    { t: 'Ketuk <strong>⋮ (titik tiga)</strong> di pojok kanan atas.' },
+    { t: 'Pilih <strong>Pengaturan → Privasi & Keamanan → Izin</strong>.' },
+    { t: 'Ketuk <strong>Kamera</strong>, cari situs ini, ubah ke <strong>Izinkan</strong>.' },
+    { t: 'Kembali ke halaman ini dan tekan <strong>Coba Nyalakan Kamera</strong>.' }
+  ],
+  'edge': [
+    { t: 'Ketuk <strong>⋯ (titik tiga)</strong> di pojok kanan bawah.' },
+    { t: 'Pilih <strong>Pengaturan → Privasi dan keamanan → Izin situs</strong>.' },
+    { t: 'Ketuk <strong>Kamera</strong>, cari situs ini, pilih <strong>Izinkan</strong>.' },
+    { t: 'Kembali ke halaman ini dan tekan <strong>Coba Nyalakan Kamera</strong>.' }
+  ]
+};
+function showPermHelp() {
+  const browser = detectBrowser();
+  const steps = browserSteps[browser] || browserSteps['chrome-android'];
+  document.getElementById('permSteps').innerHTML = steps.map((s,i) => `
+    <div class="perm-step"><div class="perm-step-num">${i+1}</div><div class="perm-step-text">${s.t}</div></div>
+  `).join('');
+  document.getElementById('permHelpModal').classList.add('active');
+}
+function closePermHelp() { document.getElementById('permHelpModal').classList.remove('active'); }
+function retryCameraAfterHelp() { closePermHelp(); autoStartCamera(); }
+
+// ==================== TIME FORMATTER ====================
+function formatTimeFromResponse(timeStr) {
+  if (!timeStr) return '--:--';
+
+  // If it's already clean HH:mm or HH:mm:ss
+  if (typeof timeStr === 'string' && /^\d{2}:\d{2}/.test(timeStr)) {
+    return timeStr.substring(0, 5);
+  }
+
+  // Handle Google Sheets serial date strings like 1899-12-29T23:52:48.000Z
+  // or 1899-12-30T08:52:48.000Z ( Sheets epoch is Dec 30 1899 )
+  if (typeof timeStr === 'string' && (timeStr.includes('1899') || timeStr.includes('1900') || timeStr.includes('T'))) {
+    // Extract HH:mm:ss from ISO string using regex - most reliable method
+    const isoMatch = timeStr.match(/T(\d{2}):(\d{2}):(\d{2})/);
+    if (isoMatch) {
+      return isoMatch[1] + ':' + isoMatch[2];
+    }
+    // Fallback: try Date object
+    try {
+      const d = new Date(timeStr);
+      if (!isNaN(d.getTime())) {
+        // Use UTC methods since Sheets stores as UTC
+        const h = String(d.getUTCHours()).padStart(2, '0');
+        const m = String(d.getUTCMinutes()).padStart(2, '0');
+        return h + ':' + m;
+      }
+    } catch (e) {}
+    return '--:--';
+  }
+
+  // Handle numeric serial number from Google Sheets
+  // Sheets stores dates as serial numbers: days since Dec 30 1899
+  // Time-only values are stored as fractions (e.g. 0.5 = 12:00)
+  if (typeof timeStr === 'number' || (typeof timeStr === 'string' && /^\d+\.?\d*$/.test(timeStr))) {
+    const num = parseFloat(timeStr);
+    if (!isNaN(num)) {
+      // Get fractional part (time) and convert to HH:mm
+      const fraction = num - Math.floor(num);
+      // Handle negative (dates before epoch) - take absolute for time
+      const absFraction = Math.abs(fraction);
+      const totalMinutes = Math.round(absFraction * 24 * 60);
+      const h = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+      const m = String(totalMinutes % 60).padStart(2, '0');
+      return h + ':' + m;
+    }
+  }
+
+  // Last resort: try to parse any string containing time pattern
+  if (typeof timeStr === 'string') {
+    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      const h = String(parseInt(timeMatch[1], 10)).padStart(2, '0');
+      return h + ':' + timeMatch[2];
+    }
+  }
+
+  return '--:--';
+}
+
+// ==================== API ====================
+async function apiCall(action, payload = {}) {
+  const maxRetries = 2;
+  let lastError;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const body = JSON.stringify({ action, ...payload });
+      console.log(`[API] ${action} sending:`, body.substring(0, 200));
+
+      const response = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: body
+      });
+
+      console.log(`[API] ${action} response status:`, response.status);
+
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+      }
+
+      const text = await response.text();
+      console.log(`[API] ${action} raw response:`, text.substring(0, 300));
+
+      if (!text || !text.trim()) {
+        throw new Error('Response kosong dari server');
+      }
+
+      // Try to extract JSON from response
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        // Try to find JSON object in text
+        const m = text.match(/\{[\s\S]*\}/);
+        if (m) {
+          try { data = JSON.parse(m[0]); } catch (e2) { throw new Error('Parse error: ' + text.substring(0, 200)); }
+        } else {
+          throw new Error('Invalid response: ' + text.substring(0, 200));
+        }
+      }
+
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response format');
+      }
+
+      return data;
+
+    } catch (error) {
+      lastError = error;
+      console.warn(`[API] ${action} attempt ${attempt + 1} failed:`, error.message);
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+
+  console.error('[API]', action, 'All retries failed:', lastError);
+  throw lastError;
+}
+
+// ==================== CHAT ====================
+let chatMessages = [];
+let chatAttachment = null; // { type: 'image'|'file', data: base64, name: string }
+let chatCameraStream = null;
+
+let chatPollInterval = null;
+
+async function loadChatMessages() {
+  if (!state.user || !state.user.id) return;
+  try {
+    const res = await apiCall('getChatMessages', { limit: 50 });
+    if (res.success && Array.isArray(res.data)) {
+      // Merge server data with local pending messages
+      const serverIds = new Set(res.data.map(m => m.idPesan).filter(Boolean));
+      const pendingMessages = chatMessages.filter(m => m.status === 'sending' || m.status === 'failed');
+      chatMessages = [...res.data, ...pendingMessages];
+      // Sort by timestamp
+      chatMessages.sort((a, b) => {
+        const ta = a.waktu ? new Date(a.waktu.replace('Terkirim', '').replace('Baru saja', new Date())) : new Date(0);
+        const tb = b.waktu ? new Date(b.waktu.replace('Terkirim', '').replace('Baru saja', new Date())) : new Date(0);
+        return ta - tb;
+      });
+      renderChat();
+
+      // Update badge with unread count
+      const othersCount = res.data.filter(m => m.idKaryawan !== state.user.id).length;
+      const badge = document.getElementById('badgeChat');
+      if (badge && othersCount > 0) {
+        badge.textContent = othersCount > 9 ? '9+' : othersCount;
+        badge.classList.remove('hidden');
+      }
+    } else {
+      renderChatEmpty();
+    }
+  } catch (e) {
+    console.error('[CHAT] Load failed:', e);
+    // Don't clear messages on error, just show toast
+    if (chatMessages.length === 0) renderChatEmpty();
+  }
+}
+
+function startChatPolling() {
+  if (chatPollInterval) clearInterval(chatPollInterval);
+  chatPollInterval = setInterval(() => {
+    const modal = document.getElementById('modalChat');
+    if (modal && modal.classList.contains('active')) {
+      loadChatMessages();
+    }
+  }, 10000); // Poll every 10 seconds
+}
+
+function stopChatPolling() {
+  if (chatPollInterval) {
+    clearInterval(chatPollInterval);
+    chatPollInterval = null;
+  }
+}
+
+function renderChatEmpty() {
+  const container = document.getElementById('chatMessages');
+  container.innerHTML = '<div style="align-self: center; color: var(--text-secondary); font-size: 13px; margin-top: 20px;">Belum ada pesan. Jadilah yang pertama!</div>';
+}
+
+function renderChat() {
+  const container = document.getElementById('chatMessages');
+  if (!chatMessages.length) { renderChatEmpty(); return; }
+  container.innerHTML = chatMessages.map(m => {
+    const isMe = m.idKaryawan === state.user.id;
+    let content = '';
+    if (m.tipe === 'image' && m.fileUrl) {
+      content = `<img src="${m.fileUrl}" class="chat-msg-img" onclick="window.open('${m.fileUrl}','_blank')" alt="Foto">`;
+    } else if (m.tipe === 'file' && m.fileUrl) {
+      content = `<a href="${m.fileUrl}" target="_blank" style="color: inherit; text-decoration: none;"><div class="chat-msg-file"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg><span>${m.namaFile || 'File'}</span></div></a>`;
+    } else {
+      content = `<div>${escapeHtml(m.pesan || '')}</div>`;
+    }
+
+    // Status indicator for own messages
+    let statusIcon = '';
+    if (isMe) {
+      if (m.status === 'sending') {
+        statusIcon = '<span style="font-size:10px;opacity:0.7;">&#9203; Mengirim...</span>';
+      } else if (m.status === 'failed') {
+        statusIcon = `<span style="font-size:10px;color:#FF9F9F;cursor:pointer;" onclick="retryChatMessage('${m.tempId}')">&#10060; Gagal (klik retry)</span>`;
+      } else {
+        statusIcon = '<span style="font-size:10px;opacity:0.7;">&#10003; Terkirim</span>';
+      }
+    }
+
+    return `<div style="align-self: ${isMe ? 'flex-end' : 'flex-start'}; max-width: 80%; background: ${isMe ? 'var(--primary)' : 'white'}; color: ${isMe ? 'white' : 'var(--text)'}; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; box-shadow: 0 1px 4px rgba(0,0,0,0.06); ${m.status === 'failed' ? 'border: 2px solid var(--danger);' : ''}">
+      <div style="font-size: 12px; font-weight: 700; margin-bottom: 4px; opacity: ${isMe ? '0.9' : '1'}; color: ${isMe ? 'rgba(255,255,255,0.9)' : 'var(--primary)'};">${escapeHtml(m.nama || 'Karyawan')}</div>
+      ${content}
+      <div style="font-size: 11px; margin-top: 4px; opacity: 0.7; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
+        <span>${m.waktu || ''}</span>
+        ${statusIcon}
+      </div>
+    </div>`;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Attachment handling
+function toggleChatAttachMenu() {
+  const menu = document.getElementById('chatAttachMenu');
+  menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+}
+
+function onChatFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('File max 5MB', 'error'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    chatAttachment = { type: 'file', data: e.target.result, name: file.name };
+    showChatAttachmentPreview(file.name);
+  };
+  reader.readAsDataURL(file);
+  document.getElementById('chatAttachMenu').style.display = 'none';
+  input.value = '';
+}
+
+function onChatPhotoSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  compressImage(file, 0.6, 1200).then(({ base64, name }) => {
+    chatAttachment = { type: 'image', data: base64, name: name };
+    showChatAttachmentPreview(name);
+  }).catch(() => showToast('Gagal proses foto', 'error'));
+  document.getElementById('chatAttachMenu').style.display = 'none';
+  input.value = '';
+}
+
+function showChatAttachmentPreview(name) {
+  const preview = document.getElementById('chatAttachmentPreview');
+  document.getElementById('chatAttachmentName').textContent = name;
+  preview.style.display = 'flex';
+}
+
+function clearChatAttachment() {
+  chatAttachment = null;
+  document.getElementById('chatAttachmentPreview').style.display = 'none';
+  document.getElementById('chatAttachmentName').textContent = '';
+}
+
+// Chat Camera
+async function openChatCamera() {
+  document.getElementById('chatAttachMenu').style.display = 'none';
+  const overlay = document.getElementById('chatCameraOverlay');
+  const video = document.getElementById('chatCameraVideo');
+  overlay.classList.add('active');
+  try {
+    if (chatCameraStream) chatCameraStream.getTracks().forEach(t => t.stop());
+    chatCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    video.srcObject = chatCameraStream;
+    await video.play();
+  } catch (err) {
+    showToast('Gagal nyalakan kamera: ' + err.message, 'error');
+    closeChatCamera();
+  }
+}
+
+function closeChatCamera() {
+  const overlay = document.getElementById('chatCameraOverlay');
+  overlay.classList.remove('active');
+  if (chatCameraStream) { chatCameraStream.getTracks().forEach(t => t.stop()); chatCameraStream = null; }
+  const video = document.getElementById('chatCameraVideo');
+  if (video) { video.srcObject = null; video.pause(); }
+}
+
+function captureChatPhoto() {
+  const video = document.getElementById('chatCameraVideo');
+  const canvas = document.getElementById('chatCameraCanvas');
+  if (!video.videoWidth) return;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0);
+  const base64 = canvas.toDataURL('image/jpeg', 0.6);
+  chatAttachment = { type: 'image', data: base64, name: 'camera.jpg' };
+  showChatAttachmentPreview('camera.jpg');
+  closeChatCamera();
+}
+
+// Image compression utility
+function compressImage(file, quality, maxWidth) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve({ base64: canvas.toDataURL('image/jpeg', quality), name: file.name });
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const pesan = input.value.trim();
+  if (!pesan && !chatAttachment) return;
+  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+
+  // Build payload
+  const payload = { idKaryawan: state.user.id, nama: state.user.name, pesan: pesan || '' };
+  if (chatAttachment) {
+    payload.tipe = chatAttachment.type;
+    payload.fileBase64 = chatAttachment.data;
+    payload.namaFile = chatAttachment.name;
+  }
+
+  // Generate temp ID for tracking
+  const tempId = 'temp_' + Date.now();
+
+  // Optimistic render with "sending" status
+  const msgObj = {
+    tempId: tempId,
+    idKaryawan: state.user.id,
+    nama: state.user.name,
+    pesan: pesan || (chatAttachment ? (chatAttachment.type === 'image' ? '[Foto]' : '[File]') : ''),
+    tipe: chatAttachment ? chatAttachment.type : 'text',
+    fileUrl: chatAttachment ? chatAttachment.data : null,
+    namaFile: chatAttachment ? chatAttachment.name : null,
+    waktu: 'Mengirim...',
+    status: 'sending'
+  };
+  chatMessages.push(msgObj);
+  renderChat();
+  input.value = '';
+  clearChatAttachment();
+
+  try {
+    const res = await apiCall('sendChatMessage', payload);
+    if (res.success) {
+      // Update status to sent
+      const idx = chatMessages.findIndex(m => m.tempId === tempId);
+      if (idx !== -1) {
+        chatMessages[idx].status = 'sent';
+        chatMessages[idx].waktu = 'Terkirim';
+        chatMessages[idx].idPesan = res.idPesan;
+        renderChat();
+      }
+      // Refresh messages after short delay to get server timestamp
+      setTimeout(() => loadChatMessages(), 800);
+    } else {
+      throw new Error(res.error || 'Server error');
+    }
+  } catch (e) {
+    // Update status to failed
+    const idx = chatMessages.findIndex(m => m.tempId === tempId);
+    if (idx !== -1) {
+      chatMessages[idx].status = 'failed';
+      chatMessages[idx].waktu = 'Gagal dikirim';
+      renderChat();
+    }
+    showToast('Gagal mengirim: ' + e.message, 'error');
+  }
+}
+
+// Retry failed message
+async function retryChatMessage(tempId) {
+  const msg = chatMessages.find(m => m.tempId === tempId);
+  if (!msg) return;
+
+  // Remove old failed message
+  chatMessages = chatMessages.filter(m => m.tempId !== tempId);
+
+  // Rebuild payload and resend
+  document.getElementById('chatInput').value = msg.pesan;
+  if (msg.fileUrl && msg.tipe !== 'text') {
+    chatAttachment = { type: msg.tipe, data: msg.fileUrl, name: msg.namaFile };
+    showChatAttachmentPreview(msg.namaFile);
+  }
+  sendChat();
+}
+
+async function populateTukerShiftModal() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('tukerTanggal').value = today;
+
+  // Populate toko dropdowns
+  const selTokoSaya = document.getElementById('tukerTokoSaya');
+  const selTokoTujuan = document.getElementById('tukerTokoTujuan');
+  selTokoSaya.innerHTML = '<option value="">Pilih Toko...</option>';
+  selTokoTujuan.innerHTML = '<option value="">Pilih Toko...</option>';
+  if (state.tokoList && state.tokoList.length) {
+    state.tokoList.forEach(t => {
+      const opt = `<option value="${t.ID_Toko}">${t.Nama_Toko}</option>`;
+      selTokoSaya.innerHTML += opt;
+      selTokoTujuan.innerHTML += opt;
+    });
+  }
+  // Auto-select default toko user
+  if (state.user && state.user.tokoDefault) {
+    selTokoSaya.value = state.user.tokoDefault;
+    await onTukerTokoSayaChange();
+  }
+
+  // Populate karyawan list (exclude self)
+  const selKaryawan = document.getElementById('tukerKaryawan');
+  selKaryawan.innerHTML = '<option value="">Pilih Karyawan...</option>';
+  if (state.karyawanList && state.karyawanList.length) {
+    state.karyawanList.filter(k => k.ID_Karyawan !== state.user.id).forEach(k => {
+      selKaryawan.innerHTML += `<option value="${k.ID_Karyawan}">${k.Nama}</option>`;
+    });
+  }
+}
+
+async function onTukerTokoSayaChange() {
+  const tokoId = document.getElementById('tukerTokoSaya').value;
+  const selShift = document.getElementById('tukerShiftSaya');
+  selShift.innerHTML = '<option value="">Pilih Shift...</option>';
+  if (!tokoId) return;
+  try {
+    const res = await apiCall('getShiftByToko', { idToko: tokoId });
+    if (res.success && Array.isArray(res.data)) {
+      res.data.forEach(s => {
+        const jm = formatTimeFromResponse(s.Jam_Masuk);
+        const jp = formatTimeFromResponse(s.Jam_Pulang);
+        selShift.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${jm} - ${jp})</option>`;
+      });
+    }
+  } catch (e) { console.log('onTukerTokoSayaChange error:', e); }
+}
+
+async function onTukerTokoTujuanChange() {
+  const tokoId = document.getElementById('tukerTokoTujuan').value;
+  const selShift = document.getElementById('tukerShiftTujuan');
+  selShift.innerHTML = '<option value="">Pilih Shift...</option>';
+  if (!tokoId) return;
+  try {
+    const res = await apiCall('getShiftByToko', { idToko: tokoId });
+    if (res.success && Array.isArray(res.data)) {
+      res.data.forEach(s => {
+        const jm = formatTimeFromResponse(s.Jam_Masuk);
+        const jp = formatTimeFromResponse(s.Jam_Pulang);
+        selShift.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${jm} - ${jp})</option>`;
+      });
+    }
+  } catch (e) { console.log('onTukerTokoTujuanChange error:', e); }
+}
+
+// ==================== TUKER SHIFT ====================
+async function submitTukerShift() {
+  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+  const tokoSaya = document.getElementById('tukerTokoSaya').value;
+  const tokoTujuan = document.getElementById('tukerTokoTujuan').value;
+  const karyawanId = document.getElementById('tukerKaryawan').value;
+  const shiftSaya = document.getElementById('tukerShiftSaya').value;
+  const shiftTujuan = document.getElementById('tukerShiftTujuan').value;
+  const tanggal = document.getElementById('tukerTanggal').value;
+  const alasan = document.getElementById('tukerAlasan').value;
+  if (!tokoSaya || !tokoTujuan || !karyawanId || !shiftSaya || !shiftTujuan || !tanggal) {
+    showToast('Lengkapi semua field!', 'error'); return;
+  }
+  try {
+    await apiCall('ajukanTukerShift', {
+      idKaryawan: state.user.id, nama: state.user.name,
+      idTokoSaya: tokoSaya, idTokoTujuan: tokoTujuan,
+      idKaryawanTujuan: karyawanId,
+      shiftSaya, shiftTujuan, tanggal, alasan
+    });
+    closeModal('modalTukerShift');
+    tampilPicoModal('sukses', 'Pengajuan tukar shift terkirim!<br>Menunggu konfirmasi karyawan lain');
+  } catch (e) { showToast('Gagal ajukan tukar shift', 'error'); }
+}
+
+// ==================== DATA IZIN & LEMBUR ====================
+let izinHistoryData = [];
+let lemburHistoryData = [];
+let izinFilter = 'semua';
+let lemburFilter = 'semua';
+
+async function renderDataIzin() {
+  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+  const container = document.getElementById('izinHistoryList');
+  container.innerHTML = '<div class="history-empty">Memuat data...</div>';
+  try {
+    const res = await apiCall('getIzinHistory', { idKaryawan: state.user.id });
+    if (res.success && Array.isArray(res.data)) {
+      izinHistoryData = res.data;
+      renderIzinList();
+    } else {
+      container.innerHTML = '<div class="history-empty">Belum ada pengajuan izin</div>';
+    }
+  } catch (e) {
+    container.innerHTML = '<div class="history-empty">Gagal memuat data</div>';
+  }
+}
+
+function renderIzinList() {
+  const container = document.getElementById('izinHistoryList');
+  let filtered = izinHistoryData;
+  if (izinFilter !== 'semua') {
+    filtered = izinHistoryData.filter(d => (d.status || '').toLowerCase() === izinFilter);
+  }
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="history-empty">Tidak ada data untuk filter ini</div>';
+    return;
+  }
+  container.innerHTML = filtered.map(d => {
+    const st = (d.status || 'Pending').toLowerCase();
+    const stClass = st === 'approved' ? 'approved' : st === 'rejected' ? 'rejected' : 'pending';
+    const stText = st === 'approved' ? 'Disetujui' : st === 'rejected' ? 'Ditolak' : 'Pending';
+    return `<div class="history-card ${stClass}">
+      <div class="history-header">
+        <div class="history-title">${d.jenis || 'Izin'}</div>
+        <div class="history-badge ${stClass}">${stText}</div>
+      </div>
+      <div class="history-meta">
+        <div><strong>Tanggal:</strong> ${d.tglMulai || '-'} s/d ${d.tglSelesai || '-'}</div>
+        <div><strong>Alasan:</strong> ${d.alasan || '-'}</div>
+        <div><strong>Diajukan:</strong> ${d.tanggalPengajuan || '-'}</div>
+        ${d.approvedAt ? `<div><strong>Proses:</strong> ${d.approvedAt}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterIzin(filter, el) {
+  izinFilter = filter;
+  document.querySelectorAll('#modalDataIzin .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderIzinList();
+}
+
+async function renderDataLembur() {
+  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+  const container = document.getElementById('lemburHistoryList');
+  container.innerHTML = '<div class="history-empty">Memuat data...</div>';
+  try {
+    const res = await apiCall('getLemburHistory', { idKaryawan: state.user.id });
+    if (res.success && Array.isArray(res.data)) {
+      lemburHistoryData = res.data;
+      renderLemburList();
+    } else {
+      container.innerHTML = '<div class="history-empty">Belum ada pengajuan lembur</div>';
+    }
+  } catch (e) {
+    container.innerHTML = '<div class="history-empty">Gagal memuat data</div>';
+  }
+}
+
+function renderLemburList() {
+  const container = document.getElementById('lemburHistoryList');
+  let filtered = lemburHistoryData;
+  if (lemburFilter !== 'semua') {
+    filtered = lemburHistoryData.filter(d => (d.status || '').toLowerCase() === lemburFilter);
+  }
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="history-empty">Tidak ada data untuk filter ini</div>';
+    return;
+  }
+  container.innerHTML = filtered.map(d => {
+    const st = (d.status || 'Pending').toLowerCase();
+    const stClass = st === 'approved' ? 'approved' : st === 'rejected' ? 'rejected' : 'pending';
+    const stText = st === 'approved' ? 'Disetujui' : st === 'rejected' ? 'Ditolak' : 'Pending';
+    return `<div class="history-card ${stClass}">
+      <div class="history-header">
+        <div class="history-title">Lembur - ${d.toko || '-'}</div>
+        <div class="history-badge ${stClass}">${stText}</div>
+      </div>
+      <div class="history-meta">
+        <div><strong>Tanggal:</strong> ${d.tanggal || '-'}</div>
+        <div><strong>Alasan:</strong> ${d.alasan || '-'}</div>
+        <div><strong>Diajukan:</strong> ${d.tanggalPengajuan || '-'}</div>
+        ${d.approvedAt ? `<div><strong>Proses:</strong> ${d.approvedAt}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterLembur(filter, el) {
+  lemburFilter = filter;
+  document.querySelectorAll('#modalDataLembur .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderLemburList();
+}
+
+// ==================== TUGAS ====================
+let tugasData = [];
+let tugasFilter = 'semua';
+
+async function renderTugasList() {
+  if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+  const container = document.getElementById('tugasList');
+  container.innerHTML = '<div class="history-empty">Memuat tugas...</div>';
+  try {
+    const res = await apiCall('getTugasList', { idKaryawan: state.user.id, idToko: state.user.tokoDefault || '' });
+    if (res.success && Array.isArray(res.data)) {
+      tugasData = res.data;
+      renderTugasItems();
+      // Update badge
+      const pendingCount = tugasData.filter(t => t.status !== 'Selesai').length;
+      const badge = document.getElementById('badgeTugas');
+      if (badge) {
+        badge.textContent = pendingCount;
+        badge.classList.toggle('hidden', pendingCount === 0);
+      }
+    } else {
+      container.innerHTML = '<div class="history-empty">Belum ada tugas</div>';
+    }
+  } catch (e) {
+    container.innerHTML = '<div class="history-empty">Gagal memuat tugas</div>';
+  }
+}
+
+function renderTugasItems() {
+  const container = document.getElementById('tugasList');
+  let filtered = tugasData;
+  if (tugasFilter !== 'semua') {
+    filtered = tugasData.filter(t => (t.status || '').toLowerCase() === tugasFilter);
+  }
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="history-empty">Tidak ada tugas untuk filter ini</div>';
+    return;
+  }
+  container.innerHTML = filtered.map(t => {
+    const priClass = (t.prioritas || 'low').toLowerCase();
+    const isDone = t.status === 'Selesai';
+    return `<div class="tugas-card ${priClass}">
+      <div class="tugas-header">
+        <div class="tugas-judul">${escapeHtml(t.judul)}</div>
+        <div class="tugas-prioritas ${priClass}">${t.prioritas || 'Low'}</div>
+      </div>
+      <div class="tugas-deskripsi">${escapeHtml(t.deskripsi || '')}</div>
+      <div class="tugas-footer">
+        <div class="tugas-deadline">Deadline: ${t.deadline || '-'}</div>
+        ${!isDone ? `<button class="tugas-btn selesai" onclick="selesaikanTugas('${t.id}')">Selesai</button>` : '<span style="font-size:12px;color:var(--success);font-weight:800;">✓ Selesai</span>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterTugas(filter, el) {
+  tugasFilter = filter;
+  document.querySelectorAll('#modalTugas .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderTugasItems();
+}
+
+async function selesaikanTugas(idTugas) {
+  if (!state.user || !state.user.id) return;
+  try {
+    await apiCall('updateTugasStatus', { idTugas: idTugas, status: 'Selesai', idKaryawan: state.user.id });
+    showToast('Tugas diselesaikan!', 'success');
+    renderTugasList();
+  } catch (e) {
+    showToast('Gagal update tugas', 'error');
+  }
+}
+
+// ==================== BERITA ====================
+async function renderBeritaList() {
+  const container = document.getElementById('beritaList');
+  container.innerHTML = '<div class="history-empty">Memuat berita...</div>';
+  try {
+    const res = await apiCall('getBeritaList', { limit: 10 });
+    if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      container.innerHTML = res.data.map(b => `
+        <div class="berita-card">
+          ${b.gambarUrl ? `<img src="${b.gambarUrl}" class="berita-img" alt="${escapeHtml(b.judul)}">` : ''}
+          <div class="berita-body">
+            <span class="berita-kategori" style="background:${getKategoriColor(b.kategori)};color:white;">${b.kategori || 'Umum'}</span>
+            <div class="berita-judul">${escapeHtml(b.judul)}</div>
+            <div class="berita-isi">${escapeHtml(b.isi)}</div>
+            <div class="berita-tgl">${b.tglPublish || ''}</div>
+          </div>
+        </div>
+      `).join('');
+      // Update badge
+      const badge = document.getElementById('badgeBerita');
+      if (badge) {
+        badge.textContent = res.data.length;
+        badge.classList.remove('hidden');
+      }
+    } else {
+      container.innerHTML = '<div class="history-empty">Belum ada berita</div>';
+    }
+  } catch (e) {
+    container.innerHTML = '<div class="history-empty">Gagal memuat berita</div>';
+  }
+}
+
+function getKategoriColor(kat) {
+  const colors = { 'Umum': '#8B95A5', 'Penting': '#FF3B30', 'Info': '#0D8ABC', 'Event': '#34C759', 'Promo': '#FF9500' };
+  return colors[kat] || colors['Umum'];
+}
+
+// ==================== LOGOUT ====================
+function logout() {
+  if (confirm('Yakin ingin logout?')) {
+    clearLogin(); stopCamera();
+    showToast('Logout berhasil', 'info');
+    setTimeout(() => location.reload(), 500);
+  }
+}
+
+// ==================== TOUCH FIX ====================
+document.addEventListener('touchstart', function(){}, { passive: true });
+</script>
+
 </body>
 </html>
