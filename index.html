@@ -1445,7 +1445,58 @@ function setupUserUI(fotoUrl) {
   document.getElementById('headerRole').textContent = (state.user.role || 'Staff');
   setHeaderAvatar(state.user.name, fotoUrl);
 }
-
+async function loadJadwalHariIni() {
+  if (!state.user || !state.user.id) return;
+  try {
+    const res = await apiCall('getJadwalHariIni', { idKaryawan: state.user.id });
+    if (res.success && res.jadwal) {
+      const j = res.jadwal;
+      document.getElementById('shiftNama').textContent = 
+        j.namaShift + ' - ' + j.jamMasuk + ' - ' + j.jamPulang;
+      if (j.idToko) {
+        document.getElementById('selectToko').value = j.idToko;
+        await onTokoChange();
+        if (j.idShift) {
+          document.getElementById('selectShift').value = j.idShift;
+          updateShiftInfo();
+        }
+      }
+      updateTokoCardInfo();
+    }
+  } catch (e) { console.log('loadJadwalHariIni error:', e); }
+}
+async function loadSisaKuota() {
+  if (!state.user || !state.user.id) return;
+  try {
+    const res = await apiCall('getSisaKuota', { idKaryawan: state.user.id });
+    if (res.success && res.kuota) {
+      const kuota = res.kuota;
+      let infoText = 'Sisa kuota: ';
+      const items = [];
+      Object.keys(kuota).forEach(kode => {
+        if (kuota[kode].sisa !== null) {
+          items.push(kuota[kode].nama + ' <strong>' + kuota[kode].sisa + '</strong>');
+        }
+      });
+      infoText += items.join(' | ');
+      document.getElementById('kuotaInfo').innerHTML = infoText;
+    }
+  } catch (e) { console.log('loadSisaKuota error:', e); }
+}
+async function loadTukerShiftHistory() {
+  if (!state.user || !state.user.id) return;
+  try {
+    const res = await apiCall('getTukerShiftHistory', { idKaryawan: state.user.id });
+    if (res.success && Array.isArray(res.data)) {
+      const pendingCount = res.data.filter(t => t.status === 'Pending').length;
+      const badge = document.getElementById('badgeTukerShift');
+      if (badge) {
+        badge.textContent = pendingCount;
+        badge.classList.toggle('hidden', pendingCount === 0);
+      }
+    }
+  } catch (e) { console.log('loadTukerShiftHistory error:', e); }
+}
 function setHeaderAvatar(name, fotoUrl) {
   const textEl = document.getElementById('headerAvatarText');
   const imgEl = document.getElementById('headerAvatarImg');
@@ -1480,28 +1531,17 @@ async function doLogin() {
   btn.innerHTML = '<div class="spinner"></div> Memuat...';
   errBox.classList.remove('show');
 
-  // Simulasi verifikasi ke backend (tanpa password)
-  try {
-    // Optional: verify ke backend
-    const res = await apiCall('getKaryawanById', { idKaryawan: id });
-    if (!res.success) {
-      // Fallback: tetap lanjut pakai data dari dropdown
-    }
-  } catch (e) {}
-
+  // Mode tanpa login: langsung set user dari dropdown
   state.user = { id, name, role, tokoDefault: tokoId, shiftDefault: shiftId };
   state.currentUser = state.user;
-
-  // Simpan ke localStorage
   saveLogin({ id, name, role, tokoDefault: tokoId, shiftDefault: shiftId, fotoUrl });
-
-  // Unlock audio context (user gesture)
   unlockAudio();
 
   showApp();
   setupUserUI(fotoUrl);
-
   await loadTokoData();
+  await loadJadwalHariIni();  // ← TAMBAH
+
   if (tokoId) {
     document.getElementById('selectToko').value = tokoId;
     await onTokoChange();
@@ -1510,16 +1550,18 @@ async function doLogin() {
       updateShiftInfo();
     }
   }
-  checkAbsenStatus();
+  
+  await checkAbsenStatus();
   updateTokoCardInfo();
   stopCamera();
   showCameraOverlay();
   checkMyApprovals();
+  loadTukerShiftHistory(); // ← TAMBAH
   showToast('Selamat datang, ' + name + '!', 'success');
   playSound('success');
 
   btn.disabled = false;
-  btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> Masuk`;
+  btn.innerHTML = `...`; // icon + teks Masuk
 }
 
 // ==================== KARYAWAN DROPDOWN ====================
@@ -2132,9 +2174,10 @@ function openModal(id) {
   document.body.style.overflow = 'hidden';
   if (id === 'modalJadwal') renderJadwal();
   if (id === 'modalChat') { loadChatMessages(); startChatPolling(); }
-  if (id === 'modalTukerShift') populateTukerShiftModal();
+  if (id === 'modalTukerShift') { populateTukerShiftModal(); loadTukerShiftHistory(); }
   if (id === 'modalTugas') renderTugasList();
   if (id === 'modalBerita') renderBeritaList();
+  if (id === 'modalIzin') loadSisaKuota(); // ← TAMBAH
 }
 function closeModal(id) { 
   document.getElementById(id).classList.remove('active'); 
@@ -2351,7 +2394,8 @@ async function apiCall(action, payload = {}) {
       const response = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action, ...payload })
+        body: JSON.stringify({ action, ...payload }),
+        redirect: 'follow'
       });
 
       if (!response.ok) {
