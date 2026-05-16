@@ -11,7 +11,7 @@ let editingTokoId = null;
 let isLoading = false;
 
 // ==================== API CORE (ANTI MACET) ====================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySMzB3SsqaMqJITxhXu1eWorAB_I5BboEcqNcncwLfSo4Iu_vDvGu50rth3IM6g2I/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDyDhOWjdbi1dO9HBbcSEZumOkBGlg2Z4UzJ-YqcirnX7u487kUUOYota52PV-5BlN/exec';
 
 async function apiCall(action, payload = {}) {
   if (isLoading) return Promise.reject(new Error('Sedang memproses...'));
