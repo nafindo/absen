@@ -525,7 +525,6 @@
                         document.getElementById('statusPulang').textContent = 'Pulang: --';
                         document.getElementById('statusPulang').className = 'pending';
                     }
-                    }
                 }
             } catch(e) { console.error('checkAbsenStatus error:', e); }
             updateButtonVisibility();
