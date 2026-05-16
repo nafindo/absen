@@ -488,8 +488,8 @@
             const nama = document.getElementById('namaTokoCard');
             if (toko) {
                 nama.textContent = toko.Nama_Toko || '-';
-                if (toko.Foto_URL || toko.Gambar || toko.fotoUrl) {
-                    img.src = toko.Foto_URL || toko.Gambar || toko.fotoUrl;
+                if (toko.Foto_Toko_URL || toko.Foto_URL || toko.Gambar || toko.fotoUrl) {
+                    img.src = toko.Foto_Toko_URL || toko.Foto_URL || toko.Gambar || toko.fotoUrl;
                     img.style.display = 'block';
                 } else {
                     img.style.display = 'none';
@@ -504,38 +504,33 @@
         async function checkAbsenStatus() {
             if (!state.user || !state.user.id) { state.absenStatus = 'belum_masuk'; updateButtonVisibility(); return; }
             try {
-                const today = new Date().toISOString().split('T')[0];
-                const res = await apiCall('getAbsenHariIni', { idKaryawan: state.user.id, tanggal: today });
-                if (res.success && res.data) {
-                    const d = res.data;
-                    if (d.jamPulang) {
-                        state.absenStatus = 'sudah_pulang';
-                        document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.jamMasuk);
+                const res = await apiCall('getAbsenStatus', { idKaryawan: state.user.id });
+                if (res.success) {
+                    state.absenStatus = res.status;
+                    if (res.status === 'sudah_pulang') {
+                        const d = res.data || {};
+                        document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.Jam_Masuk || d.jamMasuk);
                         document.getElementById('statusMasuk').className = 'ok';
-                        document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(d.jamPulang);
+                        document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(d.Jam_Pulang || d.jamPulang);
                         document.getElementById('statusPulang').className = 'ok';
-                    } else if (d.jamMasuk) {
-                        state.absenStatus = 'sudah_masuk';
-                        document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.jamMasuk);
+                    } else if (res.status === 'sudah_masuk') {
+                        const d = res.data || {};
+                        document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.Jam_Masuk || d.jamMasuk);
                         document.getElementById('statusMasuk').className = 'ok';
                         document.getElementById('statusPulang').textContent = 'Pulang: --';
                         document.getElementById('statusPulang').className = 'pending';
                     } else {
-                        state.absenStatus = 'belum_masuk';
                         document.getElementById('statusMasuk').textContent = 'Masuk: --';
                         document.getElementById('statusMasuk').className = 'pending';
                         document.getElementById('statusPulang').textContent = 'Pulang: --';
                         document.getElementById('statusPulang').className = 'pending';
                     }
-                } else {
-                    state.absenStatus = 'belum_masuk';
+                    }
                 }
-            } catch (e) {
-                console.log('checkAbsenStatus error:', e);
-                state.absenStatus = 'belum_masuk';
-            }
+            } catch(e) { console.error('checkAbsenStatus error:', e); }
             updateButtonVisibility();
         }
+
 
         function updateButtonVisibility() {
             const bm = document.getElementById('btnMasuk');
