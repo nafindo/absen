@@ -1,7 +1,7 @@
 // ==================== STATE ====================
         let state = {
             user: null, photoData: null, gps: { lat: null, lng: null, accuracy: null, jarak: null },
-            absenStatus: 'belum_masuk', absenTokoId: '', isLemburMode: false, jadwalOffset: 0, stream: null,
+            absenStatus: 'belum_masuk', absenTokoId: '', lemburTokoId: '', isLemburMode: false, jadwalOffset: 0, stream: null,
             tokoList: [], shiftList: [], karyawanList: [], notifList: [], notifShown: false,
             lemburStream: null, lemburPhotoData: null, audioUnlocked: false
         };
@@ -552,6 +552,7 @@
                     state.jamMasukShift = '';
                     state.jamPulangShift = '';
                     state.lemburStatus = (res.lembur && res.lembur.Status) || '';
+                    state.lemburTokoId = (res.lembur && (res.lembur.ID_Toko || res.lembur.idToko)) || '';
                     state.absenTokoId = '';
                     if (res.status === 'sudah_pulang') {
                         const d = res.data || {};
@@ -758,6 +759,52 @@
         async function absenPulang() {
             if (!state.photoData) { tampilPicoModal('wajah_gagal', 'Ambil foto selfie dulu ya!'); return; }
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+
+            // Validasi GPS untuk Absen Pulang
+            if (state.gps.lat === null || state.gps.lng === null) {
+                showToast('Koordinat GPS belum dimuat! Nyalakan GPS Anda dan tunggu sebentar.', 'error');
+                return;
+            }
+            
+            // Jarak ke Toko Asal Absen Masuk
+            let jarakAsal = Infinity;
+            let radiusAsal = 50;
+            const asalToko = state.tokoList.find(t => t.ID_Toko === state.absenTokoId);
+            if (asalToko && asalToko.Lat && asalToko.Long) {
+                jarakAsal = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(asalToko.Lat), parseFloat(asalToko.Long));
+                radiusAsal = parseFloat(asalToko.Radius_M) || 50;
+            }
+            
+            // Jarak ke Toko Lembur (jika ada lembur yang DISETUJUI / Approved)
+            let jarakLembur = Infinity;
+            let radiusLembur = 50;
+            let lemburToko = null;
+            const isLemburApproved = state.lemburStatus === 'Approved';
+            
+            if (isLemburApproved && state.lemburTokoId) {
+                lemburToko = state.tokoList.find(t => t.ID_Toko === state.lemburTokoId);
+                if (lemburToko && lemburToko.Lat && lemburToko.Long) {
+                    jarakLembur = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(lemburToko.Lat), parseFloat(lemburToko.Long));
+                    radiusLembur = parseFloat(lemburToko.Radius_M) || 50;
+                }
+            }
+            
+            const isNearAsal = jarakAsal <= radiusAsal;
+            const isNearLembur = isLemburApproved && (jarakLembur <= radiusLembur);
+            
+            if (!isNearAsal && !isNearLembur) {
+                let msg = `<b>Gagal Absen Pulang!</b><br><br>Anda berada di luar jangkauan area toko:<br>`;
+                if (asalToko) {
+                    msg += `- <b>${Math.round(jarakAsal)}m</b> dari Toko Asal (${asalToko.Nama_Toko}) (Max ${radiusAsal}m)<br>`;
+                }
+                if (isLemburApproved && lemburToko) {
+                    msg += `- <b>${Math.round(jarakLembur)}m</b> dari Toko Lembur (${lemburToko.Nama_Toko}) (Max ${radiusLembur}m)<br>`;
+                }
+                msg += `<br><span style="color:#E53935;font-weight:800;">Silakan mendekat ke toko untuk melakukan absen pulang!</span>`;
+                tampilPicoModal('gps_jauh', msg);
+                return;
+            }
+
             const btn = document.getElementById('btnPulang');
             btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Memproses...';
             try {
@@ -804,43 +851,6 @@
             
             if (!state.lemburPhotoData) {
                 showToast('Foto bukti lembur wajib diambil!', 'error');
-                return;
-            }
-
-            // Validasi GPS: Harus berada di Toko Lembur atau Toko Asal Absen Masuk
-            if (state.gps.lat === null || state.gps.lng === null) {
-                showToast('Koordinat GPS belum dimuat! Nyalakan GPS Anda dan tunggu sebentar.', 'error');
-                return;
-            }
-            
-            let jarakLembur = Infinity;
-            let radiusLembur = 50;
-            if (toko && toko.Lat && toko.Long) {
-                jarakLembur = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(toko.Lat), parseFloat(toko.Long));
-                radiusLembur = parseFloat(toko.Radius_M) || 50;
-            }
-            
-            let jarakAsal = Infinity;
-            let radiusAsal = 50;
-            const asalToko = state.tokoList.find(t => t.ID_Toko === state.absenTokoId);
-            if (asalToko && asalToko.Lat && asalToko.Long) {
-                jarakAsal = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(asalToko.Lat), parseFloat(asalToko.Long));
-                radiusAsal = parseFloat(asalToko.Radius_M) || 50;
-            }
-            
-            const isNearLembur = jarakLembur <= radiusLembur;
-            const isNearAsal = jarakAsal <= radiusAsal;
-            
-            if (!isNearLembur && !isNearAsal) {
-                let msg = `<b>Lokasi GPS Tidak Valid!</b><br><br>Anda terdeteksi berada di luar jangkauan area kerja lembur:<br>`;
-                if (toko) {
-                    msg += `- <b>${Math.round(jarakLembur)}m</b> dari Toko Lembur (${toko.Nama_Toko}) (Max ${radiusLembur}m)<br>`;
-                }
-                if (asalToko) {
-                    msg += `- <b>${Math.round(jarakAsal)}m</b> dari Toko Asal (${asalToko.Nama_Toko}) (Max ${radiusAsal}m)<br>`;
-                }
-                msg += `<br><span style="color:#E53935;font-weight:800;">Silakan mendekat ke salah satu toko tersebut untuk mengajukan lembur!</span>`;
-                tampilPicoModal('gps_jauh', msg);
                 return;
             }
             
