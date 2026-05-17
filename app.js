@@ -1487,7 +1487,12 @@
             document.getElementById(id).classList.add('active');
             document.body.style.overflow = 'hidden';
             if (id === 'modalJadwal') renderJadwal();
-            if (id === 'modalChat') { loadChatMessages(); startChatPolling(); }
+            if (id === 'modalChat') { 
+                loadChatMessages(); 
+                startChatPolling(); 
+                const badge = document.getElementById('badgeChat');
+                if (badge) badge.classList.add('hidden');
+            }
             if (id === 'modalTukerShift') populateTukerShiftModal();
             if (id === 'modalTugas') renderTugasList();
             if (id === 'modalBerita') renderBeritaList();
@@ -1838,12 +1843,17 @@
                     });
                     renderChat();
 
-                    // Update badge with unread count
+                    // Update badge (red dot only, no numbers)
                     const othersCount = res.data.filter(m => m.idKaryawan !== state.user.id).length;
                     const badge = document.getElementById('badgeChat');
-                    if (badge && othersCount > 0) {
-                        badge.textContent = othersCount > 9 ? '9+' : othersCount;
-                        badge.classList.remove('hidden');
+                    const isModalOpen = document.getElementById('modalChat')?.classList.contains('active');
+                    if (badge) {
+                        if (othersCount > 0 && !isModalOpen) {
+                            badge.textContent = '';
+                            badge.classList.remove('hidden');
+                        } else {
+                            badge.classList.add('hidden');
+                        }
                     }
                 } else {
                     renderChatEmpty();
@@ -1932,13 +1942,11 @@
                     playSound('pop');
                 }
             } else {
-                // If modal closed, increment badge & display visual toast
+                // If modal closed, show red dot badge & display visual toast
                 if (data.idKaryawan !== state.user.id) {
                     const badge = document.getElementById('badgeChat');
                     if (badge) {
-                        let current = parseInt(badge.textContent) || 0;
-                        current++;
-                        badge.textContent = current > 9 ? '9+' : current;
+                        badge.textContent = '';
                         badge.classList.remove('hidden');
                     }
                     
