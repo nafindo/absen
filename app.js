@@ -1122,10 +1122,26 @@
             } catch (e) { console.log('checkMyApprovals error:', e); }
         }
 
+        function getReadNotificationIds() {
+            try {
+                const data = localStorage.getItem('read_notif_ids');
+                return data ? JSON.parse(data) : [];
+            } catch (e) { return []; }
+        }
+
+        function markNotificationsAsRead(ids) {
+            try {
+                const readIds = getReadNotificationIds();
+                const updated = Array.from(new Set([...readIds, ...ids]));
+                localStorage.setItem('read_notif_ids', JSON.stringify(updated));
+            } catch (e) {}
+        }
+
         function updateNotifBadge() {
             const badge = document.getElementById('notifBadge');
-            const bell = document.getElementById('notifBell');
-            const count = state.notifList ? state.notifList.filter(n => n.status !== 'Pending').length : 0;
+            const readIds = getReadNotificationIds();
+            const unreadNotifs = state.notifList ? state.notifList.filter(n => n.status !== 'Pending' && !readIds.includes(String(n.id))) : [];
+            const count = unreadNotifs.length;
             if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.classList.remove('hidden'); }
             else { badge.classList.add('hidden'); }
         }
@@ -1133,16 +1149,32 @@
         function updateNotifBubble() {
             const list = document.getElementById('notifBubbleList');
             if (!state.notifList || state.notifList.length === 0) { list.innerHTML = '<div class="notif-empty">Belum ada pemberitahuan</div>'; return; }
-            list.innerHTML = state.notifList.map(n => `
-    <div class="notif-item ${n.status === 'Approved' ? 'approved' : n.status === 'Rejected' ? 'rejected' : ''}">
-      <div class="notif-item-title">${n.tipe === 'lembur' ? 'Lembur' : 'Izin/Cuti'}</div>
+            const readIds = getReadNotificationIds();
+            list.innerHTML = state.notifList.map(n => {
+                const isUnread = n.status !== 'Pending' && !readIds.includes(String(n.id));
+                const unreadClass = isUnread ? 'unread-glowing' : '';
+                return `
+    <div class="notif-item ${n.status === 'Approved' ? 'approved' : n.status === 'Rejected' ? 'rejected' : ''} ${unreadClass}">
+      <div class="notif-item-title">${n.tipe === 'lembur' ? 'Lembur' : 'Izin/Cuti'} ${isUnread ? '<span class="unread-dot">●</span>' : ''}</div>
       <div class="notif-item-text">Pengajuan tanggal ${n.tanggal} telah <strong>${n.status === 'Approved' ? 'disetujui' : n.status === 'Rejected' ? 'ditolak' : 'diproses'}</strong></div>
       <div class="notif-item-date">${n.approvedAt || n.tanggal}</div>
     </div>
-  `).join('');
+  `;
+            }).join('');
         }
 
-        function toggleNotifBubble(e) { e.stopPropagation(); document.getElementById('notifBubble').classList.toggle('show'); }
+        function toggleNotifBubble(e) { 
+            e.stopPropagation(); 
+            const bubble = document.getElementById('notifBubble');
+            bubble.classList.toggle('show');
+            if (bubble.classList.contains('show') && state.notifList && state.notifList.length > 0) {
+                // Tandai semua notifikasi non-pending saat ini sebagai "telah dibaca" secara lokal
+                const idsToMark = state.notifList.filter(n => n.status !== 'Pending').map(n => String(n.id));
+                markNotificationsAsRead(idsToMark);
+                updateNotifBadge(); // Segera hilangkan dot merah/badge!
+                updateNotifBubble(); // Segera hilangkan dot unread di dalam list!
+            }
+        }
         function closeNotifBubble(e) { e.stopPropagation(); document.getElementById('notifBubble').classList.remove('show'); }
         document.addEventListener('click', function (e) {
             const bubble = document.getElementById('notifBubble');

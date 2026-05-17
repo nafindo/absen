@@ -460,6 +460,30 @@
             font-weight: 500;
         }
 
+        .unread-glowing {
+            box-shadow: 0 0 8px rgba(13, 138, 188, 0.12);
+            animation: unreadPulse 2s infinite alternate;
+            position: relative;
+        }
+
+        .unread-dot {
+            color: #0D8ABC;
+            font-size: 10px;
+            margin-left: 6px;
+            vertical-align: middle;
+            animation: blinkUnread 1s infinite alternate;
+        }
+
+        @keyframes unreadPulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.01); }
+        }
+
+        @keyframes blinkUnread {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
         /* ===== TAB CONTENT ===== */
         .tab-content {
             display: none;
