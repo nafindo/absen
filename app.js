@@ -2537,12 +2537,22 @@
                 }
 
                 let content = '';
+                let captionHtml = '';
+                const trimmedActual = actualPesan.trim();
+                if (trimmedActual && trimmedActual !== '[Foto]' && trimmedActual !== '[File]') {
+                    captionHtml = `
+                    <div style="font-size: 14.5px; font-weight: 600; line-height: 1.5; word-break: break-word; margin-top: 8px; padding: 0 2px; color: ${isMe ? '#ffffff' : 'var(--text)'};">
+                        ${formatMentions(actualPesan, isMe)}
+                    </div>`;
+                }
+
                 if (m.tipe === 'image' && m.fileUrl) {
                     content = `
                     ${replyBoxHtml}
                     <div style="position:relative; border-radius:12px; overflow:hidden; max-width:260px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 2px;">
                         <img src="${resolveFotoUrl(m.fileUrl)}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="window.open(getPublicViewUrl('${m.fileUrl}', 'image'),'_blank')" alt="Foto">
-                    </div>`;
+                    </div>
+                    ${captionHtml}`;
                 } else if (m.tipe === 'file' && m.fileUrl) {
                     content = `
                     ${replyBoxHtml}
@@ -2554,7 +2564,8 @@
                             </svg>
                             <span style="max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.namaFile || 'Lampiran File'}</span>
                         </div>
-                    </a>`;
+                    </a>
+                    ${captionHtml}`;
                 } else {
                     content = `
                     ${replyBoxHtml}
