@@ -1,6 +1,6 @@
 importScripts('https://cdn.webpushr.com/sw-v2.js');
 
-const CACHE_NAME = 'absen-pwa-v3.7';
+const CACHE_NAME = 'absen-pwa-v3.8';
 const urlsToCache = [
   '/absen/',
   '/absen/index.html',
