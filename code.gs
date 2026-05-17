@@ -1783,8 +1783,23 @@ function uploadFileToDrive(base64Data, idKaryawan, tipe) {
     const subFolders = folder.getFoldersByName(subFolderName);
     const subFolder = subFolders.hasNext() ? subFolders.next() : folder.createFolder(subFolderName);
     
+    let mimeType = 'application/pdf';
+    let ext = '.pdf';
+    let cleanBase64 = base64Data;
+    
+    if (base64Data.indexOf(';base64,') !== -1) {
+      const parts = base64Data.split(';base64,');
+      cleanBase64 = parts[1];
+      mimeType = parts[0].split(':')[1] || 'application/pdf';
+      if (mimeType.includes('image/')) {
+        ext = '.' + mimeType.split('/')[1];
+      }
+    } else if (base64Data.indexOf(',') !== -1) {
+      cleanBase64 = base64Data.split(',')[1];
+    }
+    
     const fileName = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd') + '_' + idKaryawan + '_' + tipe;
-    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data.split(',')[1]), 'application/pdf', fileName + '.pdf');
+    const blob = Utilities.newBlob(Utilities.base64Decode(cleanBase64), mimeType, fileName + ext);
     const file = subFolder.createFile(blob);
     
     return 'https://drive.google.com/uc?id=' + file.getId();

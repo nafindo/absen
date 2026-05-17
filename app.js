@@ -370,10 +370,23 @@
             if (!video.videoWidth || video.readyState < 2) {
                 showToast('Kamera belum siap', 'error'); return;
             }
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            // Kompres ukuran foto selfie
+            let w = video.videoWidth;
+            let h = video.videoHeight;
+            const maxDimension = 640;
+            if (w > maxDimension || h > maxDimension) {
+                if (w > h) {
+                    h = Math.round(h * maxDimension / w);
+                    w = maxDimension;
+                } else {
+                    w = Math.round(w * maxDimension / h);
+                    h = maxDimension;
+                }
+            }
+            canvas.width = w; canvas.height = h;
             const ctx = canvas.getContext('2d');
             ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0);
-            state.photoData = canvas.toDataURL('image/jpeg', 0.7);
+            state.photoData = canvas.toDataURL('image/jpeg', 0.6);
             preview.src = state.photoData; preview.style.display = 'block';
             video.style.display = 'none'; document.getElementById('retakeBtn').style.display = 'block';
             document.getElementById('captureBtn').classList.add('disabled');
@@ -677,10 +690,23 @@
             const canvas = document.getElementById('lemburCanvas');
             const preview = document.getElementById('lemburPreview');
             if (!video.videoWidth) { showToast('Kamera belum siap', 'error'); return; }
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            // Kompres ukuran foto lembur
+            let w = video.videoWidth;
+            let h = video.videoHeight;
+            const maxDimension = 640;
+            if (w > maxDimension || h > maxDimension) {
+                if (w > h) {
+                    h = Math.round(h * maxDimension / w);
+                    w = maxDimension;
+                } else {
+                    w = Math.round(w * maxDimension / h);
+                    h = maxDimension;
+                }
+            }
+            canvas.width = w; canvas.height = h;
             const ctx = canvas.getContext('2d');
             ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0);
-            lemburPhotoData = canvas.toDataURL('image/jpeg', 0.7);
+            lemburPhotoData = canvas.toDataURL('image/jpeg', 0.6);
             preview.src = lemburPhotoData; preview.style.display = 'block';
             video.style.display = 'none'; document.getElementById('lemburCaptureBtn').style.display = 'none';
             document.getElementById('lemburRetakeBtn').style.display = 'block';
@@ -837,19 +863,31 @@
                 }
             };
 
-            // Baca file lampiran jika ada
+            // Baca file lampiran jika ada (Kompresi Gambar otomatis)
             if (fileInput && fileInput.files && fileInput.files[0]) {
-                const reader = new FileReader();
-                reader.onload = async function(e) {
-                    const rawBase64 = e.target.result.split(',')[1];
-                    await proceedSubmit(rawBase64);
-                };
-                reader.onerror = async function() {
-                    showToast('Gagal membaca file lampiran', 'error');
+                const file = fileInput.files[0];
+                try {
+                    let base64Data = '';
+                    if (file.type.startsWith('image/')) {
+                        // Kompresi gambar ke kualitas 60% dan lebar maks 800px
+                        const compressed = await compressImage(file, 0.6, 800);
+                        base64Data = compressed.base64;
+                    } else {
+                        // Jika PDF, baca langsung
+                        base64Data = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(file);
+                        });
+                    }
+                    await proceedSubmit(base64Data);
+                } catch (e) {
+                    console.error('Gagal memproses lampiran:', e);
+                    showToast('Gagal memproses file lampiran', 'error');
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = originalHtml;
-                };
-                reader.readAsDataURL(fileInput.files[0]);
+                }
             } else {
                 await proceedSubmit('');
             }
@@ -982,15 +1020,47 @@
 
         function updateFileName(input) {
             const label = document.getElementById('izinLampiranLabel');
+            const previewContainer = document.getElementById('izinLampiranPreviewContainer');
+            const previewImg = document.getElementById('izinLampiranPreview');
+            
             if (!label) return;
+            
             if (input.files && input.files[0]) {
-                label.textContent = input.files[0].name;
+                const file = input.files[0];
+                label.textContent = file.name;
                 label.parentElement.style.borderColor = 'var(--primary)';
                 label.parentElement.style.color = 'var(--primary)';
+                
+                // Tampilkan preview jika berupa gambar
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        if (previewImg) previewImg.src = e.target.result;
+                        if (previewContainer) previewContainer.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else if (file.type === 'application/pdf') {
+                    // Tampilkan ikon placeholder PDF
+                    if (previewImg) previewImg.src = 'https://cdn-icons-png.flaticon.com/512/337/337946.png';
+                    if (previewContainer) previewContainer.style.display = 'block';
+                } else {
+                    if (previewContainer) previewContainer.style.display = 'none';
+                }
             } else {
                 label.textContent = 'Pilih file surat dokter / bukti foto';
                 label.parentElement.style.borderColor = '#CBD5E1';
                 label.parentElement.style.color = '#64748B';
+                if (previewContainer) previewContainer.style.display = 'none';
+                if (previewImg) previewImg.src = '';
+            }
+        }
+
+        function resetIzinLampiran(e) {
+            if (e) e.stopPropagation();
+            const fileInput = document.getElementById('izinLampiran');
+            if (fileInput) {
+                fileInput.value = '';
+                updateFileName(fileInput);
             }
         }
         function closeModalOnOverlay(e, id) { if (e.target.id === id) closeModal(id); }
@@ -1424,13 +1494,25 @@
             const video = document.getElementById('chatCameraVideo');
             const canvas = document.getElementById('chatCameraCanvas');
             if (!video.videoWidth) return;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            // Kompres ukuran foto chat
+            let w = video.videoWidth;
+            let h = video.videoHeight;
+            const maxDimension = 640;
+            if (w > maxDimension || h > maxDimension) {
+                if (w > h) {
+                    h = Math.round(h * maxDimension / w);
+                    w = maxDimension;
+                } else {
+                    w = Math.round(w * maxDimension / h);
+                    h = maxDimension;
+                }
+            }
+            canvas.width = w; canvas.height = h;
             const ctx = canvas.getContext('2d');
             ctx.translate(canvas.width, 0);
             ctx.scale(-1, 1);
             ctx.drawImage(video, 0, 0);
-            const base64 = canvas.toDataURL('image/jpeg', 0.6);
+            const base64 = canvas.toDataURL('image/jpeg', 0.5);
             chatAttachment = { type: 'image', data: base64, name: 'camera.jpg' };
             showChatAttachmentPreview('camera.jpg');
             closeChatCamera();
