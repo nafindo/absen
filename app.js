@@ -3495,6 +3495,11 @@
                 if (res && res.success) {
                     const totalHadir = res.totalHadir || 0;
                     const totalTelat = res.totalTelat || 0;
+                    const totalSakit = res.totalSakit || 0;
+                    const totalIzin = res.totalIzin || 0;
+                    const totalCuti = res.totalCuti || 0;
+                    const totalLembur = res.totalLembur || 0;
+                    const totalPulangCepat = res.totalPulangCepat || 0;
                     
                     // Hitung hari kerja berjalan s.d hari ini (kecuali hari Minggu)
                     let workingDaysUpToToday = 0;
@@ -3518,23 +3523,52 @@
                     }
                     if (totalWorkingDaysInMonth === 0) totalWorkingDaysInMonth = 26; // Fallback
                     
-                    const alpa = Math.max(0, workingDaysUpToToday - totalHadir);
+                    // Alpa = (Hari Kerja Berjalan - Hadir - Sakit - Izin - Cuti)
+                    const alpa = Math.max(0, workingDaysUpToToday - totalHadir - totalSakit - totalIzin - totalCuti);
                     
-                    // Update UI text
                     const monthLabel = getMonthNameIndo(month) + ' ' + year;
-                    document.getElementById('statBulanLabel').textContent = monthLabel;
-                    document.getElementById('statHadir').textContent = totalHadir;
-                    document.getElementById('statAlpa').textContent = alpa;
-                    document.getElementById('statTelat').textContent = totalTelat;
                     
-                    // Update progress bars (persentase)
+                    // 1. UPDATE BERANDA CARD
+                    if (document.getElementById('statBulanLabel')) document.getElementById('statBulanLabel').textContent = monthLabel;
+                    if (document.getElementById('statHadir')) document.getElementById('statHadir').textContent = totalHadir;
+                    if (document.getElementById('statAlpa')) document.getElementById('statAlpa').textContent = alpa;
+                    if (document.getElementById('statTelat')) document.getElementById('statTelat').textContent = totalTelat;
+                    
                     const pctHadir = Math.min(100, Math.round((totalHadir / totalWorkingDaysInMonth) * 100));
                     const pctAlpa = Math.min(100, Math.round((alpa / totalWorkingDaysInMonth) * 100));
                     const pctTelat = totalHadir > 0 ? Math.min(100, Math.round((totalTelat / totalHadir) * 100)) : 0;
                     
-                    document.getElementById('barHadir').style.width = pctHadir + '%';
-                    document.getElementById('barAlpa').style.width = pctAlpa + '%';
-                    document.getElementById('barTelat').style.width = pctTelat + '%';
+                    if (document.getElementById('barHadir')) document.getElementById('barHadir').style.width = pctHadir + '%';
+                    if (document.getElementById('barAlpa')) document.getElementById('barAlpa').style.width = pctAlpa + '%';
+                    if (document.getElementById('barTelat')) document.getElementById('barTelat').style.width = pctTelat + '%';
+                    
+                    // 2. UPDATE REKAP ABSENSI CARD IN DATA TAB
+                    if (document.getElementById('dataBulanLabel')) document.getElementById('dataBulanLabel').textContent = monthLabel;
+                    if (document.getElementById('dataHadir')) document.getElementById('dataHadir').textContent = totalHadir;
+                    if (document.getElementById('dataAlpa')) document.getElementById('dataAlpa').textContent = alpa;
+                    if (document.getElementById('dataSakit')) document.getElementById('dataSakit').textContent = totalSakit;
+                    if (document.getElementById('dataIzin')) document.getElementById('dataIzin').textContent = totalIzin;
+                    if (document.getElementById('dataCuti')) document.getElementById('dataCuti').textContent = totalCuti;
+                    if (document.getElementById('dataLembur')) document.getElementById('dataLembur').textContent = totalLembur;
+                    if (document.getElementById('dataTelat')) document.getElementById('dataTelat').textContent = totalTelat;
+                    if (document.getElementById('dataPulangCepat')) document.getElementById('dataPulangCepat').textContent = totalPulangCepat;
+                    
+                    // Update progress bars for Data Tab
+                    const pctDataSakit = Math.min(100, Math.round((totalSakit / totalWorkingDaysInMonth) * 100));
+                    const pctDataIzin = Math.min(100, Math.round((totalIzin / totalWorkingDaysInMonth) * 100));
+                    const pctDataCuti = Math.min(100, Math.round((totalCuti / totalWorkingDaysInMonth) * 100));
+                    const pctDataLembur = Math.min(100, Math.round((totalLembur / totalWorkingDaysInMonth) * 100));
+                    const pctDataTelat = totalHadir > 0 ? Math.min(100, Math.round((totalTelat / totalHadir) * 100)) : 0;
+                    const pctDataPulangCepat = totalHadir > 0 ? Math.min(100, Math.round((totalPulangCepat / totalHadir) * 100)) : 0;
+                    
+                    if (document.getElementById('barDataHadir')) document.getElementById('barDataHadir').style.width = pctHadir + '%';
+                    if (document.getElementById('barDataAlpa')) document.getElementById('barDataAlpa').style.width = pctAlpa + '%';
+                    if (document.getElementById('barDataSakit')) document.getElementById('barDataSakit').style.width = pctDataSakit + '%';
+                    if (document.getElementById('barDataIzin')) document.getElementById('barDataIzin').style.width = pctDataIzin + '%';
+                    if (document.getElementById('barDataCuti')) document.getElementById('barDataCuti').style.width = pctDataCuti + '%';
+                    if (document.getElementById('barDataLembur')) document.getElementById('barDataLembur').style.width = pctDataLembur + '%';
+                    if (document.getElementById('barDataTelat')) document.getElementById('barDataTelat').style.width = pctDataTelat + '%';
+                    if (document.getElementById('barDataPulangCepat')) document.getElementById('barDataPulangCepat').style.width = pctDataPulangCepat + '%';
                 }
             } catch (e) {
                 console.error('[RECAP] Gagal memuat rekap bulanan:', e);
