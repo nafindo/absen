@@ -1241,6 +1241,92 @@
                     }
                 }
             } catch (e) { console.log('checkMyApprovals error:', e); }
+            
+            // Periksa juga live Swap Shift request yang masuk!
+            try {
+                await checkPendingTukerShift();
+            } catch (e) { console.log('checkPendingTukerShift trigger error:', e); }
+        }
+
+        function formatDateIndo(dateStr) {
+            if (!dateStr) return '-';
+            try {
+                const date = new Date(dateStr);
+                const options = { day: 'numeric', month: 'long', year: 'numeric' };
+                return date.toLocaleDateString('id-ID', options);
+            } catch (e) {
+                return dateStr;
+            }
+        }
+
+        async function checkPendingTukerShift() {
+            if (!state.user || !state.user.id) return;
+            try {
+                // Jangan tampilkan jika modal persetujuan sedang terbuka agar tidak mengganggu input
+                const modal = document.getElementById('modalPersetujuanTukerShift');
+                if (modal && modal.classList.contains('active')) return;
+
+                const res = await apiCall('getPendingTukerShift', { idKaryawan: state.user.id });
+                if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+                    const item = res.data[0]; // Ambil yang paling lama pending/pertama
+                    
+                    // Populate modal elements
+                    document.getElementById('persetujuanIdTuker').value = item.id;
+                    document.getElementById('persetujuanNama').innerText = item.namaSaya;
+                    document.getElementById('persetujuanRole').innerText = item.jabatanSaya;
+                    document.getElementById('persetujuanTanggal').innerText = formatDateIndo(item.tanggal);
+                    
+                    document.getElementById('persetujuanJadwalSaya').innerText = item.namaTokoSaya;
+                    document.getElementById('persetujuanJamSaya').innerText = item.namaShiftSaya + ` (${item.jamMasukSaya} - ${item.jamPulangSaya})`;
+                    
+                    document.getElementById('persetujuanJadwalTujuan').innerText = item.namaTokoTujuan;
+                    document.getElementById('persetujuanJamTujuan').innerText = item.namaShiftTujuan + ` (${item.jamMasukTujuan} - ${item.jamPulangTujuan})`;
+                    
+                    const avatarText = document.getElementById('persetujuanAvatarText');
+                    const avatarImg = document.getElementById('persetujuanAvatarImg');
+                    
+                    if (item.fotoSaya) {
+                        avatarImg.src = item.fotoSaya;
+                        avatarImg.style.display = 'block';
+                        avatarText.style.display = 'none';
+                    } else {
+                        avatarImg.style.display = 'none';
+                        avatarText.style.display = 'block';
+                        avatarText.innerText = item.namaSaya ? item.namaSaya.charAt(0).toUpperCase() : '?';
+                    }
+                    
+                    // Open Modal!
+                    openModal('modalPersetujuanTukerShift');
+                    playSound('pop');
+                }
+            } catch (e) {
+                console.log('checkPendingTukerShift error:', e);
+            }
+        }
+
+        async function responTukerShift(isApproved) {
+            const idTuker = document.getElementById('persetujuanIdTuker').value;
+            if (!idTuker) return;
+            
+            const action = isApproved ? 'approveTukerShift' : 'rejectTukerShift';
+            
+            try {
+                showToast('Mengirim keputusan...', 'info');
+                const res = await apiCall(action, { idTuker: idTuker, idKaryawan: state.user.id });
+                if (res.success) {
+                    closeModal('modalPersetujuanTukerShift');
+                    tampilPicoModal('sukses', isApproved ? '<b>Pertukaran Shift Disetujui! ⇆</b><br>Sukses menyetujui ajukan pertukaran shift. Jadwal Anda berdua telah otomatis disesuaikan!' : '<b>Pertukaran Shift Ditolak</b><br>Pertukaran shift berhasil ditolak.');
+                    playSound(isApproved ? 'success' : 'alert');
+                    
+                    // Refresh data dashboard / jadwal
+                    if (typeof checkAbsenStatus === 'function') checkAbsenStatus();
+                    if (typeof updateMonthlyRecap === 'function') updateMonthlyRecap();
+                } else {
+                    showToast(res.error || 'Gagal memproses keputusan', 'error');
+                }
+            } catch (e) {
+                showToast('Koneksi backend gagal', 'error');
+            }
         }
 
         function getReadNotificationIds() {

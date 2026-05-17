@@ -976,6 +976,72 @@
         </div>
     </div>
 
+    <!-- Modal Persetujuan Tukar Shift -->
+    <div class="modal-overlay" id="modalPersetujuanTukerShift" onclick="closeModalOnOverlay(event, 'modalPersetujuanTukerShift')">
+        <div class="modal-sheet" style="max-width: 480px; border-radius: 28px; box-shadow: 0 20px 45px rgba(0,0,0,0.15); border: 1px solid rgba(226,232,240,0.8); overflow: hidden; background: white;">
+            <div class="modal-header" style="border-bottom: 1px solid #f1f5f9; padding: 20px 24px 16px 24px;">
+                <h2 style="font-size: 18px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 10px;">
+                    <span style="display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="17 1 21 5 17 9"></polyline>
+                            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                            <polyline points="7 23 3 19 7 15"></polyline>
+                            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                        </svg>
+                    </span>
+                    Persetujuan Tukar Shift
+                </h2>
+                <button class="modal-close" onclick="closeModal('modalPersetujuanTukerShift')" style="background: #F1F5F9; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">&#10005;</button>
+            </div>
+            <div class="modal-body" style="padding: 24px 24px 28px 24px; display: flex; flex-direction: column; align-items: center; text-align: center;">
+                <!-- SENDER PROFILE CARD -->
+                <div style="position: relative; margin-bottom: 12px; display: flex; flex-direction: column; align-items: center;">
+                    <div style="width: 76px; height: 76px; border-radius: 50%; background: #F1F5F9; border: 3px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.08); overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                        <span id="persetujuanAvatarText" style="font-size: 24px; font-weight: 800; color: #3b82f6;">?</span>
+                        <img id="persetujuanAvatarImg" style="width: 100%; height: 100%; object-fit: cover; display: none;" />
+                    </div>
+                </div>
+                <div id="persetujuanNama" style="font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">Nama Rekan</div>
+                <div id="persetujuanRole" style="font-size: 11px; color: #64748b; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; background: #f1f5f9; padding: 3px 10px; border-radius: 100px; margin-bottom: 18px;">JABATAN</div>
+                
+                <p style="font-size: 14px; color: #475569; margin: 0 0 20px 0; line-height: 1.6; max-width: 90%;">
+                    mengajukan pertukaran jadwal kerja untuk tanggal <strong id="persetujuanTanggal" style="color: #0f172a; font-weight: 800;">-</strong>.
+                </p>
+                
+                <!-- DETAILS COMPARISON FLOW -->
+                <div style="width: 100%; display: flex; flex-direction: column; gap: 12px; background: #f8fafc; border-radius: 16px; padding: 18px; margin-bottom: 24px; border: 1.5px dashed #e2e8f0; text-align: left;">
+                    <!-- SAYA (PENGAJU) -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                        <span style="color: #64748b; font-weight: 700;">Jadwal Dia (Pengaju):</span>
+                        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
+                            <strong id="persetujuanJadwalSaya" style="color: #0f172a; font-weight: 800;">Toko A</strong>
+                            <span id="persetujuanJamSaya" style="font-size: 11px; color: #64748b; font-weight: 600;">Shift Pagi</span>
+                        </div>
+                    </div>
+                    
+                    <div style="height: 1px; background: #e2e8f0; width: 100%;"></div>
+                    
+                    <!-- REKAN (PENERIMA) -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;">
+                        <span style="color: #64748b; font-weight: 700;">Jadwal Saya:</span>
+                        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
+                            <strong id="persetujuanJadwalTujuan" style="color: #0f172a; font-weight: 800;">Toko B</strong>
+                            <span id="persetujuanJamTujuan" style="font-size: 11px; color: #64748b; font-weight: 600;">Shift Siang</span>
+                        </div>
+                    </div>
+                </div>
+
+                <input type="hidden" id="persetujuanIdTuker" value="">
+
+                <!-- ACTION BUTTONS -->
+                <div style="display: flex; gap: 12px; width: 100%;">
+                    <button class="btn btn-danger" style="flex: 1; border-radius: 16px; padding: 14px; font-weight: 800; font-size: 14px;" onclick="responTukerShift(false)">TOLAK</button>
+                    <button class="btn btn-success" style="flex: 1; border-radius: 16px; padding: 14px; font-weight: 800; font-size: 14px;" onclick="responTukerShift(true)">SETUJUI</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Permission Help -->
     <div class="perm-overlay" id="permHelpModal" onclick="if(event.target.id==='permHelpModal')closePermHelp()">
         <div class="perm-box">

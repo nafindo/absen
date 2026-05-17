@@ -149,6 +149,9 @@ function doPost(e) {
       // === TUKAR SHIFT ===
       case 'ajukanTukerShift': return jsonResponse(ajukanTukerShift(data));
       case 'getTukerShiftHistory': return jsonResponse(getTukerShiftHistory(data));
+      case 'getPendingTukerShift': return jsonResponse(getPendingTukerShift(data));
+      case 'approveTukerShift': return jsonResponse(approveTukerShift(data));
+      case 'rejectTukerShift': return jsonResponse(rejectTukerShift(data));
       
       default:
         return jsonResponse({ success: false, error: 'Action tidak dikenal: ' + action });
@@ -955,6 +958,10 @@ function getJenisIzinAktif(data) {
 function getJadwalHariIni(data) {
   const { idKaryawan } = data;
   const hariIni = getHariIni();
+  const todayStr = formatDate(new Date());
+  
+  const fallbackJadwal = { libur: true, idToko: '', namaToko: '—', idShift: '', namaShift: '—', jamMasuk: '—', jamPulang: '—' };
+  
   const jadwal = getSheetData(SHEET_NAMES.JADWAL_KARYAWAN).find(j => 
     j.ID_Karyawan === idKaryawan &&
     j.Hari_Berjalan.includes(hariIni) &&
@@ -963,20 +970,36 @@ function getJadwalHariIni(data) {
     new Date() <= new Date(j.Tanggal_Selesai)
   );
   
-  if (!jadwal) return { success: false, error: 'Tidak ada jadwal hari ini' };
-  
-  const toko = getSheetData(SHEET_NAMES.MASTER_TOKO).find(t => t.ID_Toko === jadwal.ID_Toko);
-  const shift = getSheetData(SHEET_NAMES.SHIFT_TOKO).find(s => s.ID_Shift === jadwal.ID_Shift);
-  
-  return {
-    success: true,
-    jadwal: {
+  let originalJadwal = fallbackJadwal;
+  if (jadwal) {
+    const toko = getSheetData(SHEET_NAMES.MASTER_TOKO).find(t => t.ID_Toko === jadwal.ID_Toko);
+    const shift = getSheetData(SHEET_NAMES.SHIFT_TOKO).find(s => s.ID_Shift === jadwal.ID_Shift);
+    originalJadwal = {
+      libur: false,
       idToko: jadwal.ID_Toko,
       namaToko: toko ? toko.Nama_Toko : jadwal.Nama_Toko,
       idShift: jadwal.ID_Shift,
       namaShift: shift ? shift.Nama_Shift : jadwal.Nama_Shift,
       jamMasuk: shift ? shift.Jam_Masuk : '',
       jamPulang: shift ? shift.Jam_Pulang : ''
+    };
+  }
+  
+  const finalJadwal = checkSwappedJadwal(idKaryawan, todayStr, originalJadwal);
+  
+  if (finalJadwal.libur) {
+    return { success: false, error: 'Tidak ada jadwal hari ini' };
+  }
+  
+  return {
+    success: true,
+    jadwal: {
+      idToko: finalJadwal.idToko,
+      namaToko: finalJadwal.namaToko,
+      idShift: finalJadwal.idShift,
+      namaShift: finalJadwal.namaShift,
+      jamMasuk: finalJadwal.jamMasuk,
+      jamPulang: finalJadwal.jamPulang
     }
   };
 }
@@ -1008,17 +1031,30 @@ function getJadwalMingguan(data) {
       tgl <= new Date(j.Tanggal_Selesai)
     );
     
+    const tglStrForCompare = formatDate(tgl);
     const toko = jadwal ? getSheetData(SHEET_NAMES.MASTER_TOKO).find(t => t.ID_Toko === jadwal.ID_Toko) : null;
     const shift = jadwal ? getSheetData(SHEET_NAMES.SHIFT_TOKO).find(s => s.ID_Shift === jadwal.ID_Shift) : null;
+    
+    const originalJadwal = {
+      libur: !jadwal,
+      idToko: jadwal ? jadwal.ID_Toko : '',
+      namaToko: toko ? toko.Nama_Toko : '—',
+      idShift: jadwal ? jadwal.ID_Shift : '',
+      namaShift: shift ? shift.Nama_Shift : '—',
+      jamMasuk: shift ? shift.Jam_Masuk : '—',
+      jamPulang: shift ? shift.Jam_Pulang : '—'
+    };
+    
+    const finalJadwal = checkSwappedJadwal(idKaryawan, tglStrForCompare, originalJadwal);
     
     result.push({
       tanggal: tglStr,
       namaHari: namaHari,
-      toko: toko ? toko.Nama_Toko : '—',
-      shift: shift ? shift.Nama_Shift : '—',
-      jamMasuk: shift ? shift.Jam_Masuk : '—',
-      jamPulang: shift ? shift.Jam_Pulang : '—',
-      libur: !jadwal
+      toko: finalJadwal.namaToko,
+      shift: finalJadwal.namaShift,
+      jamMasuk: finalJadwal.jamMasuk,
+      jamPulang: finalJadwal.jamPulang,
+      libur: finalJadwal.libur
     });
   }
   
@@ -1055,14 +1091,24 @@ function getKaryawanJadwalByDate(data) {
     });
     
     if (!jadwal) {
-      return { success: true, libur: true };
+      const fallbackJadwal = { libur: true, idToko: '', namaToko: '—', idShift: '', namaShift: '—', jamMasuk: '—', jamPulang: '—' };
+      const finalJadwal = checkSwappedJadwal(idKaryawan, targetDateStr, fallbackJadwal);
+      return {
+        success: true,
+        libur: finalJadwal.libur,
+        idToko: finalJadwal.idToko,
+        namaToko: finalJadwal.namaToko,
+        idShift: finalJadwal.idShift,
+        namaShift: finalJadwal.namaShift,
+        jamMasuk: finalJadwal.jamMasuk,
+        jamPulang: finalJadwal.jamPulang
+      };
     }
     
     const toko = getSheetData(SHEET_NAMES.MASTER_TOKO).find(t => t.ID_Toko === jadwal.ID_Toko);
     const shift = getSheetData(SHEET_NAMES.SHIFT_TOKO).find(s => s.ID_Shift === jadwal.ID_Shift);
     
-    return {
-      success: true,
+    const originalJadwal = {
       libur: false,
       idToko: jadwal.ID_Toko,
       namaToko: toko ? toko.Nama_Toko : '—',
@@ -1070,6 +1116,19 @@ function getKaryawanJadwalByDate(data) {
       namaShift: shift ? shift.Nama_Shift : '—',
       jamMasuk: shift ? formatTimeOnly(shift.Jam_Masuk) : '—',
       jamPulang: shift ? formatTimeOnly(shift.Jam_Pulang) : '—'
+    };
+    
+    const finalJadwal = checkSwappedJadwal(idKaryawan, targetDateStr, originalJadwal);
+    
+    return {
+      success: true,
+      libur: finalJadwal.libur,
+      idToko: finalJadwal.idToko,
+      namaToko: finalJadwal.namaToko,
+      idShift: finalJadwal.idShift,
+      namaShift: finalJadwal.namaShift,
+      jamMasuk: finalJadwal.jamMasuk,
+      jamPulang: finalJadwal.jamPulang
     };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -2168,6 +2227,16 @@ function ajukanTukerShift(data) {
     ''
   ]);
 
+  try {
+    sendPushNotification(
+      idKaryawanTujuan,
+      'Permintaan Tukar Shift ⇆',
+      nama + ' mengajukan tukar shift dengan Anda untuk tanggal ' + tanggal + '. Ketuk untuk merespon!'
+    );
+  } catch (e) {
+    Logger.log('Gagal kirim notif tukar shift: ' + e.toString());
+  }
+
   return { success: true, idTuker: idTuker, message: 'Pengajuan tukar shift berhasil' };
 }
 
@@ -2193,6 +2262,184 @@ function getTukerShiftHistory(data) {
       tanggalPengajuan: formatDateTime(new Date(t.Timestamp))
     }))
   };
+}
+
+function getPendingTukerShift(data) {
+  const { idKaryawan } = data;
+  if (!idKaryawan) return { success: false, error: 'ID Karyawan wajib diisi' };
+  
+  // Ambil semua pengajuan Tukar Shift yang pending dengan tujuan idKaryawan ini
+  const swapList = getSheetData(SHEET_NAMES.TUKER_SHIFT).filter(t => 
+    t.ID_Karyawan_Tujuan === idKaryawan && t.Status === 'Pending'
+  );
+  
+  const karyawanList = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+  const tokoList = getSheetData(SHEET_NAMES.MASTER_TOKO);
+  const shiftList = getSheetData(SHEET_NAMES.SHIFT_TOKO);
+  
+  const result = swapList.map(t => {
+    const requester = karyawanList.find(k => k.ID_Karyawan === t.ID_Karyawan);
+    const tokoSaya = tokoList.find(tk => tk.ID_Toko === t.ID_Toko_Saya);
+    const tokoTujuan = tokoList.find(tk => tk.ID_Toko === t.ID_Toko_Tujuan);
+    const shiftSaya = shiftList.find(sf => sf.ID_Shift === t.Shift_Saya);
+    const shiftTujuan = shiftList.find(sf => sf.ID_Shift === t.Shift_Tujuan);
+    
+    return {
+      id: t.ID_Tuker,
+      idKaryawanSaya: t.ID_Karyawan,
+      namaSaya: t.Nama,
+      fotoSaya: requester ? (requester.Foto_URL || '') : '',
+      jabatanSaya: requester ? (requester.Jabatan || 'Karyawan') : 'Karyawan',
+      idTokoSaya: t.ID_Toko_Saya,
+      namaTokoSaya: tokoSaya ? tokoSaya.Nama_Toko : 'Toko A',
+      idTokoTujuan: t.ID_Toko_Tujuan,
+      namaTokoTujuan: tokoTujuan ? tokoTujuan.Nama_Toko : 'Toko B',
+      shiftSaya: t.Shift_Saya,
+      namaShiftSaya: shiftSaya ? shiftSaya.Nama_Shift : 'Shift A',
+      jamMasukSaya: shiftSaya ? formatTimeOnly(shiftSaya.Jam_Masuk) : '—',
+      jamPulangSaya: shiftSaya ? formatTimeOnly(shiftSaya.Jam_Pulang) : '—',
+      shiftTujuan: t.Shift_Tujuan,
+      namaShiftTujuan: shiftTujuan ? shiftTujuan.Nama_Shift : 'Shift B',
+      jamMasukTujuan: shiftTujuan ? formatTimeOnly(shiftTujuan.Jam_Masuk) : '—',
+      jamPulangTujuan: shiftTujuan ? formatTimeOnly(shiftTujuan.Jam_Pulang) : '—',
+      tanggal: t.Tanggal,
+      alasan: t.Alasan
+    };
+  });
+  
+  return { success: true, data: result };
+}
+
+function approveTukerShift(data) {
+  const { idTuker, idKaryawan } = data;
+  if (!idTuker || !idKaryawan) return { success: false, error: 'Parameter tidak lengkap' };
+  
+  const sheet = getSheet(SHEET_NAMES.TUKER_SHIFT);
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0];
+  const idColIndex = headers.indexOf('ID_Tuker');
+  const statusColIndex = headers.indexOf('Status');
+  const appByColIndex = headers.indexOf('Approved_By');
+  const appAtColIndex = headers.indexOf('Approved_At');
+  
+  let record = null;
+  for (let i = 1; i < values.length; i++) {
+    if (values[i][idColIndex] === idTuker) {
+      sheet.getRange(i + 1, statusColIndex + 1).setValue('Approved');
+      sheet.getRange(i + 1, appByColIndex + 1).setValue(idKaryawan);
+      sheet.getRange(i + 1, appAtColIndex + 1).setValue(formatDateTime(new Date()));
+      
+      // Ambil detail baris data
+      record = {};
+      headers.forEach((h, idx) => {
+        record[h] = values[i][idx];
+      });
+      break;
+    }
+  }
+  
+  if (!record) return { success: false, error: 'Pengajuan tidak ditemukan' };
+  
+  // Kirim notifikasi balik ke yang mengajukan (requester)
+  try {
+    const approver = getSheetData(SHEET_NAMES.MASTER_KARYAWAN).find(k => k.ID_Karyawan === idKaryawan);
+    const approverName = approver ? approver.Nama : 'Rekan Anda';
+    sendPushNotification(
+      record.ID_Karyawan,
+      'Tukar Shift Disetujui! ⇆',
+      approverName + ' menyetujui ajukan tukar shift Anda pada tanggal ' + record.Tanggal + '.'
+    );
+  } catch (e) {
+    Logger.log('Gagal kirim notif persetujuan: ' + e.toString());
+  }
+  
+  return { success: true, message: 'Pertukaran shift berhasil disetujui' };
+}
+
+function rejectTukerShift(data) {
+  const { idTuker, idKaryawan } = data;
+  if (!idTuker || !idKaryawan) return { success: false, error: 'Parameter tidak lengkap' };
+  
+  const sheet = getSheet(SHEET_NAMES.TUKER_SHIFT);
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0];
+  const idColIndex = headers.indexOf('ID_Tuker');
+  const statusColIndex = headers.indexOf('Status');
+  const appByColIndex = headers.indexOf('Approved_By');
+  const appAtColIndex = headers.indexOf('Approved_At');
+  
+  let record = null;
+  for (let i = 1; i < values.length; i++) {
+    if (values[i][idColIndex] === idTuker) {
+      sheet.getRange(i + 1, statusColIndex + 1).setValue('Rejected');
+      sheet.getRange(i + 1, appByColIndex + 1).setValue(idKaryawan);
+      sheet.getRange(i + 1, appAtColIndex + 1).setValue(formatDateTime(new Date()));
+      
+      // Ambil detail baris data
+      record = {};
+      headers.forEach((h, idx) => {
+        record[h] = values[i][idx];
+      });
+      break;
+    }
+  }
+  
+  if (!record) return { success: false, error: 'Pengajuan tidak ditemukan' };
+  
+  // Kirim notifikasi balik ke yang mengajukan (requester)
+  try {
+    const approver = getSheetData(SHEET_NAMES.MASTER_KARYAWAN).find(k => k.ID_Karyawan === idKaryawan);
+    const approverName = approver ? approver.Nama : 'Rekan Anda';
+    sendPushNotification(
+      record.ID_Karyawan,
+      'Tukar Shift Ditolak ⇆',
+      approverName + ' menolak ajukan tukar shift Anda pada tanggal ' + record.Tanggal + '.'
+    );
+  } catch (e) {
+    Logger.log('Gagal kirim notif penolakan: ' + e.toString());
+  }
+  
+  return { success: true, message: 'Pertukaran shift berhasil ditolak' };
+}
+
+function checkSwappedJadwal(idKaryawan, tanggalStr, originalJadwal) {
+  try {
+    const formattedTargetDate = formatDate(new Date(tanggalStr));
+    const swapData = getSheetData(SHEET_NAMES.TUKER_SHIFT).find(t => 
+      t.Status === 'Approved' && 
+      formatDate(new Date(t.Tanggal)) === formattedTargetDate &&
+      (t.ID_Karyawan === idKaryawan || t.ID_Karyawan_Tujuan === idKaryawan)
+    );
+    
+    if (!swapData) return originalJadwal;
+    
+    let targetTokoId = '';
+    let targetShiftId = '';
+    
+    if (swapData.ID_Karyawan === idKaryawan) {
+      targetTokoId = swapData.ID_Toko_Tujuan;
+      targetShiftId = swapData.Shift_Tujuan;
+    } else {
+      targetTokoId = swapData.ID_Toko_Saya;
+      targetShiftId = swapData.Shift_Saya;
+    }
+    
+    const toko = getSheetData(SHEET_NAMES.MASTER_TOKO).find(t => t.ID_Toko === targetTokoId);
+    const shift = getSheetData(SHEET_NAMES.SHIFT_TOKO).find(s => s.ID_Shift === targetShiftId);
+    
+    return {
+      libur: false,
+      idToko: targetTokoId,
+      namaToko: toko ? (toko.Nama_Toko + ' ⇆') : 'Toko ⇆',
+      idShift: targetShiftId,
+      namaShift: shift ? (shift.Nama_Shift + ' ⇆') : 'Shift ⇆',
+      jamMasuk: shift ? formatTimeOnly(shift.Jam_Masuk) : '—',
+      jamPulang: shift ? formatTimeOnly(shift.Jam_Pulang) : '—',
+      swapped: true
+    };
+  } catch(e) {
+    return originalJadwal;
+  }
 }
 
 // ==================== DATA HISTORY (IZIN & LEMBUR) ====================
