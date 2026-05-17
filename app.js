@@ -2000,7 +2000,7 @@
                     let hasNewMsg = false;
                     let latestNewMsg = null;
                     res.data.forEach(m => {
-                        if (m.idPesan && !oldIds.has(m.idPesan) && m.idKaryawan !== state.user.id) {
+                        if (m.idPesan && !oldIds.has(m.idPesan) && String(m.idKaryawan) !== String(state.user.id)) {
                             hasNewMsg = true;
                             latestNewMsg = m;
                         }
@@ -2019,7 +2019,7 @@
                         updateChatBadgeState(false);
                     } else {
                         // Hitung apakah ada pesan dari orang lain di data server
-                        const hasOthersMsg = res.data.some(m => m.idKaryawan !== state.user.id);
+                        const hasOthersMsg = res.data.some(m => String(m.idKaryawan) !== String(state.user.id));
                         if (hasOthersMsg && oldIds.size > 0 && hasNewMsg) {
                             updateChatBadgeState(true);
                         }
@@ -2051,7 +2051,7 @@
                 });
                 
                 chatChannel.bind('swap-shift-alert', function(data) {
-                    if (data && data.targetId === state.user.id) {
+                    if (data && String(data.targetId) === String(state.user.id)) {
                         checkPendingTukerShift();
                     }
                 });
@@ -2066,11 +2066,11 @@
             if (!state.user || !state.user.id) return;
             
             // Avoid duplicates
-            if (data.idKaryawan === state.user.id) {
-                const existing = chatMessages.find(m => (data.tempId && m.tempId === data.tempId) || (data.idPesan && m.idPesan === data.idPesan));
+            if (String(data.idKaryawan) === String(state.user.id)) {
+                const existing = chatMessages.find(m => (data.tempId && m.tempId === data.tempId) || (data.idPesan && String(m.idPesan) === String(data.idPesan)));
                 if (existing) {
                     // Update status of our own sending message to sent
-                    const idx = chatMessages.findIndex(m => (data.tempId && m.tempId === data.tempId) || (data.idPesan && m.idPesan === data.idPesan));
+                    const idx = chatMessages.findIndex(m => (data.tempId && m.tempId === data.tempId) || (data.idPesan && String(m.idPesan) === String(data.idPesan)));
                     if (idx !== -1) {
                         chatMessages[idx].status = 'sent';
                         if (data.idPesan) chatMessages[idx].idPesan = data.idPesan;
@@ -2081,7 +2081,7 @@
                 }
             } else {
                 // If it's already in the messages, don't re-append
-                const existing = chatMessages.find(m => m.idPesan === data.idPesan);
+                const existing = chatMessages.find(m => String(m.idPesan) === String(data.idPesan));
                 if (existing) return;
             }
             
@@ -2107,7 +2107,7 @@
                 if (container) container.scrollTop = container.scrollHeight;
                 
                 // Play notification sound for incoming chat
-                if (data.idKaryawan !== state.user.id) {
+                if (String(data.idKaryawan) !== String(state.user.id)) {
                     if (isCurrentUserTagged(data.pesan)) {
                         playSound('tagalert');
                     } else {
@@ -2116,7 +2116,7 @@
                 }
             } else {
                 // If modal closed, show red dot badge & display visual toast
-                if (data.idKaryawan !== state.user.id) {
+                if (String(data.idKaryawan) !== String(state.user.id)) {
                     updateChatBadgeState(true);
                     
                     const isTagged = isCurrentUserTagged(data.pesan);
@@ -2480,7 +2480,7 @@
             const isAtBottom = previousScrollHeight - previousScrollTop - container.clientHeight < 80;
             
             container.innerHTML = chatMessages.map(m => {
-                const isMe = m.idKaryawan === state.user.id;
+                const isMe = String(m.idKaryawan) === String(state.user.id);
                 
                 // Parse reply prefix if exists
                 let actualPesan = m.pesan || '';
