@@ -645,7 +645,7 @@
                             
                             <div class="form-group" style="margin-top: 10px; margin-bottom: 12px; width: 100%;">
                                 <label class="swap-label">PILIH TANGGAL SAYA</label>
-                                <input type="date" class="swap-input" id="tukerTanggalSaya" onchange="detectSayaSchedule()">
+                                <input type="date" class="swap-input" id="tukerTanggalSaya" onchange="onTukerTanggalSayaChange()">
                             </div>
                             
                             <!-- DETECTED SCHEDULE INFO -->
@@ -680,11 +680,6 @@
                                 <select class="swap-input" id="tukerKaryawan" onchange="onColleagueSelectChange()">
                                     <option value="">Pilih Rekan...</option>
                                 </select>
-                            </div>
-                            
-                            <div class="form-group" style="margin-bottom: 12px; width: 100%;">
-                                <label class="swap-label">TANGGAL SHIFT REKAN</label>
-                                <input type="date" class="swap-input" id="tukerTanggalTujuan" onchange="detectColleagueSchedule()">
                             </div>
                             
                             <hr class="swap-divider-line">

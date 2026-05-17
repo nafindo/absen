@@ -2014,7 +2014,6 @@
             
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('tukerTanggalSaya').value = today;
-            document.getElementById('tukerTanggalTujuan').value = today;
             document.getElementById('tukerAlasan').value = '';
 
             // Setup Card Saya
@@ -2039,18 +2038,29 @@
             // Populate Colleague Karyawan list (exclude self)
             const selKaryawan = document.getElementById('tukerKaryawan');
             selKaryawan.innerHTML = '<option value="">Pilih Rekan...</option>';
+            
+            // Force-fetch karyawan if list is empty
+            if (!state.karyawanList || state.karyawanList.length === 0) {
+                try {
+                    const res = await apiCall('getKaryawanList');
+                    if (res.success && Array.isArray(res.data)) {
+                        state.karyawanList = res.data.filter(k => k.Status === 'Aktif');
+                    }
+                } catch(e) { console.error('Gagal memuat rekan:', e); }
+            }
+
             if (state.karyawanList && state.karyawanList.length) {
                 state.karyawanList.filter(k => k.ID_Karyawan !== state.user.id).forEach(k => {
                     selKaryawan.innerHTML += `<option value="${k.ID_Karyawan}" data-role="${k.Jabatan || 'Karyawan'}">${k.Nama}</option>`;
                 });
             }
-
-            // Auto detect schedule saya for today
-            await detectSayaSchedule();
             
             // Reset Target Card info
-            document.getElementById('tujuanScheduleBox').innerHTML = '<div class="schedule-placeholder">Pilih rekan & tanggal...</div>';
+            document.getElementById('tujuanScheduleBox').innerHTML = '<div class="schedule-placeholder">Pilih rekan...</div>';
             document.getElementById('tujuanSwapCard').classList.remove('active-schedule');
+
+            // Auto-detect schedule for self
+            await detectSayaSchedule();
         }
 
         async function detectSayaSchedule() {
@@ -2119,18 +2129,23 @@
             }
         }
 
+        async function onTukerTanggalSayaChange() {
+            await detectSayaSchedule();
+            await detectColleagueSchedule();
+        }
+
         async function onColleagueSelectChange() {
             await detectColleagueSchedule();
         }
 
         async function detectColleagueSchedule() {
             const karyawanId = document.getElementById('tukerKaryawan').value;
-            const tanggal = document.getElementById('tukerTanggalTujuan').value;
+            const tanggal = document.getElementById('tukerTanggalSaya').value;
             const container = document.getElementById('tujuanScheduleBox');
             const card = document.getElementById('tujuanSwapCard');
             
             if (!karyawanId || !tanggal) {
-                container.innerHTML = '<div class="schedule-placeholder">Pilih rekan & tanggal...</div>';
+                container.innerHTML = '<div class="schedule-placeholder">Pilih rekan...</div>';
                 card.classList.remove('active-schedule');
                 return;
             }
@@ -2200,7 +2215,6 @@
             const karyawanId = document.getElementById('tukerKaryawan').value;
             const tokoTujuan = document.getElementById('tukerTokoTujuan').value;
             const shiftTujuan = document.getElementById('tukerShiftTujuan').value;
-            const tanggalTujuan = document.getElementById('tukerTanggalTujuan').value;
             
             const alasan = document.getElementById('tukerAlasan').value.trim();
             
@@ -2231,7 +2245,7 @@
                     shiftSaya,
                     shiftTujuan,
                     tanggal: tanggalSaya,
-                    tanggalTujuan: tanggalTujuan,
+                    tanggalTujuan: tanggalSaya,
                     alasan: alasan
                 });
                 

@@ -1026,19 +1026,29 @@ function getKaryawanJadwalByDate(data) {
     const { idKaryawan, tanggal } = data;
     if (!idKaryawan || !tanggal) return { success: false, error: 'Parameter tidak lengkap' };
     
-    const tgl = new Date(tanggal);
+    // Parse tanggal ke string format YYYY-MM-DD
+    const targetDateStr = formatDate(new Date(tanggal));
+    const targetDateObj = new Date(targetDateStr);
+    
     const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    const namaHari = dayNames[tgl.getDay()];
+    const namaHari = dayNames[targetDateObj.getDay()];
     
     const jadwalAll = getSheetData(SHEET_NAMES.JADWAL_KARYAWAN).filter(j => 
       j.ID_Karyawan === idKaryawan && j.Status === 'Aktif'
     );
     
-    const jadwal = jadwalAll.find(j => 
-      j.Hari_Berjalan.includes(namaHari) &&
-      tgl >= new Date(j.Tanggal_Mulai) &&
-      tgl <= new Date(j.Tanggal_Selesai)
-    );
+    const jadwal = jadwalAll.find(j => {
+      if (!j.Tanggal_Mulai || !j.Tanggal_Selesai) return false;
+      const mulaiStr = formatDate(new Date(j.Tanggal_Mulai));
+      const selesaiStr = formatDate(new Date(j.Tanggal_Selesai));
+      
+      // Cocokkan hari berjalan
+      const cocokHari = j.Hari_Berjalan.includes(namaHari);
+      // Cocokkan range tanggal
+      const cocokRange = targetDateStr >= mulaiStr && targetDateStr <= selesaiStr;
+      
+      return cocokHari && cocokRange;
+    });
     
     if (!jadwal) {
       return { success: true, libur: true };
@@ -1054,8 +1064,8 @@ function getKaryawanJadwalByDate(data) {
       namaToko: toko ? toko.Nama_Toko : '—',
       idShift: jadwal.ID_Shift,
       namaShift: shift ? shift.Nama_Shift : '—',
-      jamMasuk: shift ? shift.Jam_Masuk : '—',
-      jamPulang: shift ? shift.Jam_Pulang : '—'
+      jamMasuk: shift ? formatTimeOnly(shift.Jam_Masuk) : '—',
+      jamPulang: shift ? formatTimeOnly(shift.Jam_Pulang) : '—'
     };
   } catch (e) {
     return { success: false, error: e.toString() };
