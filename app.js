@@ -125,6 +125,7 @@
                 stopCamera();
                 showCameraOverlay();
                 checkMyApprovals();
+                startChatPolling(); // Mulai polling chat latar belakang otomatis untuk mendeteksi pesan masuk!
             } else {
                 // Jika belum login, tampilkan splash screen sampai daftar karyawan selesai dimuat
                 testBackendConnection();
@@ -248,6 +249,7 @@
             stopCamera();
             showCameraOverlay();
             checkMyApprovals();
+            startChatPolling(); // Mulai polling chat latar belakang otomatis setelah sukses login!
             showToast('Selamat datang, ' + name + '!', 'success');
             playSound('success');
 
@@ -1831,28 +1833,59 @@
             try {
                 const res = await apiCall('getChatMessages', { limit: 50 });
                 if (res.success && Array.isArray(res.data)) {
+                    // Simpan ID pesan lama sebelum digabung untuk mendeteksi pesan baru
+                    const oldIds = new Set(chatMessages.map(m => m.idPesan).filter(Boolean));
+
                     // Merge server data with local pending messages
-                    const serverIds = new Set(res.data.map(m => m.idPesan).filter(Boolean));
                     const pendingMessages = chatMessages.filter(m => m.status === 'sending' || m.status === 'failed');
                     chatMessages = [...res.data, ...pendingMessages];
+                    
                     // Sort by timestamp
                     chatMessages.sort((a, b) => {
                         const ta = a.waktu ? new Date(a.waktu.replace('Terkirim', '').replace('Baru saja', new Date())) : new Date(0);
                         const tb = b.waktu ? new Date(b.waktu.replace('Terkirim', '').replace('Baru saja', new Date())) : new Date(0);
                         return ta - tb;
                     });
+                    
+                    const modal = document.getElementById('modalChat');
+                    const isModalOpen = modal && modal.classList.contains('active');
+                    
                     renderChat();
 
-                    // Update badge (red dot only, no numbers)
-                    const othersCount = res.data.filter(m => m.idKaryawan !== state.user.id).length;
+                    // Deteksi jika ada pesan baru dari orang lain untuk diputar suaranya & diberi notifikasi
+                    let hasNewMsg = false;
+                    let latestNewMsg = null;
+                    res.data.forEach(m => {
+                        if (m.idPesan && !oldIds.has(m.idPesan) && m.idKaryawan !== state.user.id) {
+                            hasNewMsg = true;
+                            latestNewMsg = m;
+                        }
+                    });
+
+                    if (hasNewMsg && latestNewMsg) {
+                        playSound('pop');
+                        if (!isModalOpen) {
+                            const badge = document.getElementById('badgeChat');
+                            if (badge) {
+                                badge.textContent = '';
+                                badge.classList.remove('hidden');
+                            }
+                            showToast(`Pesan baru dari ${latestNewMsg.nama}: ${latestNewMsg.pesan.substring(0, 30)}${latestNewMsg.pesan.length > 30 ? '...' : ''}`, 'info');
+                        }
+                    }
+
+                    // Update status badge notifikasi merah
                     const badge = document.getElementById('badgeChat');
-                    const isModalOpen = document.getElementById('modalChat')?.classList.contains('active');
                     if (badge) {
-                        if (othersCount > 0 && !isModalOpen) {
-                            badge.textContent = '';
-                            badge.classList.remove('hidden');
-                        } else {
+                        if (isModalOpen) {
                             badge.classList.add('hidden');
+                        } else {
+                            // Hitung apakah ada pesan dari orang lain di data server
+                            const hasOthersMsg = res.data.some(m => m.idKaryawan !== state.user.id);
+                            if (hasOthersMsg && oldIds.size > 0 && hasNewMsg) {
+                                badge.textContent = '';
+                                badge.classList.remove('hidden');
+                            }
                         }
                     }
                 } else {
@@ -1860,7 +1893,6 @@
                 }
             } catch (e) {
                 console.error('[CHAT] Load failed:', e);
-                // Don't clear messages on error, just show toast
                 if (chatMessages.length === 0) renderChatEmpty();
             }
         }
@@ -1958,19 +1990,17 @@
 
         function startChatPolling() {
             if (chatPollInterval) clearInterval(chatPollInterval);
+            
+            // Soft Polling latar belakang berjalan setiap 15 detik jika browser aktif/terbuka.
+            // Ini berfungsi sebagai "Soft Reload" yang sangat handal jika WebSocket terputus.
             chatPollInterval = setInterval(() => {
-                const modal = document.getElementById('modalChat');
-                if (modal && modal.classList.contains('active')) {
-                    loadChatMessages();
-                }
-            }, 45000); // 45 seconds fallback polling instead of 10s (extremely light on sheet API)
+                if (document.hidden) return; // Lewati jika aplikasi sedang di-minimize/background tab
+                loadChatMessages();
+            }, 15000);
         }
 
         function stopChatPolling() {
-            if (chatPollInterval) {
-                clearInterval(chatPollInterval);
-                chatPollInterval = null;
-            }
+            // Polling terus berjalan di background agar notifikasi pesan baru tetap aktif.
         }
 
         function getHashCodeColor(str) {
@@ -2066,15 +2096,24 @@
                     </div>`;
                 } else {
                     // RECIPIENT BUBBLE (REKAN)
+                    const karyawan = state.karyawanList.find(k => k.ID_Karyawan === m.idKaryawan);
+                    const rawFotoUrl = karyawan ? (karyawan.Foto_URL || karyawan.Foto_Profil || '') : '';
+                    const resolvedFoto = resolveFotoUrl(rawFotoUrl);
+                    
                     const avatarColor = getHashCodeColor(m.nama || 'Karyawan');
                     const initial = m.nama ? m.nama.charAt(0).toUpperCase() : '?';
+                    
+                    let avatarBadge = '';
+                    if (resolvedFoto) {
+                        avatarBadge = `<img src="${resolvedFoto}" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; box-shadow: 0 3px 6px rgba(0,0,0,0.06); flex-shrink: 0;" alt="${m.nama}">`;
+                    } else {
+                        avatarBadge = `<div style="width: 34px; height: 34px; border-radius: 50%; background: ${avatarColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.06); flex-shrink: 0; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">${initial}</div>`;
+                    }
                     
                     return `
                     <div style="align-self: flex-start; max-width: 78%; display: flex; gap: 10px; align-items: flex-start;">
                         <!-- Avatar Badge -->
-                        <div style="width: 34px; height: 34px; border-radius: 50%; background: ${avatarColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.06); flex-shrink: 0; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
-                            ${initial}
-                        </div>
+                        ${avatarBadge}
                         <div style="display: flex; flex-direction: column;">
                             <div style="background: white; color: #0f172a; padding: 10px 16px; border-radius: 4px 20px 20px 20px; box-shadow: 0 4px 12px rgba(15,23,42,0.04); border: 1px solid #f1f5f9;">
                                 <div style="font-size: 11px; font-weight: 800; color: ${avatarColor}; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">${escapeHtml(m.nama || 'Rekan')}</div>
