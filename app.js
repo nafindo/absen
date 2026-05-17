@@ -68,12 +68,6 @@
             document.getElementById('izinTglMulai').value = today;
             document.getElementById('izinTglSelesai').value = today;
 
-            // Test connection first
-            await testBackendConnection();
-
-            // Load karyawan list untuk dropdown login
-            await loadKaryawanDropdown();
-
             // Cek localStorage login
             const saved = loadLogin();
             if (saved && saved.id) {
@@ -83,23 +77,35 @@
                 unlockAudio();
                 showApp();
                 setupUserUI(saved.fotoUrl || '');
-                await loadTokoData();
-                if (state.user.tokoDefault) {
-                    document.getElementById('selectToko').value = state.user.tokoDefault;
-                    await onTokoChange();
-                    if (state.user.shiftDefault) {
-                        document.getElementById('selectShift').value = state.user.shiftDefault;
-                        updateShiftInfo();
+                
+                // LANGSUNG HIDE SPLASH SCREEN (INSTANT LOAD!)
+                hideSplashScreen();
+
+                // Panggil API secara asinkron di background (Non-blocking!)
+                testBackendConnection();
+                loadKaryawanDropdown();
+                
+                loadTokoData().then(async () => {
+                    if (state.user.tokoDefault) {
+                        document.getElementById('selectToko').value = state.user.tokoDefault;
+                        await onTokoChange();
+                        if (state.user.shiftDefault) {
+                            document.getElementById('selectShift').value = state.user.shiftDefault;
+                            updateShiftInfo();
+                        }
                     }
-                }
-                await checkAbsenStatus();
-                await updateMonthlyRecap();
+                });
+                checkAbsenStatus();
+                updateMonthlyRecap();
                 stopCamera();
                 showCameraOverlay();
                 checkMyApprovals();
+            } else {
+                // Jika belum login, tampilkan splash screen sampai daftar karyawan selesai dimuat
+                testBackendConnection();
+                await loadKaryawanDropdown();
+                hideSplashScreen();
             }
-            // Jika tidak ada saved login, login screen tetap tampil
-            hideSplashScreen();
         });
 
         async function testBackendConnection() {
