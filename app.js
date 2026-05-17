@@ -821,7 +821,10 @@
                         // Reset form fields
                         document.getElementById('izinAlasan').value = '';
                         if (tglSelesaiInput) tglSelesaiInput.value = '';
-                        if (fileInput) fileInput.value = '';
+                        if (fileInput) {
+                            fileInput.value = '';
+                            updateFileName(fileInput);
+                        }
                         tampilPicoModal('izin_cuti', 'Pengajuan izin terkirim!<br>Menunggu approve admin');
                     } else {
                         showToast(res.error || 'Gagal ajukan izin', 'error');
@@ -968,6 +971,27 @@
             document.getElementById(id).classList.remove('active');
             document.body.style.overflow = '';
             if (id === 'modalChat') stopChatPolling();
+            if (id === 'modalIzin') {
+                const fileInput = document.getElementById('izinLampiran');
+                if (fileInput) {
+                    fileInput.value = '';
+                    updateFileName(fileInput);
+                }
+            }
+        }
+
+        function updateFileName(input) {
+            const label = document.getElementById('izinLampiranLabel');
+            if (!label) return;
+            if (input.files && input.files[0]) {
+                label.textContent = input.files[0].name;
+                label.parentElement.style.borderColor = 'var(--primary)';
+                label.parentElement.style.color = 'var(--primary)';
+            } else {
+                label.textContent = 'Pilih file surat dokter / bukti foto';
+                label.parentElement.style.borderColor = '#CBD5E1';
+                label.parentElement.style.color = '#64748B';
+            }
         }
         function closeModalOnOverlay(e, id) { if (e.target.id === id) closeModal(id); }
 

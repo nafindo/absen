@@ -1182,27 +1182,39 @@
 
         /* ===== IZIN MODAL ===== */
         .izin-chips {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
         .izin-chip {
-            padding: 10px 18px;
-            border-radius: 24px;
-            border: 2px solid #E8ECF1;
-            background: white;
-            font-size: 14px;
+            padding: 12px 6px;
+            border-radius: 16px;
+            border: 2px solid rgba(226, 232, 240, 0.8);
+            background: #F8FAFC;
+            font-size: 13.5px;
             cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 700;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 800;
+            text-align: center;
+            color: #475569;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            user-select: none;
+        }
+
+        .izin-chip:hover {
+            background: #F1F5F9;
+            border-color: #CBD5E1;
+            color: #1E293B;
         }
 
         .izin-chip.active {
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary) 0%, #0369a1 100%);
             color: white;
-            border-color: var(--primary);
+            border-color: transparent;
+            box-shadow: 0 4px 12px rgba(13, 138, 188, 0.3);
+            transform: translateY(-2px);
         }
 
         .izin-chip:active {
