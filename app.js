@@ -285,6 +285,9 @@
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.querySelector('.nav-fab').style.background = '';
+            
+            const labelAbsensi = document.getElementById('labelAbsensi');
+            if (labelAbsensi) labelAbsensi.style.color = 'var(--text-secondary)';
 
             if (tab === 'beranda') {
                 document.getElementById('tabBeranda').classList.add('active');
@@ -293,6 +296,7 @@
             } else if (tab === 'absensi') {
                 document.getElementById('tabAbsensi').classList.add('active');
                 document.getElementById('navAbsensi').style.background = 'linear-gradient(135deg, #0A6B8E, #065473)';
+                if (labelAbsensi) labelAbsensi.style.color = 'var(--primary)';
                 // Auto-start camera after tab switch animation
                 setTimeout(() => autoStartCamera(), 350);
             } else if (tab === 'data') {
@@ -1522,6 +1526,11 @@
                 loadChatMessages(); 
                 startChatPolling(); 
                 updateChatBadgeState(false);
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                const labelAbsensi = document.getElementById('labelAbsensi');
+                if (labelAbsensi) labelAbsensi.style.color = 'var(--text-secondary)';
+                const navChat = document.getElementById('navChat');
+                if (navChat) navChat.classList.add('active');
             }
             if (id === 'modalTukerShift') populateTukerShiftModal();
             if (id === 'modalTugas') renderTugasList();
@@ -1533,7 +1542,21 @@
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
             document.body.style.overflow = '';
-            if (id === 'modalChat') stopChatPolling();
+            if (id === 'modalChat') {
+                stopChatPolling();
+                const navChat = document.getElementById('navChat');
+                if (navChat) navChat.classList.remove('active');
+                
+                // Restore previous active tab state
+                const tabAbsensi = document.getElementById('tabAbsensi');
+                const labelAbsensi = document.getElementById('labelAbsensi');
+                if (tabAbsensi && tabAbsensi.classList.contains('active')) {
+                    if (labelAbsensi) labelAbsensi.style.color = 'var(--primary)';
+                } else {
+                    const navBeranda = document.getElementById('navBeranda');
+                    if (navBeranda) navBeranda.classList.add('active');
+                }
+            }
             if (id === 'modalIzin') {
                 const fileInput = document.getElementById('izinLampiran');
                 if (fileInput) {
