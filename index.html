@@ -1047,18 +1047,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
-
-    <!-- ===== WEBPUSHR SDK INTEGRATION ===== -->
-    <script>
-        (function(w,d, s, id) {
-            w.webpushr=w.webpushr||function(){(w.webpushr.q=w.webpushr.q||[]).push(arguments)};
-            var js, fjs = d.getElementsByTagName(s)[0];
-            js = d.createElement(s); js.id = id; js.async=1;
-            js.src = "https://cdn.webpushr.com/app.js";
-            fjs.parentNode.insertBefore(js, fjs);
-        }(window,document,'script','webpushr-jssdk'));
-        webpushr('setup',{'key': 'd1b268065dbbf0e0cdcf543ee7d4efb7'}); // Ganti dengan tracking key Webpushr Anda!
-    </script>
+    <!-- start webpushr code --> <script>(function(w,d, s, id) {if(typeof(w.webpushr)!=='undefined') return;w.webpushr=w.webpushr||function(){(w.webpushr.q=w.webpushr.q||[]).push(arguments)};var js, fjs = d.getElementsByTagName(s)[0];js = d.createElement(s); js.id = id;js.async=1;js.src = "https://cdn.webpushr.com/app.min.js";fjs.parentNode.appendChild(js);}(window,document, 'script', 'webpushr-jssdk'));webpushr('setup',{'key':'BKNcqL5RqC90J3g9GvgvtK63d3_D5fLOWb-a8hmJ--568QbVnbEEDcvc1FASNBidhIYk729caU_u46NcbJVsyqA' });</script><!-- end webpushr code -->
 
 </body>
 
