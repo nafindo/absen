@@ -140,6 +140,72 @@
                 hideSplashScreen();
             }
             
+            // Mention Autocomplete Listeners
+            const chatInput = document.getElementById('chatInput');
+            if (chatInput) {
+                chatInput.addEventListener('input', () => {
+                    const text = chatInput.value;
+                    const caretPos = chatInput.selectionStart;
+                    const textBeforeCaret = text.substring(0, caretPos);
+                    const match = textBeforeCaret.match(/@([a-zA-Z0-9_]*)$/);
+                    
+                    const autocomplete = document.getElementById('chatMentionAutocomplete');
+                    if (match && state.karyawanList && Array.isArray(state.karyawanList)) {
+                        const query = match[1].toLowerCase();
+                        // Filter matching employees (exclude self)
+                        const filtered = state.karyawanList.filter(k => {
+                            return (k.Nama || '').toLowerCase().includes(query) && 
+                                   (!state.user || (k.Nama !== state.user.name));
+                        });
+                        
+                        if (filtered.length > 0) {
+                            autocomplete.innerHTML = filtered.map(k => {
+                                const avatarColor = getHashCodeColor(k.Nama || 'Karyawan');
+                                const initial = k.Nama ? k.Nama.charAt(0).toUpperCase() : '?';
+                                const rawFotoUrl = k.Foto_URL || k.Foto_Profil || '';
+                                const resolvedFoto = resolveFotoUrl(rawFotoUrl);
+                                
+                                let avatarHtml = '';
+                                if (resolvedFoto) {
+                                    avatarHtml = `<img src="${resolvedFoto}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.06); flex-shrink: 0;" alt="${k.Nama}">`;
+                                } else {
+                                    avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background: ${avatarColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.06); flex-shrink: 0; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">${initial}</div>`;
+                                }
+                                
+                                return `
+                                <div class="mention-item" onclick="selectChatMention('${k.Nama.replace(/'/g, "\\'")}')" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; cursor: pointer; transition: background 0.2s; font-weight: 700; color: #334155; font-size: 13.5px; margin-bottom: 2px;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">
+                                    ${avatarHtml}
+                                    <div style="display: flex; flex-direction: column;">
+                                        <span style="font-size: 13px; color: #0f172a;">${k.Nama}</span>
+                                        <span style="font-size: 9.5px; color: #64748b; font-weight: 600; margin-top: 1px;">@${k.Nama.replace(/\s+/g, '')}</span>
+                                    </div>
+                                </div>`;
+                            }).join('');
+                            autocomplete.style.display = 'block';
+                        } else {
+                            autocomplete.style.display = 'none';
+                        }
+                    } else {
+                        autocomplete.style.display = 'none';
+                    }
+                });
+                
+                chatInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        document.getElementById('chatMentionAutocomplete').style.display = 'none';
+                    }
+                });
+            }
+            
+            // Hide autocomplete when clicking outside
+            document.addEventListener('click', (e) => {
+                const autocomplete = document.getElementById('chatMentionAutocomplete');
+                const chatInput = document.getElementById('chatInput');
+                if (autocomplete && chatInput && !autocomplete.contains(e.target) && e.target !== chatInput) {
+                    autocomplete.style.display = 'none';
+                }
+            });
+
             // Polling notifikasi live setiap 30 detik untuk live updates tanpa refresh!
             setInterval(checkMyApprovals, 30000);
         });
@@ -1532,6 +1598,15 @@
                 if (labelAbsensi) labelAbsensi.style.color = 'var(--text-secondary)';
                 const navChat = document.getElementById('navChat');
                 if (navChat) navChat.classList.add('active');
+                
+                // Force load karyawanList if empty to enable tag mentions and autocompletion
+                if (!state.karyawanList || state.karyawanList.length === 0) {
+                    apiCall('getKaryawanList').then(res => {
+                        if (res.success && Array.isArray(res.data)) {
+                            state.karyawanList = res.data.filter(k => k.Status === 'Aktif');
+                        }
+                    }).catch(() => {});
+                }
             }
             if (id === 'modalTukerShift') populateTukerShiftModal();
             if (id === 'modalTugas') renderTugasList();
@@ -2228,6 +2303,28 @@
             return false;
         }
 
+        window.selectChatMention = function(fullName) {
+            const input = document.getElementById('chatInput');
+            if (!input) return;
+            const text = input.value;
+            const caretPos = input.selectionStart;
+            
+            const textBeforeCaret = text.substring(0, caretPos);
+            const textAfterCaret = text.substring(caretPos);
+            
+            const cleanName = fullName.replace(/\s+/g, '');
+            const newTextBefore = textBeforeCaret.replace(/@([a-zA-Z0-9_]*)$/, `@${cleanName} `);
+            
+            input.value = newTextBefore + textAfterCaret;
+            input.focus();
+            
+            const newCaretPos = newTextBefore.length;
+            input.setSelectionRange(newCaretPos, newCaretPos);
+            
+            const autocomplete = document.getElementById('chatMentionAutocomplete');
+            if (autocomplete) autocomplete.style.display = 'none';
+        };
+
         function formatMentions(text) {
             if (!text) return '';
             let escaped = escapeHtml(text);
@@ -2235,6 +2332,25 @@
             // Highlight @name pattern
             return escaped.replace(/@([a-zA-Z0-9_]+)/g, (match, username) => {
                 let isMeTagged = false;
+                
+                // First, find if this username matches ANY employee in state.karyawanList (valid mention check!)
+                let matchedKaryawan = null;
+                if (state.karyawanList && Array.isArray(state.karyawanList)) {
+                    matchedKaryawan = state.karyawanList.find(k => {
+                        const cleanK = (k.Nama || '').toLowerCase().replace(/\s+/g, '');
+                        const cleanTarget = username.toLowerCase();
+                        const words = (k.Nama || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+                        
+                        return cleanK === cleanTarget || words.some(w => w === cleanTarget);
+                    });
+                }
+                
+                if (!matchedKaryawan) {
+                    // Not a valid employee name -> return plain @name (no coloring)
+                    return match;
+                }
+                
+                // If it is indeed a valid employee name, color it!
                 if (state.user && state.user.name) {
                     const cleanUser = state.user.name.toLowerCase().replace(/\s+/g, '');
                     const cleanMatch = username.toLowerCase();

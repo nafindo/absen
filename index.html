@@ -633,6 +633,9 @@
                             <input type="file" id="chatPhotoInput" style="display: none;" accept="image/*"
                                 onchange="onChatPhotoSelected(this)">
                                 
+                            <!-- Mention Autocomplete List -->
+                            <div id="chatMentionAutocomplete" style="display: none; position: absolute; bottom: 62px; left: 54px; right: 54px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border: 1px solid #e2e8f0; max-height: 220px; overflow-y: auto; z-index: 1000; padding: 8px;"></div>
+
                             <!-- Text Input -->
                             <input type="text" id="chatInput" placeholder="Ketik pesan Anda..."
                                 style="flex: 1; padding: 12px 20px; border: 2px solid #e2e8f0; border-radius: 24px; font-size: 15px; outline: none; font-family: inherit; font-weight: 600; color: #0f172a; transition: all 0.2s;"
