@@ -1,7 +1,7 @@
 // ==================== STATE ====================
         let state = {
             user: null, photoData: null, gps: { lat: null, lng: null, accuracy: null, jarak: null },
-            absenStatus: 'belum_masuk', isLemburMode: false, jadwalOffset: 0, stream: null,
+            absenStatus: 'belum_masuk', absenTokoId: '', isLemburMode: false, jadwalOffset: 0, stream: null,
             tokoList: [], shiftList: [], karyawanList: [], notifList: [], notifShown: false,
             lemburStream: null, lemburPhotoData: null, audioUnlocked: false
         };
@@ -552,8 +552,10 @@
                     state.jamMasukShift = '';
                     state.jamPulangShift = '';
                     state.lemburStatus = (res.lembur && res.lembur.Status) || '';
+                    state.absenTokoId = '';
                     if (res.status === 'sudah_pulang') {
                         const d = res.data || {};
+                        state.absenTokoId = d.ID_Toko || d.idToko || '';
                         state.jamMasukReal = d.Jam_Masuk || d.jamMasuk || '';
                         state.jamMasukShift = (res.shift && res.shift.Jam_Masuk) || '';
                         state.jamPulangShift = (res.shift && res.shift.Jam_Pulang) || '';
@@ -564,6 +566,7 @@
                         document.getElementById('statusPulang').className = 'ok';
                     } else if (res.status === 'sudah_masuk') {
                         const d = res.data || {};
+                        state.absenTokoId = d.ID_Toko || d.idToko || '';
                         state.jamMasukReal = d.Jam_Masuk || d.jamMasuk || '';
                         state.jamMasukShift = (res.shift && res.shift.Jam_Masuk) || '';
                         state.jamPulangShift = (res.shift && res.shift.Jam_Pulang) || '';
@@ -801,6 +804,43 @@
             
             if (!state.lemburPhotoData) {
                 showToast('Foto bukti lembur wajib diambil!', 'error');
+                return;
+            }
+
+            // Validasi GPS: Harus berada di Toko Lembur atau Toko Asal Absen Masuk
+            if (state.gps.lat === null || state.gps.lng === null) {
+                showToast('Koordinat GPS belum dimuat! Nyalakan GPS Anda dan tunggu sebentar.', 'error');
+                return;
+            }
+            
+            let jarakLembur = Infinity;
+            let radiusLembur = 50;
+            if (toko && toko.Lat && toko.Long) {
+                jarakLembur = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(toko.Lat), parseFloat(toko.Long));
+                radiusLembur = parseFloat(toko.Radius_M) || 50;
+            }
+            
+            let jarakAsal = Infinity;
+            let radiusAsal = 50;
+            const asalToko = state.tokoList.find(t => t.ID_Toko === state.absenTokoId);
+            if (asalToko && asalToko.Lat && asalToko.Long) {
+                jarakAsal = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(asalToko.Lat), parseFloat(asalToko.Long));
+                radiusAsal = parseFloat(asalToko.Radius_M) || 50;
+            }
+            
+            const isNearLembur = jarakLembur <= radiusLembur;
+            const isNearAsal = jarakAsal <= radiusAsal;
+            
+            if (!isNearLembur && !isNearAsal) {
+                let msg = `<b>Lokasi GPS Tidak Valid!</b><br><br>Anda terdeteksi berada di luar jangkauan area kerja lembur:<br>`;
+                if (toko) {
+                    msg += `- <b>${Math.round(jarakLembur)}m</b> dari Toko Lembur (${toko.Nama_Toko}) (Max ${radiusLembur}m)<br>`;
+                }
+                if (asalToko) {
+                    msg += `- <b>${Math.round(jarakAsal)}m</b> dari Toko Asal (${asalToko.Nama_Toko}) (Max ${radiusAsal}m)<br>`;
+                }
+                msg += `<br><span style="color:#E53935;font-weight:800;">Silakan mendekat ke salah satu toko tersebut untuk mengajukan lembur!</span>`;
+                tampilPicoModal('gps_jauh', msg);
                 return;
             }
             
