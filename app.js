@@ -3525,13 +3525,119 @@
                 });
                 
                 if (res && res.success) {
-                    const totalHadir = res.totalHadir || 0;
-                    const totalTelat = res.totalTelat || 0;
-                    const totalSakit = res.totalSakit || 0;
-                    const totalIzin = res.totalIzin || 0;
-                    const totalCuti = res.totalCuti || 0;
-                    const totalLembur = res.totalLembur || 0;
-                    const totalPulangCepat = res.totalPulangCepat || 0;
+                    let totalHadir = res.totalHadir || 0;
+                    let totalTelat = res.totalTelat || 0;
+                    let totalSakit = res.totalSakit || 0;
+                    let totalIzin = res.totalIzin || 0;
+                    let totalCuti = res.totalCuti || 0;
+                    let totalLembur = res.totalLembur || 0;
+                    let totalPulangCepat = res.totalPulangCepat || 0;
+                    
+                    const currentMonth = now.getMonth() + 1;
+                    const currentYear = now.getFullYear();
+
+                    // ==========================================
+                    // CLIENT-SIDE FALLBACK & DOUBLE-CHECK
+                    // ==========================================
+                    // Jika data backend mengembalikan 0 (atau jika backend belum di-redeploy),
+                    // kita hitung secara lokal dari API riwayat untuk menjamin 100% kebenaran data!
+
+                    // A. HITUNG IZIN, SAKIT, CUTI DARI RIWAYAT IZIN CLIENT-SIDE
+                    try {
+                        const izinRes = await apiCall('getIzinHistory', { idKaryawan: state.user.id });
+                        if (izinRes && izinRes.success && Array.isArray(izinRes.data)) {
+                            let localSakit = 0;
+                            let localIzin = 0;
+                            let localCuti = 0;
+                            
+                            izinRes.data.forEach(i => {
+                                if ((i.status || '').toLowerCase() === 'approved' && i.tglMulai) {
+                                    const tgl = new Date(i.tglMulai);
+                                    if (tgl.getMonth() + 1 === currentMonth && tgl.getFullYear() === currentYear) {
+                                        const jenis = String(i.jenis || '').toLowerCase();
+                                        const start = new Date(i.tglMulai);
+                                        const end = i.tglSelesai ? new Date(i.tglSelesai) : start;
+                                        let diffDays = 1;
+                                        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                                            diffDays = Math.max(1, Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1);
+                                        }
+                                        
+                                        if (jenis.includes('sakit')) {
+                                            localSakit += diffDays;
+                                        } else if (jenis.includes('cuti')) {
+                                            localCuti += diffDays;
+                                        } else {
+                                            localIzin += diffDays;
+                                        }
+                                    }
+                                }
+                            });
+                            
+                            if (totalSakit === 0) totalSakit = localSakit;
+                            if (totalIzin === 0) totalIzin = localIzin;
+                            if (totalCuti === 0) totalCuti = localCuti;
+                        }
+                    } catch (err) { console.log('Local Izin calculation error:', err); }
+
+                    // B. HITUNG LEMBUR DARI RIWAYAT LEMBUR CLIENT-SIDE
+                    try {
+                        const lemburRes = await apiCall('getLemburHistory', { idKaryawan: state.user.id });
+                        if (lemburRes && lemburRes.success && Array.isArray(lemburRes.data)) {
+                            let localLembur = 0;
+                            lemburRes.data.forEach(l => {
+                                if ((l.status || '').toLowerCase() === 'approved' && l.tanggal) {
+                                    const tgl = new Date(l.tanggal);
+                                    if (tgl.getMonth() + 1 === currentMonth && tgl.getFullYear() === currentYear) {
+                                        localLembur++;
+                                    }
+                                }
+                            });
+                            if (totalLembur === 0) totalLembur = localLembur;
+                        }
+                    } catch (err) { console.log('Local Lembur calculation error:', err); }
+
+                    // C. HITUNG PULANG CEPAT SECARA CERDAS & AKURAT
+                    try {
+                        let localPulangCepat = 0;
+                        if (Array.isArray(res.detailHarian) && res.detailHarian.length > 0) {
+                            const activeShifts = [];
+                            const aktifToko = state.user.tokoDefault || '';
+                            if (aktifToko) {
+                                const sRes = await apiCall('getShiftByToko', { idToko: aktifToko });
+                                if (sRes && sRes.success && Array.isArray(sRes.data)) {
+                                    activeShifts.push(...sRes.data);
+                                }
+                            }
+                            
+                            res.detailHarian.forEach(d => {
+                                if (d.jamPulang && d.jamPulang !== '-' && d.jamPulang !== '') {
+                                    let shiftJamPulang = '';
+                                    const timeRangeMatch = d.shift.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+                                    if (timeRangeMatch && timeRangeMatch[2]) {
+                                        shiftJamPulang = timeRangeMatch[2];
+                                    } else {
+                                        const foundShift = activeShifts.find(s => d.shift.includes(s.Nama_Shift));
+                                        if (foundShift && foundShift.Jam_Pulang) {
+                                            shiftJamPulang = foundShift.Jam_Pulang;
+                                        }
+                                    }
+                                    
+                                    if (shiftJamPulang) {
+                                        const parseToMin = (tStr) => {
+                                            const pts = String(tStr).split(':');
+                                            return pts.length >= 2 ? parseInt(pts[0]) * 60 + parseInt(pts[1]) : null;
+                                        };
+                                        const realMin = parseToMin(d.jamPulang);
+                                        const shiftMin = parseToMin(shiftJamPulang);
+                                        if (realMin !== null && shiftMin !== null && realMin < shiftMin) {
+                                            localPulangCepat++;
+                                        }
+                                    }
+                                }
+                            });
+                            if (totalPulangCepat === 0) totalPulangCepat = localPulangCepat;
+                        }
+                    } catch (err) { console.log('Local Pulang Cepat calculation error:', err); }
                     
                     // Hitung hari kerja berjalan s.d hari ini (kecuali hari Minggu)
                     let workingDaysUpToToday = 0;
