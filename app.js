@@ -1288,7 +1288,7 @@
                 resetLemburFoto();
                 const typeSelect = document.getElementById('lemburKeteranganType');
                 if (typeSelect) {
-                    typeSelect.value = 'Stock Opname';
+                    typeSelect.value = 'Event / Promo';
                     toggleLemburKeterangan();
                 }
                 const manualText = document.getElementById('lemburKeteranganManual');
