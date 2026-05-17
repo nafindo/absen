@@ -5453,9 +5453,13 @@
             container.innerHTML = '<div style="align-self: center; color: #64748b; font-size: 13px; margin-top: 20px; font-weight: 600; background: white; padding: 8px 16px; border-radius: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">Belum ada pesan. Yuk, sapa rekan kerja Anda! 👋</div>';
         }
 
-        function renderChat() {
+        function renderChat(forceScrollToBottom = false) {
             const container = document.getElementById('chatMessages');
             if (!chatMessages.length) { renderChatEmpty(); return; }
+            
+            const previousScrollTop = container.scrollTop;
+            const previousScrollHeight = container.scrollHeight;
+            const isAtBottom = previousScrollHeight - previousScrollTop - container.clientHeight < 80;
             
             container.innerHTML = chatMessages.map(m => {
                 const isMe = m.idKaryawan === state.user.id;
@@ -5527,7 +5531,11 @@
                 }
             }).join('');
             
-            container.scrollTop = container.scrollHeight;
+            if (forceScrollToBottom || isAtBottom) {
+                container.scrollTop = container.scrollHeight;
+            } else {
+                container.scrollTop = previousScrollTop;
+            }
         }
 
         function escapeHtml(text) {
@@ -5685,7 +5693,7 @@
                 status: 'sending'
             };
             chatMessages.push(msgObj);
-            renderChat();
+            renderChat(true);
             input.value = '';
             clearChatAttachment();
 
