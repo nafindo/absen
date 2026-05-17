@@ -93,6 +93,7 @@
                     }
                 }
                 await checkAbsenStatus();
+                await updateMonthlyRecap();
                 stopCamera();
                 showCameraOverlay();
                 checkMyApprovals();
@@ -203,7 +204,8 @@
                     updateShiftInfo();
                 }
             }
-            checkAbsenStatus();
+            await checkAbsenStatus();
+            await updateMonthlyRecap();
             updateTokoCardInfo();
             stopCamera();
             showCameraOverlay();
@@ -598,6 +600,7 @@
                     document.getElementById('statusMasuk').className = 'ok';
                     // Refresh status so button changes to Pulang
                     await checkAbsenStatus();
+                    await updateMonthlyRecap();
                     retakePhoto();
                 } else { tampilPicoModal('error', res.error || 'Gagal absen masuk'); }
             } catch (e) { tampilPicoModal('error', 'Gagal: ' + e.message); }
@@ -621,6 +624,7 @@
                     document.getElementById('statusPulang').className = 'ok';
                     // Refresh status so buttons hide
                     await checkAbsenStatus();
+                    await updateMonthlyRecap();
                     retakePhoto();
                 } else { tampilPicoModal('error', res.error || 'Gagal absen pulang'); }
             } catch (e) { tampilPicoModal('error', 'Gagal: ' + e.message); }
@@ -1696,3 +1700,71 @@
 
         // ==================== TOUCH FIX ====================
         document.addEventListener('touchstart', function () { }, { passive: true });
+
+        // ==================== MONTHLY RECAP ====================
+        async function updateMonthlyRecap() {
+            if (!state.user || !state.user.id) return;
+            try {
+                const now = new Date();
+                const res = await apiCall('getRaportBulanan', {
+                    idKaryawan: state.user.id,
+                    bulan: now.getMonth() + 1,
+                    tahun: now.getFullYear()
+                });
+                
+                if (res && res.success) {
+                    const totalHadir = res.totalHadir || 0;
+                    const totalTelat = res.totalTelat || 0;
+                    
+                    // Hitung hari kerja berjalan s.d hari ini (kecuali hari Minggu)
+                    let workingDaysUpToToday = 0;
+                    const year = now.getFullYear();
+                    const month = now.getMonth();
+                    for (let d = 1; d <= now.getDate(); d++) {
+                        const day = new Date(year, month, d).getDay();
+                        if (day !== 0) { // Bukan hari Minggu (0)
+                            workingDaysUpToToday++;
+                        }
+                    }
+                    
+                    // Hitung total hari kerja dalam bulan ini (kecuali hari Minggu)
+                    let totalWorkingDaysInMonth = 0;
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const day = new Date(year, month, d).getDay();
+                        if (day !== 0) {
+                            totalWorkingDaysInMonth++;
+                        }
+                    }
+                    if (totalWorkingDaysInMonth === 0) totalWorkingDaysInMonth = 26; // Fallback
+                    
+                    const alpa = Math.max(0, workingDaysUpToToday - totalHadir);
+                    
+                    // Update UI text
+                    const monthLabel = getMonthNameIndo(month) + ' ' + year;
+                    document.getElementById('statBulanLabel').textContent = monthLabel;
+                    document.getElementById('statHadir').textContent = totalHadir;
+                    document.getElementById('statAlpa').textContent = alpa;
+                    document.getElementById('statTelat').textContent = totalTelat;
+                    
+                    // Update progress bars (persentase)
+                    const pctHadir = Math.min(100, Math.round((totalHadir / totalWorkingDaysInMonth) * 100));
+                    const pctAlpa = Math.min(100, Math.round((alpa / totalWorkingDaysInMonth) * 100));
+                    const pctTelat = totalHadir > 0 ? Math.min(100, Math.round((totalTelat / totalHadir) * 100)) : 0;
+                    
+                    document.getElementById('barHadir').style.width = pctHadir + '%';
+                    document.getElementById('barAlpa').style.width = pctAlpa + '%';
+                    document.getElementById('barTelat').style.width = pctTelat + '%';
+                }
+            } catch (e) {
+                console.error('[RECAP] Gagal memuat rekap bulanan:', e);
+            }
+        }
+        
+        function getMonthNameIndo(monthNum) {
+            const months = [
+                'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+            ];
+            return months[monthNum];
+        }
