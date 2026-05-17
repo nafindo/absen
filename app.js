@@ -3063,10 +3063,13 @@
                 }
             }
 
+            // Daftarkan User ID secara langsung ke Webpushr (akan di-queue otomatis oleh SDK jika script belum selesai terunduh)
             if (typeof webpushr === 'function') {
-                webpushr('fetch_id', function(sid) {
-                    console.log('Webpushr SID fetched:', sid);
+                try {
                     webpushr('action', 'segment', { sid: String(userId) });
-                });
+                    console.log('[WEBPUSHR] Registered segment for User ID:', userId);
+                } catch(e) {
+                    console.error('[WEBPUSHR] Failed to register segment:', e);
+                }
             }
         }
