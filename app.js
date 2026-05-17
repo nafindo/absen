@@ -1108,7 +1108,9 @@
             } else {
                 await proceedSubmit('');
             }
-             // ==================== JADWAL ====================
+        }
+ 
+        // ==================== JADWAL ====================
         function navJadwal(dir) { state.jadwalOffset += dir; renderJadwal(); }
  
         async function renderJadwal() {
@@ -2418,4 +2420,3 @@
                 });
             }
         }
-    });
