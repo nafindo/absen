@@ -2974,11 +2974,7 @@
                         </div>
                     </div>
                     
-                    <!-- REASON FOR SWAP -->
-                    <div class="form-group" style="margin-top: 20px; margin-bottom: 20px;">
-                        <label class="form-label" style="font-weight: 800; font-size: 13px; color: var(--text-secondary); letter-spacing: 0.5px;">ALASAN TUKAR SHIFT</label>
-                        <textarea class="form-input" id="tukerAlasan" rows="2" style="background: var(--card-bg); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px; font-size: 14px;" placeholder="Tulis alasan mengapa ingin tukar shift..."></textarea>
-                    </div>
+
                     
                     <!-- ACTION BUTTON -->
                     <button class="btn btn-primary btn-premium-swap" onclick="submitTukerShift()" id="btnAjukanTuker">
@@ -5315,7 +5311,6 @@
             
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('tukerTanggalSaya').value = today;
-            document.getElementById('tukerAlasan').value = '';
 
             // Setup Card Saya
             document.getElementById('tukerSayaNama').innerText = state.user.name || 'Saya';
@@ -5517,8 +5512,6 @@
             const tokoTujuan = document.getElementById('tukerTokoTujuan').value;
             const shiftTujuan = document.getElementById('tukerShiftTujuan').value;
             
-            const alasan = document.getElementById('tukerAlasan').value.trim();
-            
             if (!karyawanId) {
                 showToast('Pilih rekan kerja tujuan swap!', 'error'); return;
             }
@@ -5527,9 +5520,6 @@
             }
             if (!tokoTujuan || !shiftTujuan) {
                 showToast('Jadwal rekan tujuan pada tanggal tersebut tidak aktif/libur!', 'error'); return;
-            }
-            if (!alasan) {
-                showToast('Tulis alasan tukar shift!', 'error'); return;
             }
             
             const btn = document.getElementById('btnAjukanTuker');
@@ -5547,7 +5537,7 @@
                     shiftTujuan,
                     tanggal: tanggalSaya,
                     tanggalTujuan: tanggalSaya,
-                    alasan: alasan
+                    alasan: ""
                 });
                 
                 if (res.success) {

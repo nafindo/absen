@@ -2014,7 +2014,6 @@
             
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('tukerTanggalSaya').value = today;
-            document.getElementById('tukerAlasan').value = '';
 
             // Setup Card Saya
             document.getElementById('tukerSayaNama').innerText = state.user.name || 'Saya';
@@ -2216,8 +2215,6 @@
             const tokoTujuan = document.getElementById('tukerTokoTujuan').value;
             const shiftTujuan = document.getElementById('tukerShiftTujuan').value;
             
-            const alasan = document.getElementById('tukerAlasan').value.trim();
-            
             if (!karyawanId) {
                 showToast('Pilih rekan kerja tujuan swap!', 'error'); return;
             }
@@ -2226,9 +2223,6 @@
             }
             if (!tokoTujuan || !shiftTujuan) {
                 showToast('Jadwal rekan tujuan pada tanggal tersebut tidak aktif/libur!', 'error'); return;
-            }
-            if (!alasan) {
-                showToast('Tulis alasan tukar shift!', 'error'); return;
             }
             
             const btn = document.getElementById('btnAjukanTuker');
@@ -2246,7 +2240,7 @@
                     shiftTujuan,
                     tanggal: tanggalSaya,
                     tanggalTujuan: tanggalSaya,
-                    alasan: alasan
+                    alasan: ""
                 });
                 
                 if (res.success) {
