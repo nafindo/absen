@@ -1,4 +1,4 @@
-const CACHE_NAME = 'absen-pwa-v1.1';
+const CACHE_NAME = 'absen-pwa-v1.2';
 const urlsToCache = [
   '/absen/',
   '/absen/index.html',
@@ -12,7 +12,19 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        return cache.addAll(urlsToCache);
+        // Gunakan cache-busting saat instalasi awal untuk melewati HTTP cache browser
+        return Promise.all(
+          urlsToCache.map(url => {
+            const separator = url.includes('?') ? '&' : '?';
+            return fetch(`${url}${separator}cb=${Date.now()}`, { cache: 'no-store' })
+              .then(res => {
+                if (res.status === 200) {
+                  return caches.open(CACHE_NAME).then(cache => cache.put(url, res));
+                }
+              })
+              .catch(err => console.error('Gagal mencache:', url, err));
+          })
+        );
       })
   );
 });
@@ -21,32 +33,46 @@ self.addEventListener('fetch', event => {
   // Hanya proses GET requests (hindari intercept POST ke API Google Apps Script)
   if (event.request.method !== 'GET') return;
 
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
+  // Cek apakah request untuk static assets aplikasi kita
+  const isStaticAsset = urlsToCache.some(url => event.request.url.includes(url));
+
+  if (isStaticAsset) {
+    // STRATEGI: NETWORK FIRST (Coba ambil dari server dulu, jika sukses update cache, jika gagal/offline pakai Cache)
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseClone);
+            });
+          }
           return response;
-        }
-        return fetch(event.request).then(
-          function(response) {
-            // Check if we received a valid response
-            if(!response || response.status !== 200 || response.type !== 'basic') {
+        })
+        .catch(() => {
+          // Jika offline, ambil dari Cache
+          return caches.match(event.request);
+        })
+    );
+  } else {
+    // Untuk file di luar static assets (seperti Google Drive Foto / external assets)
+    event.respondWith(
+      caches.match(event.request)
+        .then(response => {
+          if (response) return response;
+          return fetch(event.request).then(response => {
+            if (!response || response.status !== 200 || response.type !== 'basic') {
               return response;
             }
-
-            var responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then(function(cache) {
-                cache.put(event.request, responseToCache);
-              });
-
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseClone);
+            });
             return response;
-          }
-        );
-      })
-  );
+          });
+        })
+    );
+  }
 });
 
 self.addEventListener('activate', event => {
