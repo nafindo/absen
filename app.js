@@ -1991,12 +1991,13 @@
             
             // Avoid duplicates
             if (data.idKaryawan === state.user.id) {
-                const existing = chatMessages.find(m => m.idPesan === data.idPesan);
+                const existing = chatMessages.find(m => (data.tempId && m.tempId === data.tempId) || (data.idPesan && m.idPesan === data.idPesan));
                 if (existing) {
                     // Update status of our own sending message to sent
-                    const idx = chatMessages.findIndex(m => m.tempId === data.tempId || m.idPesan === data.idPesan);
+                    const idx = chatMessages.findIndex(m => (data.tempId && m.tempId === data.tempId) || (data.idPesan && m.idPesan === data.idPesan));
                     if (idx !== -1) {
                         chatMessages[idx].status = 'sent';
+                        if (data.idPesan) chatMessages[idx].idPesan = data.idPesan;
                         chatMessages[idx].waktu = data.waktu || 'Baru saja';
                         renderChat();
                     }
