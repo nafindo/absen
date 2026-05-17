@@ -2221,6 +2221,24 @@ function sendChatMessage(data) {
     Logger.log("Pusher broadcast failed in sendChatMessage: " + e.toString());
   }
 
+  // Kirim notifikasi push latar belakang (Webpushr) ke rekan kerja lainnya
+  try {
+    const masterKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+    if (masterKaryawan && masterKaryawan.length > 0) {
+      masterKaryawan.forEach(function(k) {
+        if (k.ID_Karyawan && k.ID_Karyawan !== idKaryawan) {
+          sendPushNotification(
+            k.ID_Karyawan,
+            nama + ' 💬',
+            pesan ? pesan : (tipe === 'image' ? '📸 Mengirim foto' : '📁 Mengirim lampiran file')
+          );
+        }
+      });
+    }
+  } catch (e) {
+    Logger.log('Gagal mengirim push notifikasi chat: ' + e.toString());
+  }
+
   return { success: true, idPesan: idPesan };
 }
 
