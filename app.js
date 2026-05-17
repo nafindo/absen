@@ -67,7 +67,7 @@
         // ==================== AUDIO UNLOCK ====================
         function unlockAudio() {
             if (state.audioUnlocked) return;
-            ['soundSuccess', 'soundError', 'soundNotif', 'soundChatSent'].forEach(id => {
+            ['soundSuccess', 'soundError', 'soundNotif', 'soundChatSent', 'soundTagAlert'].forEach(id => {
                 const a = document.getElementById(id);
                 if (a) { a.play().catch(() => { }); a.pause(); a.currentTime = 0; }
             });
@@ -80,6 +80,7 @@
                 type === 'success' ? 'soundSuccess' : 
                 type === 'error' ? 'soundError' : 
                 type === 'chatsent' ? 'soundChatSent' : 
+                type === 'tagalert' ? 'soundTagAlert' : 
                 'soundNotif'
             );
             if (audio) { audio.currentTime = 0; audio.play().catch(() => { }); }
@@ -2030,17 +2031,27 @@
                 const container = document.getElementById('chatMessages');
                 if (container) container.scrollTop = container.scrollHeight;
                 
-                // Play soft notification sound for incoming chat
+                // Play notification sound for incoming chat
                 if (data.idKaryawan !== state.user.id) {
-                    playSound('pop');
+                    if (isCurrentUserTagged(data.pesan)) {
+                        playSound('tagalert');
+                    } else {
+                        playSound('pop');
+                    }
                 }
             } else {
                 // If modal closed, show red dot badge & display visual toast
                 if (data.idKaryawan !== state.user.id) {
                     updateChatBadgeState(true);
                     
-                    showToast(`Pesan baru dari ${data.nama}: ${data.pesan.substring(0, 35)}${data.pesan.length > 35 ? '...' : ''}`, 'info');
-                    playSound('pop');
+                    const isTagged = isCurrentUserTagged(data.pesan);
+                    if (isTagged) {
+                        showToast(`🔔 Kamu ditag oleh ${data.nama}: "${data.pesan.substring(0, 35)}${data.pesan.length > 35 ? '...' : ''}"`, 'warning');
+                        playSound('tagalert');
+                    } else {
+                        showToast(`Pesan baru dari ${data.nama}: ${data.pesan.substring(0, 35)}${data.pesan.length > 35 ? '...' : ''}`, 'info');
+                        playSound('pop');
+                    }
                 }
             }
         }
@@ -2201,6 +2212,46 @@
             container.innerHTML = '<div style="align-self: center; color: #64748b; font-size: 13px; margin-top: 20px; font-weight: 600; background: white; padding: 8px 16px; border-radius: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">Belum ada pesan. Yuk, sapa rekan kerja Anda! 👋</div>';
         }
 
+        function isCurrentUserTagged(messageText) {
+            if (!messageText || !state.user || !state.user.name) return false;
+            const cleanText = messageText.toLowerCase();
+            
+            // Match @name (e.g. Budisantoso or Budi)
+            const fullNameNoSpaces = state.user.name.replace(/\s+/g, '').toLowerCase();
+            if (cleanText.includes('@' + fullNameNoSpaces)) return true;
+            
+            const nameWords = state.user.name.split(/\s+/).filter(w => w.length > 2);
+            for (let word of nameWords) {
+                if (cleanText.includes('@' + word.toLowerCase())) return true;
+            }
+            
+            return false;
+        }
+
+        function formatMentions(text) {
+            if (!text) return '';
+            let escaped = escapeHtml(text);
+            
+            // Highlight @name pattern
+            return escaped.replace(/@([a-zA-Z0-9_]+)/g, (match, username) => {
+                let isMeTagged = false;
+                if (state.user && state.user.name) {
+                    const cleanUser = state.user.name.toLowerCase().replace(/\s+/g, '');
+                    const cleanMatch = username.toLowerCase();
+                    const cleanWords = state.user.name.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+                    
+                    if (cleanUser.includes(cleanMatch) || cleanMatch.includes(cleanUser) || cleanWords.some(w => w === cleanMatch)) {
+                        isMeTagged = true;
+                    }
+                }
+                
+                if (isMeTagged) {
+                    return `<span class="chat-mention tagged-me" style="background: #fef3c7; color: #d97706; padding: 2px 6px; border-radius: 6px; font-weight: 900; border: 1px solid #fcd34d; font-size: 13.5px; display: inline-block; box-shadow: 0 2px 5px rgba(217,119,6,0.08);">@${username}</span>`;
+                }
+                return `<span class="chat-mention" style="background: rgba(59,130,246,0.15); color: #1d4ed8; padding: 2px 6px; border-radius: 6px; font-weight: 800; font-size: 13.5px; display: inline-block;">@${username}</span>`;
+            });
+        }
+
         function renderChat(forceScrollToBottom = false) {
             const container = document.getElementById('chatMessages');
             if (!chatMessages.length) { renderChatEmpty(); return; }
@@ -2226,7 +2277,7 @@
                         </div>
                     </a>`;
                 } else {
-                    content = `<div style="font-size: 14.5px; font-weight: 600; line-height: 1.5; word-break: break-word;">${escapeHtml(m.pesan || '')}</div>`;
+                    content = `<div style="font-size: 14.5px; font-weight: 600; line-height: 1.5; word-break: break-word;">${formatMentions(m.pesan || '')}</div>`;
                 }
 
                 // Status indicator for own messages
@@ -2271,12 +2322,26 @@
                         avatarBadge = `<div style="width: 34px; height: 34px; border-radius: 50%; background: ${avatarColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.06); flex-shrink: 0; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">${initial}</div>`;
                     }
                     
+                    // Highlight if tagged
+                    const isTagged = isCurrentUserTagged(m.pesan);
+                    let bubbleStyle = 'background: white; color: #0f172a; padding: 10px 16px; border-radius: 4px 20px 20px 20px; box-shadow: 0 4px 12px rgba(15,23,42,0.04); border: 1px solid #f1f5f9;';
+                    let alertBadge = '';
+                    
+                    if (isTagged) {
+                        bubbleStyle = 'background: #fffbeb; color: #0f172a; padding: 10px 16px; border-radius: 4px 20px 20px 20px; box-shadow: 0 4px 14px rgba(217,119,6,0.08); border: 1px solid #fcd34d; border-left: 4px solid #d97706;';
+                        alertBadge = `
+                        <div style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: #d97706; font-weight: 800; margin-bottom: 5px; background: #fef3c7; width: fit-content; padding: 2px 8px; border-radius: 12px; border: 0.5px solid #fcd34d; flex-shrink:0;">
+                            <span>🔔 Disebut</span>
+                        </div>`;
+                    }
+
                     return `
                     <div style="align-self: flex-start; max-width: 78%; display: flex; gap: 10px; align-items: flex-start;">
                         <!-- Avatar Badge -->
                         ${avatarBadge}
                         <div style="display: flex; flex-direction: column;">
-                            <div style="background: white; color: #0f172a; padding: 10px 16px; border-radius: 4px 20px 20px 20px; box-shadow: 0 4px 12px rgba(15,23,42,0.04); border: 1px solid #f1f5f9;">
+                            <div style="${bubbleStyle}">
+                                ${alertBadge}
                                 <div style="font-size: 11px; font-weight: 800; color: ${avatarColor}; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">${escapeHtml(m.nama || 'Rekan')}</div>
                                 ${content}
                                 <div style="font-size: 10px; margin-top: 5px; color: #64748b; text-align: right; font-weight: 700;">
