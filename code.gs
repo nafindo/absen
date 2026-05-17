@@ -521,6 +521,13 @@ function absenMasuk(data) {
     ''
   ]);
   
+  // Auto-close open approved permissions/leaves
+  try {
+    autoCloseIzin(idKaryawan, formatDate(now));
+  } catch (e) {
+    console.error('Gagal menjalankan auto-close izin:', e);
+  }
+  
   return {
     success: true,
     idAbsensi: idAbsensi,
@@ -699,9 +706,11 @@ function ajukanIzin(data) {
   const jenisIzin = getSheetData(SHEET_NAMES.MASTER_JENIS_IZIN).find(j => j.ID_Jenis === idJenisIzin);
   if (!jenisIzin) return { success: false, error: 'Jenis izin tidak valid' };
   
-  const jumlahHari = Math.ceil((new Date(tglSelesai) - new Date(tglMulai)) / (1000 * 60 * 60 * 24)) + 1;
+  // Jika tglSelesai tidak diisi, kita biarkan kosong/open-ended
+  const finalTglSelesai = tglSelesai || '';
+  const jumlahHari = finalTglSelesai ? (Math.ceil((new Date(finalTglSelesai) - new Date(tglMulai)) / (1000 * 60 * 60 * 24)) + 1) : 1;
   
-  if (jenisIzin.Maks_Hari_Sekali_Ajuan && jumlahHari > parseInt(jenisIzin.Maks_Hari_Sekali_Ajuan)) {
+  if (finalTglSelesai && jenisIzin.Maks_Hari_Sekali_Ajuan && jumlahHari > parseInt(jenisIzin.Maks_Hari_Sekali_Ajuan)) {
     return { success: false, error: 'Maksimal ' + jenisIzin.Maks_Hari_Sekali_Ajuan + ' hari per pengajuan' };
   }
   
@@ -723,8 +732,8 @@ function ajukanIzin(data) {
     idJenisIzin,
     namaJenis,
     tglMulai,
-    tglSelesai,
-    jumlahHari,
+    finalTglSelesai,
+    finalTglSelesai ? jumlahHari : '',
     alasan,
     lampiranUrl,
     'Pending',
@@ -733,6 +742,48 @@ function ajukanIzin(data) {
   ]);
   
   return { success: true, idIzin: idIzin, message: 'Pengajuan izin berhasil dikirim' };
+}
+
+function autoCloseIzin(idKaryawan, checkInDateStr) {
+  try {
+    const sheet = getSheet(SHEET_NAMES.IZIN_CUTI);
+    if (!sheet) return;
+    const values = sheet.getDataRange().getValues();
+    
+    // Hitung tanggal kemarin
+    const checkInDate = new Date(checkInDateStr);
+    const yesterday = new Date(checkInDate);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const tglSelesaiKemarin = formatDate(yesterday);
+    
+    for (let i = 1; i < values.length; i++) {
+      const rowIdKaryawan = values[i][1];
+      const rowTglMulai = values[i][5];
+      const rowTglSelesai = values[i][6];
+      const rowStatus = values[i][10];
+      
+      // Jika karyawan cocok, status Approved, dan tanggal selesai masih kosong atau '-'
+      if (rowIdKaryawan === idKaryawan && rowStatus === 'Approved' && (!rowTglSelesai || rowTglSelesai === '' || rowTglSelesai === '-')) {
+        // Update Tanggal Selesai (Kolom 7 = G)
+        sheet.getRange(i + 1, 7).setValue(tglSelesaiKemarin);
+        
+        // Hitung jumlah hari
+        let tglMulaiFormatted = rowTglMulai;
+        if (rowTglMulai instanceof Date) {
+          tglMulaiFormatted = formatDate(rowTglMulai);
+        }
+        
+        const countDays = Math.ceil((new Date(tglSelesaiKemarin) - new Date(tglMulaiFormatted)) / (1000 * 60 * 60 * 24)) + 1;
+        
+        // Update Jumlah Hari (Kolom 8 = H)
+        sheet.getRange(i + 1, 8).setValue(countDays > 0 ? countDays : 1);
+        
+        console.log('[AUTO-CLOSE] Berhasil menutup izin ' + values[i][0] + ' s.d tanggal ' + tglSelesaiKemarin + ' (' + countDays + ' hari)');
+      }
+    }
+  } catch (e) {
+    console.error('[AUTO-CLOSE] Gagal menutup izin:', e);
+  }
 }
 
 function getSisaKuota(data) {

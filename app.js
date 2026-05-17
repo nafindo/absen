@@ -66,7 +66,6 @@
             initGPS();
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('izinTglMulai').value = today;
-            document.getElementById('izinTglSelesai').value = today;
 
             // Cek localStorage login
             const saved = loadLogin();
@@ -706,22 +705,60 @@
         async function submitIzin() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             const tglMulai = document.getElementById('izinTglMulai').value;
-            const tglSelesai = document.getElementById('izinTglSelesai').value;
             const alasan = document.getElementById('izinAlasan').value;
-            if (!tglMulai || !tglSelesai) { showToast('Pilih tanggal dulu!', 'error'); return; }
+            
+            // Lampiran file upload
+            const fileInput = document.getElementById('izinLampiran');
+            
+            if (!tglMulai) { showToast('Pilih tanggal mulai dulu!', 'error'); return; }
             if (!alasan.trim()) { showToast('Isi alasan dulu!', 'error'); return; }
+            
             const activeChip = document.querySelector('.izin-chip.active');
             const namaJenis = activeChip ? activeChip.textContent.trim() : 'Izin';
             const idJenis = 'JI_' + namaJenis.toUpperCase();
-            try {
-                await apiCall('ajukanIzin', {
-                    idKaryawan: state.user.id, nama: state.user.name,
-                    idJenisIzin: idJenis, namaJenis: namaJenis,
-                    tglMulai, tglSelesai, alasan, lampiranBase64: ''
-                });
-                closeModal('modalIzin');
-                tampilPicoModal('izin_cuti', 'Pengajuan izin terkirim!<br>Menunggu approve admin');
-            } catch (e) { showToast('Gagal ajukan izin', 'error'); }
+
+            // Set button to loading state
+            const submitBtn = document.querySelector('#modalIzin .btn-primary');
+            const originalHtml = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="spinner"></div> Mengirim...';
+
+            const proceedSubmit = async (base64Data = '') => {
+                try {
+                    await apiCall('ajukanIzin', {
+                        idKaryawan: state.user.id, nama: state.user.name,
+                        idJenisIzin: idJenis, namaJenis: namaJenis,
+                        tglMulai: tglMulai, tglSelesai: '', alasan: alasan, lampiranBase64: base64Data
+                    });
+                    closeModal('modalIzin');
+                    // Reset form fields
+                    document.getElementById('izinAlasan').value = '';
+                    if (fileInput) fileInput.value = '';
+                    tampilPicoModal('izin_cuti', 'Pengajuan izin terkirim!<br>Menunggu approve admin');
+                } catch (e) { 
+                    showToast('Gagal ajukan izin', 'error'); 
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalHtml;
+                }
+            };
+
+            // Baca file lampiran jika ada
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const rawBase64 = e.target.result.split(',')[1];
+                    await proceedSubmit(rawBase64);
+                };
+                reader.onerror = async function() {
+                    showToast('Gagal membaca file lampiran', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalHtml;
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                await proceedSubmit('');
+            }
         }
 
         // ==================== JADWAL ====================
