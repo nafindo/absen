@@ -645,24 +645,16 @@
                 bm.classList.add('hidden');
                 bp.classList.remove('hidden');
                 
-                // Selama shift berjalan (sudah absen masuk), tombol lembur selalu aktif agar karyawan bisa mengajukan
+                // Selama shift berjalan (sudah absen masuk), tombol lembur selalu aktif/bisa diakses
                 isLemburDisabled = false;
                 bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> MODE LEMBUR`;
             } else if (state.absenStatus === 'sudah_pulang') {
                 bm.classList.add('hidden');
                 bp.classList.add('hidden');
                 
-                // Setelah pulang, hanya aktif jika memenuhi syarat masuk awal >= 30m ATAU pulang terlambat > 0m
-                const earlyMin = getEarlyCheckInMinutes(state.jamMasukReal, state.jamMasukShift);
-                const lateMin = getLateCheckOutMinutes(state.jamPulangReal, state.jamPulangShift);
-                
-                if (earlyMin >= 30 || lateMin > 0) {
-                    isLemburDisabled = false;
-                    bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> MODE LEMBUR`;
-                } else {
-                    isLemburDisabled = true;
-                    bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tidak Memenuhi Syarat`;
-                }
+                // Setelah absen pulang, tombol lembur kembali off
+                isLemburDisabled = true;
+                bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Sudah Absen Pulang`;
             } else {
                 bm.classList.add('hidden');
                 bp.classList.add('hidden');

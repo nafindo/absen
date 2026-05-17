@@ -1937,45 +1937,42 @@
             animation: overtimeFlame 2.5s infinite alternate;
         }
 
-        .overtime-badge-indicator {
-            position: fixed;
-            top: 16px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000000;
-            background: linear-gradient(135deg, #FF3D00 0%, #FF9100 100%);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: 800;
-            font-size: 11px;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            box-shadow: 0 4px 15px rgba(255, 61, 0, 0.4);
-            border: 1px solid rgba(255,255,255,0.25);
-            animation: overtimeBadgePulse 1.5s infinite ease-in-out;
-            pointer-events: none;
-            display: none;
+        /* ==================== BUTTON FLAME OVERLAY ==================== */
+        .overtime-glow-active #menuLembur {
+            animation: buttonFlame 1.5s infinite alternate;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #FF3D00 !important;
+            box-shadow: 0 0 15px rgba(255, 61, 0, 0.5) !important;
         }
 
-        .overtime-glow-active .overtime-badge-indicator {
-            display: flex;
+        .overtime-glow-active #menuLembur::before {
+            content: '🔥';
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 14px;
+            animation: fireFloat 1.2s infinite ease-in-out;
         }
 
-        @keyframes overtimeBadgePulse {
+        .overtime-glow-active #btnLembur {
+            animation: buttonFlame 1.5s infinite alternate;
+            background: linear-gradient(135deg, #FF3D00, #FF9100) !important;
+            border-color: #FF3D00 !important;
+            box-shadow: 0 0 20px rgba(255, 61, 0, 0.6) !important;
+        }
+
+        @keyframes buttonFlame {
             0% {
-                transform: translateX(-50%) scale(0.96);
-                box-shadow: 0 4px 10px rgba(255, 61, 0, 0.3);
-            }
-            50% {
-                transform: translateX(-50%) scale(1.04);
-                box-shadow: 0 8px 25px rgba(255, 61, 0, 0.6);
+                box-shadow: 0 0 8px #FF3D00;
             }
             100% {
-                transform: translateX(-50%) scale(0.96);
-                box-shadow: 0 4px 10px rgba(255, 61, 0, 0.3);
+                box-shadow: 0 0 20px #FF9100, 0 0 10px rgba(255, 61, 0, 0.4);
             }
+        }
+
+        @keyframes fireFloat {
+            0% { transform: translateY(0) scale(0.9); opacity: 0.8; }
+            50% { transform: translateY(-3px) scale(1.1); opacity: 1; }
+            100% { transform: translateY(0) scale(0.9); opacity: 0.8; }
         }
