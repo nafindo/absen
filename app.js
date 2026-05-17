@@ -98,6 +98,7 @@
                 checkMyApprovals();
             }
             // Jika tidak ada saved login, login screen tetap tampil
+            hideSplashScreen();
         });
 
         async function testBackendConnection() {
@@ -119,6 +120,17 @@
         function showApp() {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appContent').style.display = 'block';
+        }
+
+        function hideSplashScreen() {
+            const splash = document.getElementById('splashScreen');
+            if (splash) {
+                splash.style.opacity = '0';
+                splash.style.visibility = 'hidden';
+                setTimeout(() => {
+                    try { splash.remove(); } catch(e) {}
+                }, 400);
+            }
         }
 
         function setupUserUI(fotoUrl) {
