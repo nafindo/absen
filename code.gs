@@ -654,9 +654,21 @@ function getAbsenStatus(data) {
     shiftDetail = shifts.find(s => s.ID_Shift === masuk.ID_Shift);
   }
   
-  if (pulang) return { status: 'sudah_pulang', data: pulang, shift: shiftDetail };
-  if (masuk) return { status: 'sudah_masuk', data: masuk, shift: shiftDetail };
-  return { status: 'belum_masuk' };
+  // Dapatkan lembur hari ini
+  let lemburData = null;
+  try {
+    const lemburSheet = getSheetData(SHEET_NAMES.LEMBUR);
+    lemburData = lemburSheet.find(l => 
+      l.ID_Karyawan === idKaryawan && 
+      formatDate(new Date(l.Tanggal)) === today
+    ) || null;
+  } catch (e) {
+    Logger.log('getAbsenStatus lembur fetch error: ' + e.message);
+  }
+  
+  if (pulang) return { status: 'sudah_pulang', data: pulang, shift: shiftDetail, lembur: lemburData };
+  if (masuk) return { status: 'sudah_masuk', data: masuk, shift: shiftDetail, lembur: lemburData };
+  return { status: 'belum_masuk', shift: shiftDetail, lembur: lemburData };
 }
 
 // ==================== LEMBUR ====================

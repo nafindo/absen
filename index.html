@@ -18,6 +18,13 @@
 
 <body>
 
+    <!-- Overtime Viewport Glow Aura & Badge -->
+    <div class="overtime-screen-glow"></div>
+    <div class="overtime-badge-indicator">
+        <span>🔥</span>
+        <span>Lembur Aktif</span>
+    </div>
+
     <!-- ===== SPLASH LOADING SCREEN ===== -->
     <div id="splashScreen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg, #0F172A 0%, #1E293B 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;transition:opacity 0.4s ease, visibility 0.4s ease;">
         <div style="margin-bottom:24px;text-align:center;">
@@ -172,7 +179,7 @@
                     </div>
                     <div class="menu-label">Izin</div>
                 </button>
-                <button class="menu-item" onclick="openModal('modalLembur')">
+                <button class="menu-item" id="menuLembur" onclick="openModal('modalLembur')">
                     <div class="menu-icon" style="background:#FFF3E0;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="2" stroke-linecap="round"
                             stroke-linejoin="round">

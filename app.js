@@ -541,10 +541,13 @@
                     state.absenStatus = res.status;
                     state.jamMasukReal = '';
                     state.jamMasukShift = '';
+                    state.jamPulangShift = '';
+                    state.lemburStatus = (res.lembur && res.lembur.Status) || '';
                     if (res.status === 'sudah_pulang') {
                         const d = res.data || {};
                         state.jamMasukReal = d.Jam_Masuk || d.jamMasuk || '';
                         state.jamMasukShift = (res.shift && res.shift.Jam_Masuk) || '';
+                        state.jamPulangShift = (res.shift && res.shift.Jam_Pulang) || '';
                         document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.Jam_Masuk || d.jamMasuk);
                         document.getElementById('statusMasuk').className = 'ok';
                         document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(d.Jam_Pulang || d.jamPulang);
@@ -553,6 +556,7 @@
                         const d = res.data || {};
                         state.jamMasukReal = d.Jam_Masuk || d.jamMasuk || '';
                         state.jamMasukShift = (res.shift && res.shift.Jam_Masuk) || '';
+                        state.jamPulangShift = (res.shift && res.shift.Jam_Pulang) || '';
                         document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.Jam_Masuk || d.jamMasuk);
                         document.getElementById('statusMasuk').className = 'ok';
                         document.getElementById('statusPulang').textContent = 'Pulang: --';
@@ -580,10 +584,31 @@
             return shiftMin - realMin;
         }
 
+        function isCurrentTimeOutsideShift(shiftStartStr, shiftEndStr) {
+            if (!shiftStartStr || !shiftEndStr) return false;
+            const now = new Date();
+            const curMin = now.getHours() * 60 + now.getMinutes();
+            
+            const parseTimeToMinutes = (str) => {
+                const parts = String(str).split(':');
+                if (parts.length < 2) return 0;
+                return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            };
+            
+            const startMin = parseTimeToMinutes(shiftStartStr);
+            const endMin = parseTimeToMinutes(shiftEndStr);
+            
+            if (endMin < startMin) {
+                return curMin < startMin && curMin > endMin;
+            }
+            return curMin < startMin || curMin > endMin;
+        }
+
         function updateButtonVisibility() {
             const bm = document.getElementById('btnMasuk');
             const bp = document.getElementById('btnPulang');
             const bl = document.getElementById('btnLembur');
+            const ml = document.getElementById('menuLembur');
             
             if (!bl) return;
             
@@ -596,10 +621,12 @@
             
             bl.classList.remove('hidden');
             
+            let isLemburDisabled = false;
+            
             if (state.absenStatus === 'belum_masuk') {
                 bm.classList.remove('hidden');
                 bp.classList.add('hidden');
-                bl.disabled = true;
+                isLemburDisabled = true;
                 bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Belum Absen Masuk`;
             } else if (state.absenStatus === 'sudah_masuk') {
                 bm.classList.add('hidden');
@@ -607,21 +634,64 @@
                 
                 const minDiff = getEarlyCheckInMinutes(state.jamMasukReal, state.jamMasukShift);
                 if (minDiff < 30) {
-                    bl.disabled = true;
+                    isLemburDisabled = true;
                     bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Kurang Awal (<30m)`;
                 } else {
-                    bl.disabled = false;
+                    isLemburDisabled = false;
                     bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> MODE LEMBUR`;
                 }
             } else if (state.absenStatus === 'sudah_pulang') {
                 bm.classList.add('hidden');
                 bp.classList.add('hidden');
-                bl.disabled = true;
+                isLemburDisabled = true;
                 bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Sudah Absen Pulang`;
             } else {
                 bm.classList.add('hidden');
                 bp.classList.add('hidden');
                 bl.classList.add('hidden');
+            }
+            
+            bl.disabled = isLemburDisabled;
+            
+            if (ml) {
+                if (isLemburDisabled) {
+                    ml.disabled = true;
+                    ml.style.cursor = 'not-allowed';
+                    ml.style.opacity = '0.5';
+                    ml.removeAttribute('onclick');
+                    
+                    const iconWrap = ml.querySelector('.menu-icon');
+                    if (iconWrap) {
+                        iconWrap.style.background = '#F1F5F9';
+                        const svg = iconWrap.querySelector('svg');
+                        if (svg) svg.style.stroke = '#94A3B8';
+                    }
+                    const label = ml.querySelector('.menu-label');
+                    if (label) label.style.color = '#94A3B8';
+                } else {
+                    ml.disabled = false;
+                    ml.style.cursor = 'pointer';
+                    ml.style.opacity = '1';
+                    ml.setAttribute('onclick', "openModal('modalLembur')");
+                    
+                    const iconWrap = ml.querySelector('.menu-icon');
+                    if (iconWrap) {
+                        iconWrap.style.background = '#FFF3E0';
+                        const svg = iconWrap.querySelector('svg');
+                        if (svg) svg.style.stroke = '#FF9500';
+                    }
+                    const label = ml.querySelector('.menu-label');
+                    if (label) label.style.color = '';
+                }
+            }
+            
+            const isOvertimeActive = (state.lemburStatus === 'Approved') && 
+                                     isCurrentTimeOutsideShift(state.jamMasukShift, state.jamPulangShift);
+            
+            if (isOvertimeActive) {
+                document.body.classList.add('overtime-glow-active');
+            } else {
+                document.body.classList.remove('overtime-glow-active');
             }
         }
 

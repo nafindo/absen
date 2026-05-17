@@ -1904,3 +1904,78 @@
         .gap-2 {
             gap: 8px;
         }
+
+        /* ==================== OVERTIME GLOW AURA ==================== */
+        @keyframes overtimeFlame {
+            0% {
+                box-shadow: inset 0 0 15px #FF3D00, 0 0 10px #FF9100;
+                border-color: #FF3D00;
+            }
+            50% {
+                box-shadow: inset 0 0 35px #FF3D00, 0 0 25px #FF9100;
+                border-color: #FF9100;
+            }
+            100% {
+                box-shadow: inset 0 0 15px #FF3D00, 0 0 10px #FF9100;
+                border-color: #FF3D00;
+            }
+        }
+
+        .overtime-screen-glow {
+            position: fixed;
+            inset: 0;
+            border: 4px solid transparent;
+            pointer-events: none;
+            z-index: 999999;
+            border-radius: 0;
+            transition: all 0.5s ease;
+            display: none;
+        }
+
+        .overtime-glow-active .overtime-screen-glow {
+            display: block;
+            animation: overtimeFlame 2.5s infinite alternate;
+        }
+
+        .overtime-badge-indicator {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000000;
+            background: linear-gradient(135deg, #FF3D00 0%, #FF9100 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 15px rgba(255, 61, 0, 0.4);
+            border: 1px solid rgba(255,255,255,0.25);
+            animation: overtimeBadgePulse 1.5s infinite ease-in-out;
+            pointer-events: none;
+            display: none;
+        }
+
+        .overtime-glow-active .overtime-badge-indicator {
+            display: flex;
+        }
+
+        @keyframes overtimeBadgePulse {
+            0% {
+                transform: translateX(-50%) scale(0.96);
+                box-shadow: 0 4px 10px rgba(255, 61, 0, 0.3);
+            }
+            50% {
+                transform: translateX(-50%) scale(1.04);
+                box-shadow: 0 8px 25px rgba(255, 61, 0, 0.6);
+            }
+            100% {
+                transform: translateX(-50%) scale(0.96);
+                box-shadow: 0 4px 10px rgba(255, 61, 0, 0.3);
+            }
+        }
