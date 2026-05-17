@@ -43,6 +43,11 @@
         function clearLogin() {
             localStorage.removeItem(LS_KEY);
         }
+        function resolveFotoUrl(url) {
+            if (!url || !url.trim()) return '';
+            if (url.startsWith('http://') || url.startsWith('https://')) return url;
+            return pathGambar + url;
+        }
 
         // ==================== AUDIO UNLOCK ====================
         function unlockAudio() {
@@ -154,8 +159,9 @@
         function setHeaderAvatar(name, fotoUrl) {
             const textEl = document.getElementById('headerAvatarText');
             const imgEl = document.getElementById('headerAvatarImg');
-            if (fotoUrl && fotoUrl.trim()) {
-                imgEl.src = fotoUrl; imgEl.style.display = 'block'; textEl.style.display = 'none';
+            const resolved = resolveFotoUrl(fotoUrl);
+            if (resolved) {
+                imgEl.src = resolved; imgEl.style.display = 'block'; textEl.style.display = 'none';
             } else {
                 textEl.textContent = (name || 'U').charAt(0).toUpperCase();
                 textEl.style.display = 'flex'; imgEl.style.display = 'none';
@@ -2024,8 +2030,9 @@
             
             const saved = loadLogin();
             const fotoUrl = saved ? (saved.Foto_URL || saved.Foto_Profil || saved.fotoUrl || '') : '';
-            if (fotoUrl) {
-                avatarImg.src = fotoUrl;
+            const resolved = resolveFotoUrl(fotoUrl);
+            if (resolved) {
+                avatarImg.src = resolved;
                 avatarImg.style.display = 'block';
                 avatarTxt.style.display = 'none';
             } else {

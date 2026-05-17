@@ -2259,7 +2259,11 @@
         }
 
         .btn-premium-swap {
-            width: 100%;
+            width: calc(100% - 4px);
+            margin: 24px auto 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             border-radius: 16px;
             padding: 14px;
             font-size: 15px;
@@ -2275,4 +2279,9 @@
             background: linear-gradient(135deg, #2563eb, #111827);
             box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
             transform: translateY(-2px);
+        }
+
+        /* Hide Webpushr built-in floating bell widget to keep the PWA clean and premium */
+        #webpushr-bell, .webpushr-bell, .webpushr-opt-in, #webpushr-opt-in {
+            display: none !important;
         }
