@@ -67,7 +67,7 @@
         // ==================== AUDIO UNLOCK ====================
         function unlockAudio() {
             if (state.audioUnlocked) return;
-            ['soundSuccess', 'soundError', 'soundNotif'].forEach(id => {
+            ['soundSuccess', 'soundError', 'soundNotif', 'soundChatSent'].forEach(id => {
                 const a = document.getElementById(id);
                 if (a) { a.play().catch(() => { }); a.pause(); a.currentTime = 0; }
             });
@@ -76,7 +76,12 @@
 
         function playSound(type) {
             if (!state.audioUnlocked) return;
-            const audio = document.getElementById(type === 'success' ? 'soundSuccess' : type === 'error' ? 'soundError' : 'soundNotif');
+            const audio = document.getElementById(
+                type === 'success' ? 'soundSuccess' : 
+                type === 'error' ? 'soundError' : 
+                type === 'chatsent' ? 'soundChatSent' : 
+                'soundNotif'
+            );
             if (audio) { audio.currentTime = 0; audio.play().catch(() => { }); }
         }
 
@@ -2303,6 +2308,7 @@
                         chatMessages[idx].waktu = 'Terkirim';
                         chatMessages[idx].idPesan = res.idPesan;
                         renderChat();
+                        playSound('chatsent');
                     }
                     // Refresh messages after short delay to get server timestamp
                     setTimeout(() => loadChatMessages(), 800);
