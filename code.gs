@@ -714,6 +714,23 @@ function ajukanIzin(data) {
     return { success: false, error: 'Maksimal ' + jenisIzin.Maks_Hari_Sekali_Ajuan + ' hari per pengajuan' };
   }
   
+  // Validasi sisa kuota sebelum memproses (Kecuali Sakit karena auto-close)
+  if (jenisIzin.Kode !== 'sakit') {
+    try {
+      const kuotaRes = getSisaKuota({ idKaryawan });
+      if (kuotaRes.success) {
+        const kuotaInfo = kuotaRes.kuota[jenisIzin.Kode];
+        if (kuotaInfo && kuotaInfo.sisa !== null) {
+          if (jumlahHari > kuotaInfo.sisa) {
+            return { success: false, error: 'Kuota tidak mencukupi. Sisa kuota Anda: ' + kuotaInfo.sisa + ' hari.' };
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Gagal validasi sisa kuota:', e);
+    }
+  }
+  
   // Upload lampiran jika ada
   let lampiranUrl = '';
   if (lampiranBase64) {
@@ -790,31 +807,73 @@ function getSisaKuota(data) {
   const { idKaryawan } = data;
   const jenisIzin = getSheetData(SHEET_NAMES.MASTER_JENIS_IZIN);
   const izinApproved = getSheetData(SHEET_NAMES.IZIN_CUTI).filter(i => 
-    i.ID_Karyawan === idKaryawan && i.Status === 'Approved'
+    i.ID_Karyawan === idKaryawan && (i.Status === 'Approved' || i.Status === 'Pending')
   );
   
   const tahunIni = new Date().getFullYear();
   const bulanIni = new Date().getMonth() + 1;
   
+  // 1. Hitung total penggunaan Cuti & Izin yang memotong Cuti Bulanan
+  // ID_Jenis Cuti biasanya JI001. Mari kita cari jenis izin Cuti dari master
+  const cutiMaster = jenisIzin.find(j => j.Kode === 'cuti') || { ID_Jenis: 'JI001', Kuota_Per_Bulan: 2 };
+  const limitCutiBulanan = parseInt(cutiMaster.Kuota_Per_Bulan) || 2;
+  
+  // Hitung jumlah hari Cuti yang terpakai
+  const usedCutiBulanIni = izinApproved
+    .filter(i => i.ID_Jenis_Izin === cutiMaster.ID_Jenis && new Date(i.Tanggal_Mulai).getMonth() + 1 === bulanIni && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni)
+    .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
+    
+  // Hitung jumlah hari Izin (dan jenis lain yang memotong Cuti Bulanan) yang terpakai
+  const usedPotongCutiBulanIni = izinApproved
+    .filter(i => {
+      const master = jenisIzin.find(j => j.ID_Jenis === i.ID_Jenis_Izin);
+      return master && (master.Potong_Cuti_Bulanan === 'Ya' || master.Potong_Cuti_Bulanan === 'Yes') &&
+             new Date(i.Tanggal_Mulai).getMonth() + 1 === bulanIni && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni;
+    })
+    .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
+    
+  const totalSharedUsedBulanIni = usedCutiBulanIni + usedPotongCutiBulanIni;
+  
   const result = {};
   jenisIzin.forEach(j => {
     let sisa = null;
-    if (j.Kuota_Per_Tahun) {
-      const terpakai = izinApproved
-        .filter(i => i.ID_Jenis_Izin === j.ID_Jenis && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni)
-        .reduce((sum, i) => sum + parseInt(i.Jumlah_Hari), 0);
-      sisa = parseInt(j.Kuota_Per_Tahun) - terpakai;
+    
+    if (j.Kode === 'cuti' || j.Potong_Cuti_Bulanan === 'Ya' || j.Potong_Cuti_Bulanan === 'Yes') {
+      // Menggunakan shared pool (Kuota Cuti Bulanan)
+      sisa = Math.max(0, limitCutiBulanan - totalSharedUsedBulanIni);
+    } else {
+      // Menggunakan kuota masing-masing
+      if (j.Kuota_Per_Tahun) {
+        const terpakai = izinApproved
+          .filter(i => i.ID_Jenis_Izin === j.ID_Jenis && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni)
+          .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
+        sisa = Math.max(0, parseInt(j.Kuota_Per_Tahun) - terpakai);
+      }
+      if (j.Kuota_Per_Bulan) {
+        const terpakai = izinApproved
+          .filter(i => i.ID_Jenis_Izin === j.ID_Jenis && new Date(i.Tanggal_Mulai).getMonth() + 1 === bulanIni && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni)
+          .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
+        sisa = Math.max(0, parseInt(j.Kuota_Per_Bulan) - terpakai);
+      }
     }
-    if (j.Kuota_Per_Bulan) {
-      const terpakai = izinApproved
-        .filter(i => i.ID_Jenis_Izin === j.ID_Jenis && new Date(i.Tanggal_Mulai).getMonth() + 1 === bulanIni)
-        .reduce((sum, i) => sum + parseInt(i.Jumlah_Hari), 0);
-      sisa = parseInt(j.Kuota_Per_Bulan) - terpakai;
-    }
-    result[j.Kode] = { nama: j.Nama_Jenis, sisa: sisa };
+    
+    result[j.Kode] = { 
+      nama: j.Nama_Jenis, 
+      sisa: sisa,
+      potongCuti: (j.Potong_Cuti_Bulanan === 'Ya' || j.Potong_Cuti_Bulanan === 'Yes')
+    };
   });
   
-  return { success: true, kuota: result };
+  return { 
+    success: true, 
+    kuota: result,
+    detailUsage: {
+      cuti: usedCutiBulanIni,
+      izinPotong: usedPotongCutiBulanIni,
+      totalShared: totalSharedUsedBulanIni,
+      limit: limitCutiBulanan
+    }
+  };
 }
 
 // ==================== JADWAL ====================

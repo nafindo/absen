@@ -865,6 +865,10 @@
                     <label class="form-label">Mulai Tanggal</label>
                     <input type="date" class="form-select" id="izinTglMulai">
                 </div>
+                <div class="form-group" id="groupIzinTglSelesai" style="margin-bottom:14px;display:none;">
+                    <label class="form-label">Selesai Tanggal</label>
+                    <input type="date" class="form-select" id="izinTglSelesai">
+                </div>
                 <div class="form-group" style="margin-bottom:14px;">
                     <label class="form-label">Alasan</label>
                     <textarea class="form-input" id="izinAlasan" rows="3" placeholder="Tulis alasan..."></textarea>
@@ -872,6 +876,10 @@
                 <div class="form-group" style="margin-bottom:14px;">
                     <label class="form-label">Lampiran (Foto / Bukti Sakit)</label>
                     <input type="file" class="form-select" id="izinLampiran" accept="image/*,.pdf">
+                </div>
+                <div style="background:#FFF8E1;padding:14px 16px;border-radius:12px;font-size:14px;color:#F57F17;margin-bottom:16px;font-weight:600;display:none;"
+                    id="kuotaInfo">
+                    Sisa kuota: Cuti Tahunan <strong>-</strong>
                 </div>
                 <button class="btn btn-primary" onclick="submitIzin()">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">

@@ -700,22 +700,84 @@
         function selectIzin(el, type) {
             document.querySelectorAll('.izin-chip').forEach(c => c.classList.remove('active'));
             el.classList.add('active');
+            
+            const groupSelesai = document.getElementById('groupIzinTglSelesai');
+            const kuotaInfo = document.getElementById('kuotaInfo');
+            
+            if (type === 'sakit') {
+                if (groupSelesai) groupSelesai.style.display = 'none';
+                if (kuotaInfo) kuotaInfo.style.display = 'none';
+            } else {
+                if (groupSelesai) groupSelesai.style.display = 'block';
+                if (kuotaInfo) {
+                    kuotaInfo.style.display = 'block';
+                    fetchAndShowKuota(type);
+                }
+            }
+        }
+
+        async function fetchAndShowKuota(type) {
+            const kuotaEl = document.getElementById('kuotaInfo');
+            if (!state.user || !state.user.id) return;
+            kuotaEl.innerHTML = 'Memuat sisa kuota...';
+            try {
+                const res = await apiCall('getSisaKuota', { idKaryawan: state.user.id });
+                if (res && res.success && res.kuota) {
+                    const k = res.kuota[type];
+                    if (k) {
+                        if (type === 'cuti' || type === 'izin') {
+                            kuotaEl.innerHTML = `Sisa kuota bulan ini (gabungan Cuti & Izin): <strong>${k.sisa !== null ? k.sisa + ' hari' : 'Tanpa batas'}</strong>`;
+                        } else {
+                            kuotaEl.innerHTML = `Sisa kuota untuk ${k.nama}: <strong>${k.sisa !== null ? k.sisa + ' hari' : 'Tanpa batas'}</strong>`;
+                        }
+                    } else {
+                        kuotaEl.innerHTML = `Sisa kuota: <strong>Tanpa batas</strong>`;
+                    }
+                } else {
+                    kuotaEl.innerHTML = 'Gagal memuat kuota';
+                }
+            } catch (e) {
+                kuotaEl.innerHTML = 'Gagal memuat kuota';
+            }
         }
 
         async function submitIzin() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             const tglMulai = document.getElementById('izinTglMulai').value;
+            const tglSelesaiInput = document.getElementById('izinTglSelesai');
             const alasan = document.getElementById('izinAlasan').value;
             
             // Lampiran file upload
             const fileInput = document.getElementById('izinLampiran');
             
-            if (!tglMulai) { showToast('Pilih tanggal mulai dulu!', 'error'); return; }
-            if (!alasan.trim()) { showToast('Isi alasan dulu!', 'error'); return; }
-            
             const activeChip = document.querySelector('.izin-chip.active');
             const namaJenis = activeChip ? activeChip.textContent.trim() : 'Izin';
             const idJenis = 'JI_' + namaJenis.toUpperCase();
+            
+            // Cari tipe dari onclick attribute
+            let type = 'sakit';
+            if (activeChip) {
+                const clickAttr = activeChip.getAttribute('onclick') || '';
+                if (clickAttr.includes('sakit')) type = 'sakit';
+                else if (clickAttr.includes('izin')) type = 'izin';
+                else if (clickAttr.includes('cuti')) type = 'cuti';
+                else if (clickAttr.includes('nikah')) type = 'nikah';
+                else if (clickAttr.includes('melahirkan')) type = 'melahirkan';
+            }
+            
+            if (!tglMulai) { showToast('Pilih tanggal mulai dulu!', 'error'); return; }
+            
+            let tglSelesai = '';
+            if (type !== 'sakit') {
+                tglSelesai = tglSelesaiInput.value;
+                if (!tglSelesai) { showToast('Pilih tanggal selesai dulu!', 'error'); return; }
+                if (new Date(tglSelesai) < new Date(tglMulai)) {
+                    showToast('Tanggal selesai tidak boleh sebelum tanggal mulai!', 'error');
+                    return;
+                }
+            }
+            
+            if (!alasan.trim()) { showToast('Isi alasan dulu!', 'error'); return; }
 
             // Set button to loading state
             const submitBtn = document.querySelector('#modalIzin .btn-primary');
@@ -725,16 +787,21 @@
 
             const proceedSubmit = async (base64Data = '') => {
                 try {
-                    await apiCall('ajukanIzin', {
+                    const res = await apiCall('ajukanIzin', {
                         idKaryawan: state.user.id, nama: state.user.name,
                         idJenisIzin: idJenis, namaJenis: namaJenis,
-                        tglMulai: tglMulai, tglSelesai: '', alasan: alasan, lampiranBase64: base64Data
+                        tglMulai: tglMulai, tglSelesai: tglSelesai, alasan: alasan, lampiranBase64: base64Data
                     });
-                    closeModal('modalIzin');
-                    // Reset form fields
-                    document.getElementById('izinAlasan').value = '';
-                    if (fileInput) fileInput.value = '';
-                    tampilPicoModal('izin_cuti', 'Pengajuan izin terkirim!<br>Menunggu approve admin');
+                    if (res && res.success) {
+                        closeModal('modalIzin');
+                        // Reset form fields
+                        document.getElementById('izinAlasan').value = '';
+                        if (tglSelesaiInput) tglSelesaiInput.value = '';
+                        if (fileInput) fileInput.value = '';
+                        tampilPicoModal('izin_cuti', 'Pengajuan izin terkirim!<br>Menunggu approve admin');
+                    } else {
+                        showToast(res.error || 'Gagal ajukan izin', 'error');
+                    }
                 } catch (e) { 
                     showToast('Gagal ajukan izin', 'error'); 
                 } finally {
@@ -869,6 +936,11 @@
             if (id === 'modalTukerShift') populateTukerShiftModal();
             if (id === 'modalTugas') renderTugasList();
             if (id === 'modalBerita') renderBeritaList();
+            if (id === 'modalIzin') {
+                // Set default chip to 'sakit'
+                const firstChip = document.querySelector('.izin-chip');
+                if (firstChip) selectIzin(firstChip, 'sakit');
+            }
         }
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
