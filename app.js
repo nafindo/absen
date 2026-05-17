@@ -2194,3 +2194,23 @@
             ];
             return months[monthNum];
         }
+
+        function registerWebpushrUser(userId) {
+            if (!userId) return;
+            
+            // Minta izin notifikasi browser secara proaktif (WhatsApp style)
+            if (typeof Notification !== 'undefined') {
+                if (Notification.permission === 'default') {
+                    Notification.requestPermission().then(permission => {
+                        console.log('Browser notification permission result:', permission);
+                    });
+                }
+            }
+
+            if (typeof webpushr === 'function') {
+                webpushr('fetch_id', function(sid) {
+                    console.log('Webpushr SID fetched:', sid);
+                    webpushr('action', 'segment', { sid: String(userId) });
+                });
+            }
+        }

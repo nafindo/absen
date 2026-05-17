@@ -7,7 +7,8 @@ const urlsToCache = [
   '/absen/style.css',
   '/absen/app.js',
   '/absen/manifest.json',
-  '/absen/logo.png'
+  '/absen/logo.png',
+  '/absen/webpushr-sw.js'
 ];
 
 self.addEventListener('install', event => {
