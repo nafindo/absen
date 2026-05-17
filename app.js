@@ -108,6 +108,9 @@
                 await loadKaryawanDropdown();
                 hideSplashScreen();
             }
+            
+            // Polling notifikasi live setiap 30 detik untuk live updates tanpa refresh!
+            setInterval(checkMyApprovals, 30000);
         });
 
         async function testBackendConnection() {
