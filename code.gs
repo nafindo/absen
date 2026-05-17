@@ -648,8 +648,14 @@ function getAbsenStatus(data) {
     a.Tipe === 'Pulang'
   );
   
-  if (pulang) return { status: 'sudah_pulang', data: pulang };
-  if (masuk) return { status: 'sudah_masuk', data: masuk };
+  let shiftDetail = null;
+  if (masuk) {
+    const shifts = getSheetData(SHEET_NAMES.SHIFT_TOKO);
+    shiftDetail = shifts.find(s => s.ID_Shift === masuk.ID_Shift);
+  }
+  
+  if (pulang) return { status: 'sudah_pulang', data: pulang, shift: shiftDetail };
+  if (masuk) return { status: 'sudah_masuk', data: masuk, shift: shiftDetail };
   return { status: 'belum_masuk' };
 }
 

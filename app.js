@@ -539,14 +539,20 @@
                 const res = await apiCall('getAbsenStatus', { idKaryawan: state.user.id });
                 if (res && res.status) {
                     state.absenStatus = res.status;
+                    state.jamMasukReal = '';
+                    state.jamMasukShift = '';
                     if (res.status === 'sudah_pulang') {
                         const d = res.data || {};
+                        state.jamMasukReal = d.Jam_Masuk || d.jamMasuk || '';
+                        state.jamMasukShift = (res.shift && res.shift.Jam_Masuk) || '';
                         document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.Jam_Masuk || d.jamMasuk);
                         document.getElementById('statusMasuk').className = 'ok';
                         document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(d.Jam_Pulang || d.jamPulang);
                         document.getElementById('statusPulang').className = 'ok';
                     } else if (res.status === 'sudah_masuk') {
                         const d = res.data || {};
+                        state.jamMasukReal = d.Jam_Masuk || d.jamMasuk || '';
+                        state.jamMasukShift = (res.shift && res.shift.Jam_Masuk) || '';
                         document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.Jam_Masuk || d.jamMasuk);
                         document.getElementById('statusMasuk').className = 'ok';
                         document.getElementById('statusPulang').textContent = 'Pulang: --';
@@ -562,24 +568,56 @@
             updateButtonVisibility();
         }
 
+        function getEarlyCheckInMinutes(realTimeStr, shiftTimeStr) {
+            if (!realTimeStr || !shiftTimeStr) return 0;
+            const parseTimeToMinutes = (str) => {
+                const parts = String(str).split(':');
+                if (parts.length < 2) return 0;
+                return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            };
+            const realMin = parseTimeToMinutes(realTimeStr);
+            const shiftMin = parseTimeToMinutes(shiftTimeStr);
+            return shiftMin - realMin;
+        }
 
         function updateButtonVisibility() {
             const bm = document.getElementById('btnMasuk');
             const bp = document.getElementById('btnPulang');
             const bl = document.getElementById('btnLembur');
-            if (state.absenStatus === 'belum_masuk') {
+            
+            if (!bl) return;
+            
+            if (!state.user || !state.user.id) {
                 bm.classList.remove('hidden');
                 bp.classList.add('hidden');
                 bl.classList.add('hidden');
+                return;
+            }
+            
+            bl.classList.remove('hidden');
+            
+            if (state.absenStatus === 'belum_masuk') {
+                bm.classList.remove('hidden');
+                bp.classList.add('hidden');
+                bl.disabled = true;
+                bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Belum Absen Masuk`;
             } else if (state.absenStatus === 'sudah_masuk') {
                 bm.classList.add('hidden');
                 bp.classList.remove('hidden');
-                bl.classList.remove('hidden');
+                
+                const minDiff = getEarlyCheckInMinutes(state.jamMasukReal, state.jamMasukShift);
+                if (minDiff < 30) {
+                    bl.disabled = true;
+                    bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Kurang Awal (<30m)`;
+                } else {
+                    bl.disabled = false;
+                    bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> MODE LEMBUR`;
+                }
             } else if (state.absenStatus === 'sudah_pulang') {
-                // All buttons hidden after pulang
                 bm.classList.add('hidden');
                 bp.classList.add('hidden');
-                bl.classList.add('hidden');
+                bl.disabled = true;
+                bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Sudah Absen Pulang`;
             } else {
                 bm.classList.add('hidden');
                 bp.classList.add('hidden');

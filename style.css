@@ -939,6 +939,14 @@
             transform: none;
         }
 
+        button#btnLembur:disabled {
+            background: #F1F5F9 !important;
+            color: #94A3B8 !important;
+            border: 2px solid #E2E8F0 !important;
+            box-shadow: none !important;
+            opacity: 1 !important;
+        }
+
         .btn-success {
             background: linear-gradient(135deg, var(--success), var(--success-dark));
             color: white;
