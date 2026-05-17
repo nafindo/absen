@@ -548,6 +548,7 @@
                         state.jamMasukReal = d.Jam_Masuk || d.jamMasuk || '';
                         state.jamMasukShift = (res.shift && res.shift.Jam_Masuk) || '';
                         state.jamPulangShift = (res.shift && res.shift.Jam_Pulang) || '';
+                        state.jamPulangReal = d.Jam_Pulang || d.jamPulang || '';
                         document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.Jam_Masuk || d.jamMasuk);
                         document.getElementById('statusMasuk').className = 'ok';
                         document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(d.Jam_Pulang || d.jamPulang);
@@ -582,6 +583,18 @@
             const realMin = parseTimeToMinutes(realTimeStr);
             const shiftMin = parseTimeToMinutes(shiftTimeStr);
             return shiftMin - realMin;
+        }
+
+        function getLateCheckOutMinutes(realTimeStr, shiftTimeStr) {
+            if (!realTimeStr || !shiftTimeStr) return 0;
+            const parseTimeToMinutes = (str) => {
+                const parts = String(str).split(':');
+                if (parts.length < 2) return 0;
+                return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            };
+            const realMin = parseTimeToMinutes(realTimeStr);
+            const shiftMin = parseTimeToMinutes(shiftTimeStr);
+            return realMin - shiftMin;
         }
 
         function isCurrentTimeOutsideShift(shiftStartStr, shiftEndStr) {
@@ -632,19 +645,24 @@
                 bm.classList.add('hidden');
                 bp.classList.remove('hidden');
                 
-                const minDiff = getEarlyCheckInMinutes(state.jamMasukReal, state.jamMasukShift);
-                if (minDiff < 30) {
-                    isLemburDisabled = true;
-                    bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Kurang Awal (<30m)`;
-                } else {
-                    isLemburDisabled = false;
-                    bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> MODE LEMBUR`;
-                }
+                // Selama shift berjalan (sudah absen masuk), tombol lembur selalu aktif agar karyawan bisa mengajukan
+                isLemburDisabled = false;
+                bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> MODE LEMBUR`;
             } else if (state.absenStatus === 'sudah_pulang') {
                 bm.classList.add('hidden');
                 bp.classList.add('hidden');
-                isLemburDisabled = true;
-                bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Sudah Absen Pulang`;
+                
+                // Setelah pulang, hanya aktif jika memenuhi syarat masuk awal >= 30m ATAU pulang terlambat > 0m
+                const earlyMin = getEarlyCheckInMinutes(state.jamMasukReal, state.jamMasukShift);
+                const lateMin = getLateCheckOutMinutes(state.jamPulangReal, state.jamPulangShift);
+                
+                if (earlyMin >= 30 || lateMin > 0) {
+                    isLemburDisabled = false;
+                    bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> MODE LEMBUR`;
+                } else {
+                    isLemburDisabled = true;
+                    bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Tidak Memenuhi Syarat`;
+                }
             } else {
                 bm.classList.add('hidden');
                 bp.classList.add('hidden');
