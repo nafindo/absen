@@ -153,6 +153,10 @@ function doPost(e) {
       case 'approveTukerShift': return jsonResponse(approveTukerShift(data));
       case 'rejectTukerShift': return jsonResponse(rejectTukerShift(data));
       
+      // === CHAT ===
+      case 'getChatMessages': return jsonResponse(getChatMessages(data));
+      case 'sendChatMessage': return jsonResponse(sendChatMessage(data));
+      
       default:
         return jsonResponse({ success: false, error: 'Action tidak dikenal: ' + action });
     }

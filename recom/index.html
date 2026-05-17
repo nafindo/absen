@@ -2551,15 +2551,15 @@
                     <div class="menu-label">Berita</div>
                     <div class="menu-badge hidden" id="badgeBerita">0</div>
                 </button>
-                <button class="menu-item" onclick="openModal('modalChat')">
-                    <div class="menu-icon" style="background:#E8EAF6;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#5856D6" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round">
+                <button class="menu-item" onclick="openModal('modalChat')" style="overflow: visible;">
+                    <div class="menu-icon" style="background: linear-gradient(135deg, #e8f5e9, #a5d6a7); box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#1b5e20" stroke-width="2.5" stroke-linecap="round"
+                            stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(27,94,32,0.1));">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                         </svg>
                     </div>
-                    <div class="menu-label">Chat</div>
-                    <div class="menu-badge hidden" id="badgeChat">0</div>
+                    <div class="menu-label" style="font-weight: 700; color: #1b5e20;">Obrolan</div>
+                    <div class="menu-badge hidden" id="badgeChat" style="background: #2e7d32; box-shadow: 0 0 8px rgba(46,125,50,0.5); border: 2px solid white; transform: scale(1.15);">0</div>
                 </button>
                 <button class="menu-item" onclick="openModal('modalTukerShift')">
                     <div class="menu-icon" style="background:#FCE4EC;">
@@ -2829,31 +2829,42 @@
 
         <!-- Modal Chat -->
         <div class="modal-overlay" id="modalChat" onclick="closeModalOnOverlay(event, 'modalChat')">
-            <div class="modal-sheet" style="max-height: 85vh;">
-                <div class="modal-header">
-                    <h2>Obrolan Karyawan</h2><button class="modal-close"
-                        onclick="closeModal('modalChat')">&#10005;</button>
+            <div class="modal-sheet" style="max-width: 550px; border-radius: 28px; box-shadow: 0 20px 50px rgba(0,0,0,0.18); border: 1px solid rgba(255,255,255,0.8); overflow: hidden; background: white; max-height: 90vh;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 22px 24px; border-bottom: none; display: flex; align-items: center; justify-content: space-between; position: relative;">
+                    <div>
+                        <h2 style="font-size: 20px; font-weight: 800; color: white; margin: 0; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px;">
+                            <span style="display: inline-flex; width: 10px; height: 10px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 10px #22c55e; animation: pulse 2s infinite;"></span>
+                            Obrolan Rekan Kerja
+                        </h2>
+                        <span style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; display: block; margin-top: 4px;">Pinguin Cell Group</span>
+                    </div>
+                    <button class="modal-close" onclick="closeModal('modalChat')" style="background: rgba(255,255,255,0.1); color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">&#10005;</button>
                 </div>
-                <div class="modal-body" style="padding: 0; display: flex; flex-direction: column; height: 70vh;">
+                <div class="modal-body" style="padding: 0; display: flex; flex-direction: column; height: 72vh; background: #f1f5f9;">
+                    <!-- Message container with beautiful chat wallpaper style background -->
                     <div id="chatMessages"
-                        style="flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: #F8F9FA;">
-                        <div
-                            style="align-self: center; color: var(--text-secondary); font-size: 13px; margin-top: 20px;">
+                        style="flex: 1; overflow-y: auto; padding: 20px 18px; display: flex; flex-direction: column; gap: 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; scroll-behavior: smooth;">
+                        <div style="align-self: center; color: #64748b; font-size: 13px; margin-top: 20px; background: white; padding: 6px 14px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); font-weight: 600;">
                             Memuat obrolan...</div>
                     </div>
-                    <!-- Chat Input Area -->
-                    <div style="padding: 10px 12px; border-top: 1px solid #E8ECF1; background: white;">
+                    
+                    <!-- Chat Input Area with elegant glassmorphism and shadow -->
+                    <div style="padding: 16px 20px; background: white; border-top: none; box-shadow: 0 -4px 15px rgba(0,0,0,0.03);">
                         <!-- Attachment Preview -->
                         <div id="chatAttachmentPreview"
-                            style="display: none; margin-bottom: 8px; padding: 8px 12px; background: #F0F4F8; border-radius: 12px; font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 8px;">
-                            <span id="chatAttachmentName"></span>
+                            style="display: none; margin-bottom: 12px; padding: 8px 14px; background: #eff6ff; border-radius: 16px; font-size: 13px; color: #1e3a8a; border: 1.5px dashed #bfdbfe; display: flex; align-items: center; justify-content: space-between; gap: 8px; animation: slideUp 0.2s ease-out;">
+                            <div style="display: flex; align-items: center; gap: 6px; font-weight: 700;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                                <span id="chatAttachmentName" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+                            </div>
                             <button onclick="clearChatAttachment()"
-                                style="background: none; border: none; color: var(--danger); font-size: 16px; cursor: pointer; padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">&#10005;</button>
+                                style="background: #dbeafe; border: none; color: #1d4ed8; font-size: 14px; cursor: pointer; padding: 0; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">&#10005;</button>
                         </div>
-                        <div style="display: flex; gap: 8px; align-items: flex-end;">
+                        
+                        <div style="display: flex; gap: 10px; align-items: center; position: relative;">
                             <!-- Attachment Button -->
                             <button onclick="toggleChatAttachMenu()"
-                                style="width: 40px; height: 40px; border-radius: 50%; background: #F0F4F8; border: none; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+                                style="width: 44px; height: 44px; border-radius: 50%; background: #f1f5f9; border: none; color: #475569; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <path
@@ -2863,51 +2874,54 @@
                             </button>
                             <!-- Attachment Menu -->
                             <div id="chatAttachMenu"
-                                style="display: none; position: absolute; bottom: 68px; left: 12px; background: white; border-radius: 16px; box-shadow: var(--shadow-lg); padding: 8px; z-index: 100; border: 1px solid #E8ECF1;">
+                                style="display: none; position: absolute; bottom: 62px; left: 0; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 8px; z-index: 100; border: 1px solid #f1f5f9; animation: scaleUp 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);">
                                 <button onclick="openChatCamera()"
-                                    style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; border: none; background: none; font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer; border-radius: 10px; white-space: nowrap;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)"
-                                        stroke-width="2">
+                                    style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 16px; border: none; background: none; font-size: 14px; font-weight: 700; color: #334155; cursor: pointer; border-radius: 12px; white-space: nowrap; transition: background 0.2s;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6"
+                                        stroke-width="2.5">
                                         <path
                                             d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z">
                                         </path>
                                         <circle cx="12" cy="13" r="4"></circle>
                                     </svg>
-                                    Kamera
-                                </button>
-                                <button onclick="document.getElementById('chatFileInput').click()"
-                                    style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; border: none; background: none; font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer; border-radius: 10px; white-space: nowrap;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)"
-                                        stroke-width="2">
-                                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                                        <polyline points="13 2 13 9 20 9"></polyline>
-                                    </svg>
-                                    File
+                                    Ambil Foto
                                 </button>
                                 <button onclick="document.getElementById('chatPhotoInput').click()"
-                                    style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; border: none; background: none; font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer; border-radius: 10px; white-space: nowrap;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warning)"
-                                        stroke-width="2">
+                                    style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 16px; border: none; background: none; font-size: 14px; font-weight: 700; color: #334155; cursor: pointer; border-radius: 12px; white-space: nowrap; transition: background 0.2s;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#eab308"
+                                        stroke-width="2.5">
                                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                         <circle cx="8.5" cy="8.5" r="1.5"></circle>
                                         <polyline points="21 15 16 10 5 21"></polyline>
                                     </svg>
                                     Galeri Foto
                                 </button>
+                                <button onclick="document.getElementById('chatFileInput').click()"
+                                    style="display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 16px; border: none; background: none; font-size: 14px; font-weight: 700; color: #334155; cursor: pointer; border-radius: 12px; white-space: nowrap; transition: background 0.2s;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981"
+                                        stroke-width="2.5">
+                                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                                        <polyline points="13 2 13 9 20 9"></polyline>
+                                    </svg>
+                                    Kirim Dokumen
+                                </button>
                             </div>
+                            
                             <!-- Hidden Inputs -->
                             <input type="file" id="chatFileInput" style="display: none;"
                                 accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" onchange="onChatFileSelected(this)">
                             <input type="file" id="chatPhotoInput" style="display: none;" accept="image/*"
                                 onchange="onChatPhotoSelected(this)">
+                                
                             <!-- Text Input -->
-                            <input type="text" id="chatInput" placeholder="Tulis pesan..."
-                                style="flex: 1; padding: 12px 16px; border: 2px solid #E8ECF1; border-radius: 24px; font-size: 15px; outline: none; font-family: inherit;"
+                            <input type="text" id="chatInput" placeholder="Ketik pesan Anda..."
+                                style="flex: 1; padding: 12px 20px; border: 2px solid #e2e8f0; border-radius: 24px; font-size: 15px; outline: none; font-family: inherit; font-weight: 600; color: #0f172a; transition: all 0.2s;"
                                 onkeydown="if(event.key==='Enter')sendChat()">
+                                
                             <!-- Send Button -->
                             <button onclick="sendChat()"
-                                style="width: 44px; height: 44px; border-radius: 50%; background: var(--primary); border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white"
+                                style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; box-shadow: 0 4px 10px rgba(37,99,235,0.25); transition: all 0.2s;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white"
                                     stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="22" y1="2" x2="11" y2="13"></line>
                                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -5364,46 +5378,117 @@
             }
         }
 
+        function getHashCodeColor(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const h = Math.abs(hash % 360);
+            return `hsl(${h}, 75%, 40%)`;
+        }
+
+        function formatChatTime(dateStr) {
+            if (!dateStr || dateStr === 'Baru saja' || dateStr === 'Mengirim...') return dateStr;
+            try {
+                // Konversi format yyyy-mm-dd ke yyyy/mm/dd agar kompatibel di iOS/Safari
+                const safeDateStr = dateStr.replace(/-/g, '/');
+                const date = new Date(safeDateStr);
+                const today = new Date();
+                
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const time = `${hours}:${minutes}`;
+                
+                if (date.toDateString() === today.toDateString()) {
+                    return time;
+                }
+                
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                return `${date.getDate()} ${months[date.getMonth()]} ${time}`;
+            } catch (e) {
+                return dateStr;
+            }
+        }
+
         function renderChatEmpty() {
             const container = document.getElementById('chatMessages');
-            container.innerHTML = '<div style="align-self: center; color: var(--text-secondary); font-size: 13px; margin-top: 20px;">Belum ada pesan. Jadilah yang pertama!</div>';
+            container.innerHTML = '<div style="align-self: center; color: #64748b; font-size: 13px; margin-top: 20px; font-weight: 600; background: white; padding: 8px 16px; border-radius: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">Belum ada pesan. Yuk, sapa rekan kerja Anda! 👋</div>';
         }
 
         function renderChat() {
             const container = document.getElementById('chatMessages');
             if (!chatMessages.length) { renderChatEmpty(); return; }
+            
             container.innerHTML = chatMessages.map(m => {
                 const isMe = m.idKaryawan === state.user.id;
                 let content = '';
+                
                 if (m.tipe === 'image' && m.fileUrl) {
-                    content = `<img src="${m.fileUrl}" class="chat-msg-img" onclick="window.open('${m.fileUrl}','_blank')" alt="Foto">`;
+                    content = `<div style="position:relative; border-radius:12px; overflow:hidden; max-width:260px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 2px;"><img src="${m.fileUrl}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="window.open('${m.fileUrl}','_blank')" alt="Foto"></div>`;
                 } else if (m.tipe === 'file' && m.fileUrl) {
-                    content = `<a href="${m.fileUrl}" target="_blank" style="color: inherit; text-decoration: none;"><div class="chat-msg-file"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg><span>${m.namaFile || 'File'}</span></div></a>`;
+                    content = `<a href="${m.fileUrl}" target="_blank" style="color: inherit; text-decoration: none; display: block; margin-top: 2px;">
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: ${isMe ? 'rgba(255, 255, 255, 0.15)' : '#f1f5f9'}; border-radius: 12px; font-size: 13px; font-weight: 700; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : '#e2e8f0'};">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0; color: ${isMe ? 'white' : '#3b82f6'};">
+                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                                <polyline points="13 2 13 9 20 9"></polyline>
+                            </svg>
+                            <span style="max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.namaFile || 'Lampiran File'}</span>
+                        </div>
+                    </a>`;
                 } else {
-                    content = `<div>${escapeHtml(m.pesan || '')}</div>`;
+                    content = `<div style="font-size: 14.5px; font-weight: 600; line-height: 1.5; word-break: break-word;">${escapeHtml(m.pesan || '')}</div>`;
                 }
 
                 // Status indicator for own messages
                 let statusIcon = '';
                 if (isMe) {
                     if (m.status === 'sending') {
-                        statusIcon = '<span style="font-size:10px;opacity:0.7;">&#9203; Mengirim...</span>';
+                        statusIcon = '<span style="font-size:10px; opacity:0.65; display:inline-flex; align-items:center; gap:2px;">&#9203;</span>';
                     } else if (m.status === 'failed') {
-                        statusIcon = `<span style="font-size:10px;color:#FF9F9F;cursor:pointer;" onclick="retryChatMessage('${m.tempId}')">&#10060; Gagal (klik retry)</span>`;
+                        statusIcon = `<span style="font-size:10px; color:#fca5a5; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:2px;" onclick="retryChatMessage('${m.tempId}')">&#10060; Gagal</span>`;
                     } else {
-                        statusIcon = '<span style="font-size:10px;opacity:0.7;">&#10003; Terkirim</span>';
+                        statusIcon = '<span style="font-size:10px; opacity:0.75; display:inline-flex; align-items:center; gap:2px;">&#10003;</span>';
                     }
                 }
 
-                return `<div style="align-self: ${isMe ? 'flex-end' : 'flex-start'}; max-width: 80%; background: ${isMe ? 'var(--primary)' : 'white'}; color: ${isMe ? 'white' : 'var(--text)'}; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; box-shadow: 0 1px 4px rgba(0,0,0,0.06); ${m.status === 'failed' ? 'border: 2px solid var(--danger);' : ''}">
-      <div style="font-size: 12px; font-weight: 700; margin-bottom: 4px; opacity: ${isMe ? '0.9' : '1'}; color: ${isMe ? 'rgba(255,255,255,0.9)' : 'var(--primary)'};">${escapeHtml(m.nama || 'Karyawan')}</div>
-      ${content}
-      <div style="font-size: 11px; margin-top: 4px; opacity: 0.7; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
-        <span>${m.waktu || ''}</span>
-        ${statusIcon}
-      </div>
-    </div>`;
+                const timeStr = formatChatTime(m.waktu);
+
+                if (isMe) {
+                    // SENDER BUBBLE (SAYA)
+                    return `
+                    <div style="align-self: flex-end; max-width: 78%; display: flex; flex-direction: column; align-items: flex-end;">
+                        <div style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 10px 16px; border-radius: 20px 20px 4px 20px; box-shadow: 0 4px 12px rgba(37,99,235,0.18); ${m.status === 'failed' ? 'border: 2px solid #ef4444;' : ''}">
+                            ${content}
+                            <div style="font-size: 10px; margin-top: 5px; opacity: 0.8; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 4px; font-weight: 700;">
+                                <span>${timeStr}</span>
+                                ${statusIcon}
+                            </div>
+                        </div>
+                    </div>`;
+                } else {
+                    // RECIPIENT BUBBLE (REKAN)
+                    const avatarColor = getHashCodeColor(m.nama || 'Karyawan');
+                    const initial = m.nama ? m.nama.charAt(0).toUpperCase() : '?';
+                    
+                    return `
+                    <div style="align-self: flex-start; max-width: 78%; display: flex; gap: 10px; align-items: flex-start;">
+                        <!-- Avatar Badge -->
+                        <div style="width: 34px; height: 34px; border-radius: 50%; background: ${avatarColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.06); flex-shrink: 0; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+                            ${initial}
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <div style="background: white; color: #0f172a; padding: 10px 16px; border-radius: 4px 20px 20px 20px; box-shadow: 0 4px 12px rgba(15,23,42,0.04); border: 1px solid #f1f5f9;">
+                                <div style="font-size: 11px; font-weight: 800; color: ${avatarColor}; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">${escapeHtml(m.nama || 'Rekan')}</div>
+                                ${content}
+                                <div style="font-size: 10px; margin-top: 5px; color: #64748b; text-align: right; font-weight: 700;">
+                                    ${timeStr}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                }
             }).join('');
+            
             container.scrollTop = container.scrollHeight;
         }
 

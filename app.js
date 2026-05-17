@@ -1950,46 +1950,117 @@
             }
         }
 
+        function getHashCodeColor(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const h = Math.abs(hash % 360);
+            return `hsl(${h}, 75%, 40%)`;
+        }
+
+        function formatChatTime(dateStr) {
+            if (!dateStr || dateStr === 'Baru saja' || dateStr === 'Mengirim...') return dateStr;
+            try {
+                // Konversi format yyyy-mm-dd ke yyyy/mm/dd agar kompatibel di iOS/Safari
+                const safeDateStr = dateStr.replace(/-/g, '/');
+                const date = new Date(safeDateStr);
+                const today = new Date();
+                
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const time = `${hours}:${minutes}`;
+                
+                if (date.toDateString() === today.toDateString()) {
+                    return time;
+                }
+                
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+                return `${date.getDate()} ${months[date.getMonth()]} ${time}`;
+            } catch (e) {
+                return dateStr;
+            }
+        }
+
         function renderChatEmpty() {
             const container = document.getElementById('chatMessages');
-            container.innerHTML = '<div style="align-self: center; color: var(--text-secondary); font-size: 13px; margin-top: 20px;">Belum ada pesan. Jadilah yang pertama!</div>';
+            container.innerHTML = '<div style="align-self: center; color: #64748b; font-size: 13px; margin-top: 20px; font-weight: 600; background: white; padding: 8px 16px; border-radius: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">Belum ada pesan. Yuk, sapa rekan kerja Anda! 👋</div>';
         }
 
         function renderChat() {
             const container = document.getElementById('chatMessages');
             if (!chatMessages.length) { renderChatEmpty(); return; }
+            
             container.innerHTML = chatMessages.map(m => {
                 const isMe = m.idKaryawan === state.user.id;
                 let content = '';
+                
                 if (m.tipe === 'image' && m.fileUrl) {
-                    content = `<img src="${m.fileUrl}" class="chat-msg-img" onclick="window.open('${m.fileUrl}','_blank')" alt="Foto">`;
+                    content = `<div style="position:relative; border-radius:12px; overflow:hidden; max-width:260px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 2px;"><img src="${m.fileUrl}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="window.open('${m.fileUrl}','_blank')" alt="Foto"></div>`;
                 } else if (m.tipe === 'file' && m.fileUrl) {
-                    content = `<a href="${m.fileUrl}" target="_blank" style="color: inherit; text-decoration: none;"><div class="chat-msg-file"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg><span>${m.namaFile || 'File'}</span></div></a>`;
+                    content = `<a href="${m.fileUrl}" target="_blank" style="color: inherit; text-decoration: none; display: block; margin-top: 2px;">
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: ${isMe ? 'rgba(255, 255, 255, 0.15)' : '#f1f5f9'}; border-radius: 12px; font-size: 13px; font-weight: 700; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : '#e2e8f0'};">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0; color: ${isMe ? 'white' : '#3b82f6'};">
+                                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                                <polyline points="13 2 13 9 20 9"></polyline>
+                            </svg>
+                            <span style="max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.namaFile || 'Lampiran File'}</span>
+                        </div>
+                    </a>`;
                 } else {
-                    content = `<div>${escapeHtml(m.pesan || '')}</div>`;
+                    content = `<div style="font-size: 14.5px; font-weight: 600; line-height: 1.5; word-break: break-word;">${escapeHtml(m.pesan || '')}</div>`;
                 }
 
                 // Status indicator for own messages
                 let statusIcon = '';
                 if (isMe) {
                     if (m.status === 'sending') {
-                        statusIcon = '<span style="font-size:10px;opacity:0.7;">&#9203; Mengirim...</span>';
+                        statusIcon = '<span style="font-size:10px; opacity:0.65; display:inline-flex; align-items:center; gap:2px;">&#9203;</span>';
                     } else if (m.status === 'failed') {
-                        statusIcon = `<span style="font-size:10px;color:#FF9F9F;cursor:pointer;" onclick="retryChatMessage('${m.tempId}')">&#10060; Gagal (klik retry)</span>`;
+                        statusIcon = `<span style="font-size:10px; color:#fca5a5; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:2px;" onclick="retryChatMessage('${m.tempId}')">&#10060; Gagal</span>`;
                     } else {
-                        statusIcon = '<span style="font-size:10px;opacity:0.7;">&#10003; Terkirim</span>';
+                        statusIcon = '<span style="font-size:10px; opacity:0.75; display:inline-flex; align-items:center; gap:2px;">&#10003;</span>';
                     }
                 }
 
-                return `<div style="align-self: ${isMe ? 'flex-end' : 'flex-start'}; max-width: 80%; background: ${isMe ? 'var(--primary)' : 'white'}; color: ${isMe ? 'white' : 'var(--text)'}; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; box-shadow: 0 1px 4px rgba(0,0,0,0.06); ${m.status === 'failed' ? 'border: 2px solid var(--danger);' : ''}">
-      <div style="font-size: 12px; font-weight: 700; margin-bottom: 4px; opacity: ${isMe ? '0.9' : '1'}; color: ${isMe ? 'rgba(255,255,255,0.9)' : 'var(--primary)'};">${escapeHtml(m.nama || 'Karyawan')}</div>
-      ${content}
-      <div style="font-size: 11px; margin-top: 4px; opacity: 0.7; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
-        <span>${m.waktu || ''}</span>
-        ${statusIcon}
-      </div>
-    </div>`;
+                const timeStr = formatChatTime(m.waktu);
+
+                if (isMe) {
+                    // SENDER BUBBLE (SAYA)
+                    return `
+                    <div style="align-self: flex-end; max-width: 78%; display: flex; flex-direction: column; align-items: flex-end;">
+                        <div style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 10px 16px; border-radius: 20px 20px 4px 20px; box-shadow: 0 4px 12px rgba(37,99,235,0.18); ${m.status === 'failed' ? 'border: 2px solid #ef4444;' : ''}">
+                            ${content}
+                            <div style="font-size: 10px; margin-top: 5px; opacity: 0.8; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 4px; font-weight: 700;">
+                                <span>${timeStr}</span>
+                                ${statusIcon}
+                            </div>
+                        </div>
+                    </div>`;
+                } else {
+                    // RECIPIENT BUBBLE (REKAN)
+                    const avatarColor = getHashCodeColor(m.nama || 'Karyawan');
+                    const initial = m.nama ? m.nama.charAt(0).toUpperCase() : '?';
+                    
+                    return `
+                    <div style="align-self: flex-start; max-width: 78%; display: flex; gap: 10px; align-items: flex-start;">
+                        <!-- Avatar Badge -->
+                        <div style="width: 34px; height: 34px; border-radius: 50%; background: ${avatarColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.06); flex-shrink: 0; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">
+                            ${initial}
+                        </div>
+                        <div style="display: flex; flex-direction: column;">
+                            <div style="background: white; color: #0f172a; padding: 10px 16px; border-radius: 4px 20px 20px 20px; box-shadow: 0 4px 12px rgba(15,23,42,0.04); border: 1px solid #f1f5f9;">
+                                <div style="font-size: 11px; font-weight: 800; color: ${avatarColor}; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">${escapeHtml(m.nama || 'Rekan')}</div>
+                                ${content}
+                                <div style="font-size: 10px; margin-top: 5px; color: #64748b; text-align: right; font-weight: 700;">
+                                    ${timeStr}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                }
             }).join('');
+            
             container.scrollTop = container.scrollHeight;
         }
 
