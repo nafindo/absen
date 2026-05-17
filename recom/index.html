@@ -3473,6 +3473,21 @@
         }
         function resolveFotoUrl(url) {
             if (!url || !url.trim()) return '';
+            
+            // Konversi otomatis URL Google Drive ke thumbnail CDN publik beresolusi tinggi (bebas cookies & login Gmail)
+            if (url.includes('drive.google.com')) {
+                let driveId = '';
+                const reg1 = /id=([^&]+)/;
+                const reg2 = /\/file\/d\/([^/]+)/;
+                const reg3 = /\/d\/([^/]+)/;
+                
+                let match = url.match(reg1) || url.match(reg2) || url.match(reg3);
+                if (match && match[1]) {
+                    driveId = match[1];
+                    return `https://drive.google.com/thumbnail?sz=w1000&id=${driveId}`;
+                }
+            }
+            
             if (url.startsWith('http://') || url.startsWith('https://')) return url;
             return pathGambar + url;
         }
@@ -5424,7 +5439,7 @@
                 let content = '';
                 
                 if (m.tipe === 'image' && m.fileUrl) {
-                    content = `<div style="position:relative; border-radius:12px; overflow:hidden; max-width:260px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 2px;"><img src="${m.fileUrl}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="window.open('${m.fileUrl}','_blank')" alt="Foto"></div>`;
+                    content = `<div style="position:relative; border-radius:12px; overflow:hidden; max-width:260px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 2px;"><img src="${resolveFotoUrl(m.fileUrl)}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="window.open('${m.fileUrl}','_blank')" alt="Foto"></div>`;
                 } else if (m.tipe === 'file' && m.fileUrl) {
                     content = `<a href="${m.fileUrl}" target="_blank" style="color: inherit; text-decoration: none; display: block; margin-top: 2px;">
                         <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: ${isMe ? 'rgba(255, 255, 255, 0.15)' : '#f1f5f9'}; border-radius: 12px; font-size: 13px; font-weight: 700; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : '#e2e8f0'};">
