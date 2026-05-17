@@ -539,6 +539,14 @@
             color: var(--success);
         }
 
+        #statusMasuk.ok {
+            color: var(--success);
+        }
+
+        #statusPulang.ok {
+            color: #F97316; /* Jingga/Orange Kontras untuk Pulang */
+        }
+
         .status-line .pending {
             color: var(--text-secondary);
         }
