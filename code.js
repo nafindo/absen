@@ -90,12 +90,10 @@ function doPost(e) {
       // === IZIN ===
       case 'ajukanIzin': return jsonResponse(ajukanIzin(data));
       case 'getSisaKuota': return jsonResponse(getSisaKuota(data));
-      case 'getJenisIzinAktif': return jsonResponse(getJenisIzinAktif(data));
       
       // === JADWAL ===
       case 'getJadwalHariIni': return jsonResponse(getJadwalHariIni(data));
       case 'getJadwalMingguan': return jsonResponse(getJadwalMingguan(data));
-      case 'getKaryawanJadwalByDate': return jsonResponse(getKaryawanJadwalByDate(data));
       
       // === RAPORT ===
       case 'getRaportBulanan': return jsonResponse(getRaportBulanan(data));
@@ -527,13 +525,6 @@ function absenMasuk(data) {
     ''
   ]);
   
-  // Auto-close open approved permissions/leaves
-  try {
-    autoCloseIzin(idKaryawan, formatDate(now));
-  } catch (e) {
-    console.error('Gagal menjalankan auto-close izin:', e);
-  }
-  
   return {
     success: true,
     idAbsensi: idAbsensi,
@@ -582,14 +573,8 @@ function absenPulang(data) {
   }
   
   const now = new Date();
-  let jamMasuk = new Date(recordMasuk.Timestamp);
-  if (isNaN(jamMasuk.getTime())) {
-    jamMasuk = new Date(today + ' ' + String(recordMasuk.Jam_Masuk));
-  }
-  let durasiMs = now - jamMasuk;
-  if (isNaN(durasiMs) || durasiMs < 0) {
-    durasiMs = 0;
-  }
+  const jamMasuk = new Date(today + ' ' + recordMasuk.Jam_Masuk);
+  const durasiMs = now - jamMasuk;
   const durasiJam = Math.floor(durasiMs / 3600000);
   const durasiMenit = Math.floor((durasiMs % 3600000) / 60000);
   const durasiKerja = durasiJam + 'j ' + durasiMenit + 'm';
@@ -653,27 +638,9 @@ function getAbsenStatus(data) {
     a.Tipe === 'Pulang'
   );
   
-  let shiftDetail = null;
-  if (masuk) {
-    const shifts = getSheetData(SHEET_NAMES.SHIFT_TOKO);
-    shiftDetail = shifts.find(s => s.ID_Shift === masuk.ID_Shift);
-  }
-  
-  // Dapatkan lembur hari ini
-  let lemburData = null;
-  try {
-    const lemburSheet = getSheetData(SHEET_NAMES.LEMBUR);
-    lemburData = lemburSheet.find(l => 
-      l.ID_Karyawan === idKaryawan && 
-      formatDate(new Date(l.Tanggal)) === today
-    ) || null;
-  } catch (e) {
-    Logger.log('getAbsenStatus lembur fetch error: ' + e.message);
-  }
-  
-  if (pulang) return { status: 'sudah_pulang', data: pulang, shift: shiftDetail, lembur: lemburData };
-  if (masuk) return { status: 'sudah_masuk', data: masuk, shift: shiftDetail, lembur: lemburData };
-  return { status: 'belum_masuk', shift: shiftDetail, lembur: lemburData };
+  if (pulang) return { status: 'sudah_pulang', data: pulang };
+  if (masuk) return { status: 'sudah_masuk', data: masuk };
+  return { status: 'belum_masuk' };
 }
 
 // ==================== LEMBUR ====================
@@ -730,29 +697,10 @@ function ajukanIzin(data) {
   const jenisIzin = getSheetData(SHEET_NAMES.MASTER_JENIS_IZIN).find(j => j.ID_Jenis === idJenisIzin);
   if (!jenisIzin) return { success: false, error: 'Jenis izin tidak valid' };
   
-  // Jika tglSelesai tidak diisi, kita biarkan kosong/open-ended
-  const finalTglSelesai = tglSelesai || '';
-  const jumlahHari = finalTglSelesai ? (Math.ceil((new Date(finalTglSelesai) - new Date(tglMulai)) / (1000 * 60 * 60 * 24)) + 1) : 1;
+  const jumlahHari = Math.ceil((new Date(tglSelesai) - new Date(tglMulai)) / (1000 * 60 * 60 * 24)) + 1;
   
-  if (finalTglSelesai && jenisIzin.Maks_Hari_Sekali_Ajuan && jumlahHari > parseInt(jenisIzin.Maks_Hari_Sekali_Ajuan)) {
+  if (jenisIzin.Maks_Hari_Sekali_Ajuan && jumlahHari > parseInt(jenisIzin.Maks_Hari_Sekali_Ajuan)) {
     return { success: false, error: 'Maksimal ' + jenisIzin.Maks_Hari_Sekali_Ajuan + ' hari per pengajuan' };
-  }
-  
-  // Validasi sisa kuota sebelum memproses (Kecuali Sakit karena auto-close)
-  if (jenisIzin.Kode !== 'sakit') {
-    try {
-      const kuotaRes = getSisaKuota({ idKaryawan });
-      if (kuotaRes.success) {
-        const kuotaInfo = kuotaRes.kuota[jenisIzin.Kode];
-        if (kuotaInfo && kuotaInfo.sisa !== null) {
-          if (jumlahHari > kuotaInfo.sisa) {
-            return { success: false, error: 'Kuota tidak mencukupi. Sisa kuota Anda: ' + kuotaInfo.sisa + ' hari.' };
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Gagal validasi sisa kuota:', e);
-    }
   }
   
   // Upload lampiran jika ada
@@ -773,8 +721,8 @@ function ajukanIzin(data) {
     idJenisIzin,
     namaJenis,
     tglMulai,
-    finalTglSelesai,
-    finalTglSelesai ? jumlahHari : '',
+    tglSelesai,
+    jumlahHari,
     alasan,
     lampiranUrl,
     'Pending',
@@ -785,170 +733,35 @@ function ajukanIzin(data) {
   return { success: true, idIzin: idIzin, message: 'Pengajuan izin berhasil dikirim' };
 }
 
-function autoCloseIzin(idKaryawan, checkInDateStr) {
-  try {
-    const sheet = getSheet(SHEET_NAMES.IZIN_CUTI);
-    if (!sheet) return;
-    const values = sheet.getDataRange().getValues();
-    
-    // Hitung tanggal kemarin
-    const checkInDate = new Date(checkInDateStr);
-    const yesterday = new Date(checkInDate);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const tglSelesaiKemarin = formatDate(yesterday);
-    
-    for (let i = 1; i < values.length; i++) {
-      const rowIdKaryawan = values[i][1];
-      const rowTglMulai = values[i][5];
-      const rowTglSelesai = values[i][6];
-      const rowStatus = values[i][10];
-      
-      // Jika karyawan cocok, status Approved, dan tanggal selesai masih kosong atau '-'
-      if (rowIdKaryawan === idKaryawan && rowStatus === 'Approved' && (!rowTglSelesai || rowTglSelesai === '' || rowTglSelesai === '-')) {
-        // Update Tanggal Selesai (Kolom 7 = G)
-        sheet.getRange(i + 1, 7).setValue(tglSelesaiKemarin);
-        
-        // Hitung jumlah hari
-        let tglMulaiFormatted = rowTglMulai;
-        if (rowTglMulai instanceof Date) {
-          tglMulaiFormatted = formatDate(rowTglMulai);
-        }
-        
-        const countDays = Math.ceil((new Date(tglSelesaiKemarin) - new Date(tglMulaiFormatted)) / (1000 * 60 * 60 * 24)) + 1;
-        
-        // Update Jumlah Hari (Kolom 8 = H)
-        sheet.getRange(i + 1, 8).setValue(countDays > 0 ? countDays : 1);
-        
-        console.log('[AUTO-CLOSE] Berhasil menutup izin ' + values[i][0] + ' s.d tanggal ' + tglSelesaiKemarin + ' (' + countDays + ' hari)');
-      }
-    }
-  } catch (e) {
-    console.error('[AUTO-CLOSE] Gagal menutup izin:', e);
-  }
-}
-
 function getSisaKuota(data) {
   const { idKaryawan } = data;
   const jenisIzin = getSheetData(SHEET_NAMES.MASTER_JENIS_IZIN);
   const izinApproved = getSheetData(SHEET_NAMES.IZIN_CUTI).filter(i => 
-    i.ID_Karyawan === idKaryawan && (i.Status === 'Approved' || i.Status === 'Pending')
+    i.ID_Karyawan === idKaryawan && i.Status === 'Approved'
   );
   
   const tahunIni = new Date().getFullYear();
   const bulanIni = new Date().getMonth() + 1;
   
-  // 1. Hitung total penggunaan Cuti & Izin yang memotong Cuti Bulanan
-  // ID_Jenis Cuti biasanya JI001. Mari kita cari jenis izin Cuti dari master
-  const cutiMaster = jenisIzin.find(j => j.Kode === 'cuti') || { ID_Jenis: 'JI001', Kuota_Per_Bulan: 2 };
-  const limitCutiBulanan = parseInt(cutiMaster.Kuota_Per_Bulan) || 2;
-  
-  // Hitung jumlah hari Cuti yang terpakai
-  const usedCutiBulanIni = izinApproved
-    .filter(i => i.ID_Jenis_Izin === cutiMaster.ID_Jenis && new Date(i.Tanggal_Mulai).getMonth() + 1 === bulanIni && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni)
-    .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
-    
-  // Hitung jumlah hari Izin (dan jenis lain yang memotong Cuti Bulanan) yang terpakai
-  const usedPotongCutiBulanIni = izinApproved
-    .filter(i => {
-      const master = jenisIzin.find(j => j.ID_Jenis === i.ID_Jenis_Izin);
-      return master && (master.Potong_Cuti_Bulanan === 'Ya' || master.Potong_Cuti_Bulanan === 'Yes') &&
-             new Date(i.Tanggal_Mulai).getMonth() + 1 === bulanIni && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni;
-    })
-    .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
-    
-  const totalSharedUsedBulanIni = usedCutiBulanIni + usedPotongCutiBulanIni;
-  
   const result = {};
   jenisIzin.forEach(j => {
     let sisa = null;
-    
-    if (j.Kode === 'cuti' || j.Potong_Cuti_Bulanan === 'Ya' || j.Potong_Cuti_Bulanan === 'Yes') {
-      // Menggunakan shared pool (Kuota Cuti Bulanan)
-      sisa = Math.max(0, limitCutiBulanan - totalSharedUsedBulanIni);
-    } else {
-      // Menggunakan kuota masing-masing
-      if (j.Kuota_Per_Tahun) {
-        const terpakai = izinApproved
-          .filter(i => i.ID_Jenis_Izin === j.ID_Jenis && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni)
-          .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
-        sisa = Math.max(0, parseInt(j.Kuota_Per_Tahun) - terpakai);
-      }
-      if (j.Kuota_Per_Bulan) {
-        const terpakai = izinApproved
-          .filter(i => i.ID_Jenis_Izin === j.ID_Jenis && new Date(i.Tanggal_Mulai).getMonth() + 1 === bulanIni && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni)
-          .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
-        sisa = Math.max(0, parseInt(j.Kuota_Per_Bulan) - terpakai);
-      }
+    if (j.Kuota_Per_Tahun) {
+      const terpakai = izinApproved
+        .filter(i => i.ID_Jenis_Izin === j.ID_Jenis && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni)
+        .reduce((sum, i) => sum + parseInt(i.Jumlah_Hari), 0);
+      sisa = parseInt(j.Kuota_Per_Tahun) - terpakai;
     }
-    
-    result[j.Kode] = { 
-      nama: j.Nama_Jenis, 
-      sisa: sisa,
-      potongCuti: (j.Potong_Cuti_Bulanan === 'Ya' || j.Potong_Cuti_Bulanan === 'Yes')
-    };
+    if (j.Kuota_Per_Bulan) {
+      const terpakai = izinApproved
+        .filter(i => i.ID_Jenis_Izin === j.ID_Jenis && new Date(i.Tanggal_Mulai).getMonth() + 1 === bulanIni)
+        .reduce((sum, i) => sum + parseInt(i.Jumlah_Hari), 0);
+      sisa = parseInt(j.Kuota_Per_Bulan) - terpakai;
+    }
+    result[j.Kode] = { nama: j.Nama_Jenis, sisa: sisa };
   });
   
-  return { 
-    success: true, 
-    kuota: result,
-    detailUsage: {
-      cuti: usedCutiBulanIni,
-      izinPotong: usedPotongCutiBulanIni,
-      totalShared: totalSharedUsedBulanIni,
-      limit: limitCutiBulanan
-    }
-  };
-}
-
-function getJenisIzinAktif(data) {
-  try {
-    const { idKaryawan } = data;
-    const jenisIzin = getSheetData(SHEET_NAMES.MASTER_JENIS_IZIN);
-    
-    // Ambil yang statusnya Aktif
-    const aktif = jenisIzin.filter(j => j.Status === 'Aktif');
-    
-    // Cek data karyawan untuk validasi hari kerja minimal & gender jika ada
-    const karyawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN).find(k => k.ID_Karyawan === idKaryawan);
-    
-    let hariKerja = 999; // Default jika tidak ada info masuk
-    if (karyawan && karyawan.Tanggal_Masuk) {
-      const tglMasuk = new Date(karyawan.Tanggal_Masuk);
-      const selisihMs = new Date() - tglMasuk;
-      hariKerja = Math.floor(selisihMs / (1000 * 60 * 60 * 24));
-    }
-    
-    let genderKaryawan = '';
-    if (karyawan) {
-      // Cari properti gender atau jenis kelamin secara case-insensitive
-      for (let key in karyawan) {
-        if (key.toLowerCase().includes('gender') || key.toLowerCase().includes('kelamin')) {
-          genderKaryawan = karyawan[key];
-          break;
-        }
-      }
-    }
-    
-    const filtered = aktif.filter(j => {
-      // 1. Cek syarat hari kerja minimal
-      const syarat = parseInt(j.Syarat_Hari_Kerja_Minimal) || 0;
-      if (hariKerja < syarat) return false;
-      
-      // 2. Cek syarat gender khusus
-      const genderKhusus = j.Gender_Khusus;
-      if (genderKhusus && genderKhusus !== 'Semua' && genderKaryawan) {
-        if (genderKhusus.toLowerCase() !== genderKaryawan.toLowerCase()) {
-          return false;
-        }
-      }
-      return true;
-    });
-    
-    return { success: true, data: filtered };
-  } catch (e) {
-    console.error('Gagal getJenisIzinAktif:', e);
-    return { success: false, error: e.toString() };
-  }
+  return { success: true, kuota: result };
 }
 
 // ==================== JADWAL ====================
@@ -1023,57 +836,6 @@ function getJadwalMingguan(data) {
   }
   
   return { success: true, minggu: result };
-}
-
-function getKaryawanJadwalByDate(data) {
-  try {
-    const { idKaryawan, tanggal } = data;
-    if (!idKaryawan || !tanggal) return { success: false, error: 'Parameter tidak lengkap' };
-    
-    // Parse tanggal ke string format YYYY-MM-DD
-    const targetDateStr = formatDate(new Date(tanggal));
-    const targetDateObj = new Date(targetDateStr);
-    
-    const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    const namaHari = dayNames[targetDateObj.getDay()];
-    
-    const jadwalAll = getSheetData(SHEET_NAMES.JADWAL_KARYAWAN).filter(j => 
-      j.ID_Karyawan === idKaryawan && j.Status === 'Aktif'
-    );
-    
-    const jadwal = jadwalAll.find(j => {
-      if (!j.Tanggal_Mulai || !j.Tanggal_Selesai) return false;
-      const mulaiStr = formatDate(new Date(j.Tanggal_Mulai));
-      const selesaiStr = formatDate(new Date(j.Tanggal_Selesai));
-      
-      // Cocokkan hari berjalan
-      const cocokHari = j.Hari_Berjalan.includes(namaHari);
-      // Cocokkan range tanggal
-      const cocokRange = targetDateStr >= mulaiStr && targetDateStr <= selesaiStr;
-      
-      return cocokHari && cocokRange;
-    });
-    
-    if (!jadwal) {
-      return { success: true, libur: true };
-    }
-    
-    const toko = getSheetData(SHEET_NAMES.MASTER_TOKO).find(t => t.ID_Toko === jadwal.ID_Toko);
-    const shift = getSheetData(SHEET_NAMES.SHIFT_TOKO).find(s => s.ID_Shift === jadwal.ID_Shift);
-    
-    return {
-      success: true,
-      libur: false,
-      idToko: jadwal.ID_Toko,
-      namaToko: toko ? toko.Nama_Toko : '—',
-      idShift: jadwal.ID_Shift,
-      namaShift: shift ? shift.Nama_Shift : '—',
-      jamMasuk: shift ? formatTimeOnly(shift.Jam_Masuk) : '—',
-      jamPulang: shift ? formatTimeOnly(shift.Jam_Pulang) : '—'
-    };
-  } catch (e) {
-    return { success: false, error: e.toString() };
-  }
 }
 
 // ==================== RAPORT ====================
@@ -1356,83 +1118,6 @@ function getAbsensiHariIniLengkap(data) {
   return { success: true, data: result };
 }
 
-// ==================== LEMBUR MATH HELPER ====================
-function calculateLemburDuration(idKaryawan, tanggal) {
-  try {
-    const absensi = getSheetData(SHEET_NAMES.ABSENSI);
-    const recordMasuk = absensi.find(a => 
-      a.ID_Karyawan === idKaryawan && 
-      a.Tipe === 'Masuk' && 
-      formatDate(new Date(a.Timestamp)) === tanggal
-    );
-    
-    if (!recordMasuk) return { success: false, error: 'Data absensi masuk tidak ditemukan' };
-    
-    const jamMasukRealStr = recordMasuk.Jam_Masuk; 
-    const jamPulangRealStr = recordMasuk.Jam_Pulang;
-    
-    if (!jamMasukRealStr) return { success: false, error: 'Jam masuk real belum tercatat' };
-    
-    const idShift = recordMasuk.ID_Shift;
-    const shifts = getSheetData(SHEET_NAMES.SHIFT_TOKO);
-    const shift = shifts.find(s => s.ID_Shift === idShift);
-    
-    if (!shift) return { success: false, error: 'Shift tidak ditemukan' };
-    
-    const jamMasukShiftStr = shift.Jam_Masuk;
-    const jamPulangShiftStr = shift.Jam_Pulang;
-    
-    const parseTime = (timeStr, baseDateStr) => {
-      if (!timeStr) return null;
-      const parts = String(timeStr).split(':');
-      if (parts.length < 2) return null;
-      return new Date(baseDateStr + ' ' + parts[0] + ':' + parts[1] + ':00');
-    };
-    
-    const baseDate = tanggal;
-    const jamMasukReal = parseTime(jamMasukRealStr, baseDate);
-    const jamMasukShift = parseTime(jamMasukShiftStr, baseDate);
-    const jamPulangShift = parseTime(jamPulangShiftStr, baseDate);
-    const jamPulangReal = parseTime(jamPulangRealStr, baseDate);
-    
-    if (!jamMasukReal || !jamMasukShift) return { success: false, error: 'Gagal memproses jam masuk' };
-    
-    let durasiAwalMs = 0;
-    let durasiAkhirMs = 0;
-    
-    // A. Early Check-In Overtime (Jam masuk absen lebih awal >= 30 menit dari jam masuk shift toko)
-    const selisihAwalMs = jamMasukShift - jamMasukReal;
-    if (selisihAwalMs >= 30 * 60 * 1000) {
-      durasiAwalMs = selisihAwalMs;
-    }
-    
-    // B. Late Checkout Overtime (Jam pulang shift sampai jam pulang absen real)
-    if (jamPulangReal && jamPulangShift) {
-      const selisihAkhirMs = jamPulangReal - jamPulangShift;
-      if (selisihAkhirMs > 0) {
-        durasiAkhirMs = selisihAkhirMs;
-      }
-    }
-    
-    const totalDurasiMs = durasiAwalMs + durasiAkhirMs;
-    const totalMenit = Math.round(totalDurasiMs / 60000);
-    const durasiJam = Math.floor(totalMenit / 60);
-    const durasiMenit = totalMenit % 60;
-    
-    return {
-      success: true,
-      jamMasukReal: jamMasukRealStr,
-      jamPulangReal: jamPulangRealStr || '',
-      jamMasukShift: jamMasukShiftStr,
-      jamPulangShift: jamPulangShiftStr,
-      durasiString: durasiJam + 'j ' + durasiMenit + 'm'
-    };
-    
-  } catch (e) {
-    return { success: false, error: e.toString() };
-  }
-}
-
 // ==================== APPROVAL ====================
 function approveLembur(data) {
   const { idLembur, status, approvedBy } = data;
@@ -1447,56 +1132,15 @@ function approveLembur(data) {
       sheet.getRange(i + 1, 14).setValue(formatDateTime(new Date()));
       
       if (status === 'Approved') {
-        const idKaryawan = allData[i][1];
-        const tanggalLembur = formatDate(new Date(allData[i][5]));
-        
-        const calc = calculateLemburDuration(idKaryawan, tanggalLembur);
-        if (calc.success) {
-          sheet.getRange(i + 1, 7).setValue(calc.jamMasukReal); // Jam Mulai = jam masuk absen real
-          sheet.getRange(i + 1, 8).setValue(calc.jamPulangReal || '-'); // Jam Selesai = jam pulang absen real
-          sheet.getRange(i + 1, 9).setValue(calc.durasiString); // Durasi Jam = hasil hitung durasi real
-        } else {
-          // Fallback kalkulasi lama jika absensi tidak ditemukan
-          const jamMulai = allData[i][6];
-          const jamSelesai = formatTime(new Date());
-          sheet.getRange(i + 1, 8).setValue(jamSelesai);
-          
-          let start;
-          if (jamMulai instanceof Date) {
-            start = new Date(2000, 0, 1, jamMulai.getHours(), jamMulai.getMinutes());
-          } else {
-            const parts = String(jamMulai).split(':');
-            if (parts.length >= 2) {
-              start = new Date(2000, 0, 1, parseInt(parts[0], 10), parseInt(parts[1], 10));
-            } else {
-              start = new Date(2000, 0, 1, 0, 0);
-            }
-          }
-          
-          const now = new Date();
-          const end = new Date(2000, 0, 1, now.getHours(), now.getMinutes());
-          
-          let durasiMs = end - start;
-          if (isNaN(durasiMs) || durasiMs < 0) {
-            durasiMs = 0;
-          }
-          const durasiJam = Math.floor(durasiMs / 3600000);
-          const durasiMenit = Math.floor((durasiMs % 3600000) / 60000);
-          sheet.getRange(i + 1, 9).setValue(durasiJam + 'j ' + durasiMenit + 'm');
-        }
-      }
-      
-      // Kirim Notifikasi Push Latar Belakang (WhatsApp style)
-      try {
-        const idKaryawan = allData[i][1];
-        const ket = allData[i][10] || '';
-        if (status === 'Approved') {
-          sendPushNotification(idKaryawan, 'Lembur Disetujui! 🔥', 'Pengajuan lembur Anda (' + ket + ') telah disetujui Bos. Tetap semangat!');
-        } else if (status === 'Rejected') {
-          sendPushNotification(idKaryawan, 'Lembur Ditolak ❌', 'Pengajuan lembur Anda (' + ket + ') ditolak Bos.');
-        }
-      } catch (e) {
-        Logger.log('Gagal mengirim push lembur: ' + e.message);
+        const jamMulai = allData[i][6];
+        const jamSelesai = formatTime(new Date());
+        sheet.getRange(i + 1, 8).setValue(jamSelesai);
+        const start = new Date('2000-01-01 ' + jamMulai);
+        const end = new Date('2000-01-01 ' + jamSelesai);
+        const durasiMs = end - start;
+        const durasiJam = Math.floor(durasiMs / 3600000);
+        const durasiMenit = Math.floor((durasiMs % 3600000) / 60000);
+        sheet.getRange(i + 1, 9).setValue(durasiJam + 'j ' + durasiMenit + 'm');
       }
       
       return { success: true, message: 'Lembur ' + status.toLowerCase() };
@@ -1517,19 +1161,6 @@ function approveIzin(data) {
       sheet.getRange(i + 1, 11).setValue(status);
       sheet.getRange(i + 1, 12).setValue(approvedBy);
       sheet.getRange(i + 1, 13).setValue(formatDateTime(new Date()));
-      
-      // Kirim Notifikasi Push Latar Belakang (WhatsApp style)
-      try {
-        const idKaryawan = allData[i][1];
-        const jenisIzin = allData[i][4] || 'Izin/Cuti';
-        if (status === 'Approved') {
-          sendPushNotification(idKaryawan, 'Izin/Cuti Disetujui! ✅', 'Pengajuan ' + jenisIzin + ' Anda telah disetujui Admin.');
-        } else if (status === 'Rejected') {
-          sendPushNotification(idKaryawan, 'Izin/Cuti Ditolak ❌', 'Pengajuan ' + jenisIzin + ' Anda ditolak Admin.');
-        }
-      } catch (e) {
-        Logger.log('Gagal mengirim push izin: ' + e.message);
-      }
       
       return { success: true, message: 'Izin ' + status.toLowerCase() };
     }
@@ -1970,23 +1601,8 @@ function uploadFileToDrive(base64Data, idKaryawan, tipe) {
     const subFolders = folder.getFoldersByName(subFolderName);
     const subFolder = subFolders.hasNext() ? subFolders.next() : folder.createFolder(subFolderName);
     
-    let mimeType = 'application/pdf';
-    let ext = '.pdf';
-    let cleanBase64 = base64Data;
-    
-    if (base64Data.indexOf(';base64,') !== -1) {
-      const parts = base64Data.split(';base64,');
-      cleanBase64 = parts[1];
-      mimeType = parts[0].split(':')[1] || 'application/pdf';
-      if (mimeType.includes('image/')) {
-        ext = '.' + mimeType.split('/')[1];
-      }
-    } else if (base64Data.indexOf(',') !== -1) {
-      cleanBase64 = base64Data.split(',')[1];
-    }
-    
     const fileName = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd') + '_' + idKaryawan + '_' + tipe;
-    const blob = Utilities.newBlob(Utilities.base64Decode(cleanBase64), mimeType, fileName + ext);
+    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data.split(',')[1]), 'application/pdf', fileName + '.pdf');
     const file = subFolder.createFile(blob);
     
     return 'https://drive.google.com/uc?id=' + file.getId();
@@ -2379,48 +1995,5 @@ function testConnection() {
       error: e.toString(),
       message: 'Gagal terhubung ke spreadsheet. Pastikan ID benar dan Anda memiliki akses.'
     };
-  }
-}
-
-// ==================== PUSH NOTIFICATION (WEBPUSHR INTEGRATION) ====================
-function sendPushNotification(idKaryawan, title, message) {
-  let webpushrKey = '4390bcc206161515a39ead22f9c1cf46'; // REST API Key Anda
-  let webpushrAuthToken = '121398'; // REST API Auth Token Anda
-  
-  try {
-    const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-    if (settings && settings.length > 0) {
-      const keyRow = settings.find(s => s.Key === 'WEBPUSHR_KEY' || s.Kunci === 'WEBPUSHR_KEY');
-      const tokenRow = settings.find(s => s.Key === 'WEBPUSHR_TOKEN' || s.Kunci === 'WEBPUSHR_TOKEN');
-      if (keyRow && keyRow.Value) webpushrKey = keyRow.Value;
-      if (tokenRow && tokenRow.Value) webpushrAuthToken = tokenRow.Value;
-    }
-  } catch (e) {
-    Logger.log('Gagal memuat setting Webpushr, menggunakan default. Error: ' + e.message);
-  }
-  
-  try {
-    const payload = {
-      title: title,
-      message: message,
-      target_url: 'https://nafindo.github.io/absen/',
-      sid: String(idKaryawan)
-    };
-    
-    const options = {
-      method: 'POST',
-      contentType: 'application/json',
-      headers: {
-        'webpushrKey': webpushrKey,
-        'webpushrAuthToken': webpushrAuthToken
-      },
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true
-    };
-    
-    const response = UrlFetchApp.fetch('https://api.webpushr.com/v1/notification/send/sid', options);
-    Logger.log('Webpushr Push Response for ' + idKaryawan + ': ' + response.getContentText());
-  } catch (e) {
-    Logger.log('Webpushr Push Error for ' + idKaryawan + ': ' + e.message);
   }
 }
