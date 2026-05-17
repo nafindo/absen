@@ -106,6 +106,7 @@
                 
                 // Daftarkan ke Webpushr agar bisa menerima notifikasi push latar belakang
                 try { registerWebpushrUser(saved.id); } catch(e) { }
+                try { checkNotificationStatus(); } catch(e) { }
                 setupUserUI(saved.fotoUrl || '');
                 
                 // LANGSUNG HIDE SPLASH SCREEN (INSTANT LOAD!)
@@ -232,6 +233,7 @@
 
             // Daftarkan ke Webpushr agar bisa menerima notifikasi push latar belakang
             try { registerWebpushrUser(id); } catch(e) { }
+            try { checkNotificationStatus(); } catch(e) { }
 
             // Unlock audio context (user gesture)
             unlockAudio();
@@ -3053,15 +3055,6 @@
 
         function registerWebpushrUser(userId) {
             if (!userId) return;
-            
-            // Minta izin notifikasi browser secara proaktif (WhatsApp style)
-            if (typeof Notification !== 'undefined') {
-                if (Notification.permission === 'default') {
-                    Notification.requestPermission().then(permission => {
-                        console.log('Browser notification permission result:', permission);
-                    });
-                }
-            }
 
             // Daftarkan User ID secara langsung ke Webpushr (akan di-queue otomatis oleh SDK jika script belum selesai terunduh)
             if (typeof webpushr === 'function') {
@@ -3071,5 +3064,44 @@
                 } catch(e) {
                     console.error('[WEBPUSHR] Failed to register segment:', e);
                 }
+            }
+        }
+
+        function checkNotificationStatus() {
+            const banner = document.getElementById('notifOptinBanner');
+            if (!banner) return;
+            
+            if (typeof Notification !== 'undefined') {
+                // Tampilkan banner hanya jika izin belum 'granted' DAN user sudah login
+                if (Notification.permission !== 'granted' && state.user && state.user.id) {
+                    banner.style.display = 'flex';
+                } else {
+                    banner.style.display = 'none';
+                }
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        function triggerNotifPermissionRequest() {
+            if (typeof Notification !== 'undefined') {
+                // Meminta izin notifikasi (User Gesture triggered)
+                Notification.requestPermission().then(permission => {
+                    console.log('[NOTIFICATION] Permission requested:', permission);
+                    checkNotificationStatus();
+                    
+                    if (permission === 'granted') {
+                        if (state.user && state.user.id) {
+                            registerWebpushrUser(state.user.id);
+                        }
+                        showToast('Notifikasi berhasil diaktifkan!', 'success');
+                    } else if (permission === 'denied') {
+                        showToast('Izin notifikasi ditolak/diblokir. Silakan aktifkan via setelan browser.', 'warning');
+                    }
+                }).catch(err => {
+                    console.error('[NOTIFICATION] Request failed:', err);
+                });
+            } else {
+                showToast('Browser Anda tidak mendukung notifikasi.', 'error');
             }
         }
