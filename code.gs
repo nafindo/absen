@@ -1430,6 +1430,19 @@ function approveLembur(data) {
         }
       }
       
+      // Kirim Notifikasi Push Latar Belakang (WhatsApp style)
+      try {
+        const idKaryawan = allData[i][1];
+        const ket = allData[i][10] || '';
+        if (status === 'Approved') {
+          sendPushNotification(idKaryawan, 'Lembur Disetujui! 🔥', 'Pengajuan lembur Anda (' + ket + ') telah disetujui Bos. Tetap semangat!');
+        } else if (status === 'Rejected') {
+          sendPushNotification(idKaryawan, 'Lembur Ditolak ❌', 'Pengajuan lembur Anda (' + ket + ') ditolak Bos.');
+        }
+      } catch (e) {
+        Logger.log('Gagal mengirim push lembur: ' + e.message);
+      }
+      
       return { success: true, message: 'Lembur ' + status.toLowerCase() };
     }
   }
@@ -1448,6 +1461,19 @@ function approveIzin(data) {
       sheet.getRange(i + 1, 11).setValue(status);
       sheet.getRange(i + 1, 12).setValue(approvedBy);
       sheet.getRange(i + 1, 13).setValue(formatDateTime(new Date()));
+      
+      // Kirim Notifikasi Push Latar Belakang (WhatsApp style)
+      try {
+        const idKaryawan = allData[i][1];
+        const jenisIzin = allData[i][4] || 'Izin/Cuti';
+        if (status === 'Approved') {
+          sendPushNotification(idKaryawan, 'Izin/Cuti Disetujui! ✅', 'Pengajuan ' + jenisIzin + ' Anda telah disetujui Admin.');
+        } else if (status === 'Rejected') {
+          sendPushNotification(idKaryawan, 'Izin/Cuti Ditolak ❌', 'Pengajuan ' + jenisIzin + ' Anda ditolak Admin.');
+        }
+      } catch (e) {
+        Logger.log('Gagal mengirim push izin: ' + e.message);
+      }
       
       return { success: true, message: 'Izin ' + status.toLowerCase() };
     }
@@ -2297,5 +2323,48 @@ function testConnection() {
       error: e.toString(),
       message: 'Gagal terhubung ke spreadsheet. Pastikan ID benar dan Anda memiliki akses.'
     };
+  }
+}
+
+// ==================== PUSH NOTIFICATION (WEBPUSHR INTEGRATION) ====================
+function sendPushNotification(idKaryawan, title, message) {
+  let webpushrKey = 'd1b268065dbbf0e0cdcf543ee7d4efb7'; // Fallback default key
+  let webpushrAuthToken = 'c0db1490214a1e9487c53ff24ebd1492'; // Fallback default token
+  
+  try {
+    const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
+    if (settings && settings.length > 0) {
+      const keyRow = settings.find(s => s.Key === 'WEBPUSHR_KEY' || s.Kunci === 'WEBPUSHR_KEY');
+      const tokenRow = settings.find(s => s.Key === 'WEBPUSHR_TOKEN' || s.Kunci === 'WEBPUSHR_TOKEN');
+      if (keyRow && keyRow.Value) webpushrKey = keyRow.Value;
+      if (tokenRow && tokenRow.Value) webpushrAuthToken = tokenRow.Value;
+    }
+  } catch (e) {
+    Logger.log('Gagal memuat setting Webpushr, menggunakan default. Error: ' + e.message);
+  }
+  
+  try {
+    const payload = {
+      title: title,
+      message: message,
+      target_url: 'https://nafindo.github.io/absen/',
+      sid: String(idKaryawan)
+    };
+    
+    const options = {
+      method: 'POST',
+      contentType: 'application/json',
+      headers: {
+        'webpushrKey': webpushrKey,
+        'webpushrAuthToken': webpushrAuthToken
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch('https://api.webpushr.com/v1/notification/send/sid', options);
+    Logger.log('Webpushr Push Response for ' + idKaryawan + ': ' + response.getContentText());
+  } catch (e) {
+    Logger.log('Webpushr Push Error for ' + idKaryawan + ': ' + e.message);
   }
 }

@@ -75,6 +75,9 @@
                 state.currentUser = state.user;
                 unlockAudio();
                 showApp();
+                
+                // Daftarkan ke Webpushr agar bisa menerima notifikasi push latar belakang
+                try { registerWebpushrUser(saved.id); } catch(e) { }
                 setupUserUI(saved.fotoUrl || '');
                 
                 // LANGSUNG HIDE SPLASH SCREEN (INSTANT LOAD!)
@@ -193,6 +196,9 @@
 
             // Simpan ke localStorage
             saveLogin({ id, name, role, tokoDefault: tokoId, shiftDefault: shiftId, fotoUrl });
+
+            // Daftarkan ke Webpushr agar bisa menerima notifikasi push latar belakang
+            try { registerWebpushrUser(id); } catch(e) { }
 
             // Unlock audio context (user gesture)
             unlockAudio();

@@ -1053,6 +1053,18 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
+    <!-- ===== WEBPUSHR SDK INTEGRATION ===== -->
+    <script>
+        (function(w,d, s, id) {
+            w.webpushr=w.webpushr||function(){(w.webpushr.q=w.webpushr.q||[]).push(arguments)};
+            var js, fjs = d.getElementsByTagName(s)[0];
+            js = d.createElement(s); js.id = id; js.async=1;
+            js.src = "https://cdn.webpushr.com/app.js";
+            fjs.parentNode.insertBefore(js, fjs);
+        }(window,document,'script','webpushr-jssdk'));
+        webpushr('setup',{'key': 'd1b268065dbbf0e0cdcf543ee7d4efb7'}); // Ganti dengan tracking key Webpushr Anda!
+    </script>
+
 </body>
 
 </html>
