@@ -750,17 +750,9 @@
                     <button class="btn btn-primary" style="width:auto;padding:10px 14px;font-size:14px;min-height:40px;"
                         onclick="navJadwal(1)">Depan &#9654;</button>
                 </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Hari</th>
-                            <th>Toko</th>
-                            <th>Shift</th>
-                            <th>Jam</th>
-                        </tr>
-                    </thead>
-                    <tbody id="jadwalTbody"></tbody>
-                </table>
+                <div id="jadwalContainer" style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px; max-height: 60vh; overflow-y: auto; padding: 4px;">
+                    <!-- Beautiful modern calendar-like card items will be generated here dynamically -->
+                </div>
             </div>
         </div>
     </div>

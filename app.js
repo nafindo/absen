@@ -1058,28 +1058,87 @@
             } else {
                 await proceedSubmit('');
             }
-        }
-
-        // ==================== JADWAL ====================
+             // ==================== JADWAL ====================
         function navJadwal(dir) { state.jadwalOffset += dir; renderJadwal(); }
-
+ 
         async function renderJadwal() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             try {
                 const now = new Date(); now.setDate(now.getDate() + state.jadwalOffset * 7);
                 const res = await apiCall('getJadwalMingguan', { idKaryawan: state.user.id, tanggalReferensi: now.toISOString() });
                 if (res.success) {
-                    const tbody = document.getElementById('jadwalTbody');
-                    tbody.innerHTML = res.minggu.map(j => {
+                    const container = document.getElementById('jadwalContainer');
+                    
+                    // Mendapatkan index hari ini (Senin = 0, ..., Minggu = 6)
+                    const todayIndex = (new Date().getDay() + 6) % 7;
+                    
+                    container.innerHTML = res.minggu.map((j, index) => {
                         const jm = formatTimeFromResponse(j.jamMasuk);
                         const jp = formatTimeFromResponse(j.jamPulang);
-                        return `<tr class="${j.libur ? 'libur' : ''} ${j.namaHari === new Date().toLocaleDateString('id-ID', { weekday: 'long' }) && state.jadwalOffset === 0 ? 'today' : ''}">
-          <td><div style="font-weight:800;font-size:15px;">${j.namaHari}</div><div style="font-size:13px;color:var(--text-secondary);">${j.tanggal}</div></td>
-          <td>${j.toko !== '-' ? '<span class="badge badge-blue">' + j.toko + '</span>' : '-'}</td>
-          <td>${j.shift !== '-' ? '<span class="badge badge-green">' + j.shift + '</span>' : '-'}</td>
-          <td>${j.jamMasuk !== '-' ? jm + ' - ' + jp : '-'}</td>
-        </tr>`;
+                        
+                        const isLibur = j.libur || j.toko === '—' || j.toko === '-';
+                        let isToday = false;
+                        let isPassed = false;
+                        
+                        if (state.jadwalOffset < 0) {
+                            isPassed = true;
+                        } else if (state.jadwalOffset === 0) {
+                            if (index < todayIndex) isPassed = true;
+                            else if (index === todayIndex) isToday = true;
+                        }
+                        
+                        let cardStyle = '';
+                        let todayBadge = '';
+                        let statusBadge = '';
+                        
+                        if (isToday) {
+                            cardStyle = `background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%); border: 2.5px solid #10B981; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.18); transform: scale(1.01);`;
+                            todayBadge = `<span style="background: #10B981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 8px; box-shadow: 0 2px 6px rgba(16,185,129,0.2);">Hari Ini</span>`;
+                        } else if (isPassed) {
+                            cardStyle = `background: #F8FAFC; border: 1.5px solid #E2E8F0; opacity: 0.45; filter: grayscale(10%);`;
+                        } else {
+                            cardStyle = `background: white; border: 1.5px solid #E2E8F0; box-shadow: 0 4px 12px rgba(0,0,0,0.015);`;
+                        }
+                        
+                        if (isLibur) {
+                            statusBadge = `<span class="badge" style="background: #FEE2E2; color: #EF4444; border: 1px solid #FECACA; font-weight: 800; font-size: 11px; padding: 6px 12px; border-radius: 12px;">LIBUR</span>`;
+                        } else {
+                            statusBadge = `<span class="badge badge-green" style="font-weight: 800; font-size: 11px; padding: 6px 12px; border-radius: 12px;">${j.shift}</span>`;
+                        }
+                        
+                        const tglSplit = j.tanggal.split(' ');
+                        const tglHari = tglSplit[0] || '';
+                        const tglBulan = tglSplit[1] || '';
+                        
+                        return `
+<div class="jadwal-card" style="border-radius: 20px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; transition: all 0.25s ease; ${cardStyle}">
+    <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="text-align: center; min-width: 55px; padding-right: 12px; border-right: 2px solid ${isToday ? '#10B981' : isPassed ? '#CBD5E1' : '#0D8ABC'};">
+            <div style="font-size: 10px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.3px;">${j.namaHari}</div>
+            <div style="font-size: 20px; font-weight: 900; color: #1E293B; margin-top: 1px; line-height: 1.1;">${tglHari}</div>
+            <div style="font-size: 9px; font-weight: 800; color: #94A3B8; text-transform: uppercase;">${tglBulan}</div>
+        </div>
+        <div style="text-align: left;">
+            <div style="display: flex; align-items: center; flex-wrap: wrap;">
+                <h4 style="font-size: 15px; font-weight: 800; color: #1E293B; margin: 0; line-height: 1.2;">${isLibur ? 'Hari Libur / Off' : j.toko}</h4>
+                ${todayBadge}
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 5px; font-size: 12px; font-weight: 700; color: #64748B;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.85;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>${isLibur ? '—' : jm + ' - ' + jp}</span>
+            </div>
+        </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+        ${statusBadge}
+    </div>
+</div>
+`;
                     }).join('');
+                    
                     const senin = new Date(now); senin.setDate(now.getDate() - now.getDay() + 1);
                     const minggu = new Date(senin); minggu.setDate(senin.getDate() + 6);
                     document.getElementById('jadwalPeriode').textContent = senin.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) + ' - ' + minggu.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
