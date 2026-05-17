@@ -697,9 +697,15 @@
         }
 
         // ==================== IZIN ====================
-        function selectIzin(el, type) {
+        function selectIzin(el, type, idJenis) {
             document.querySelectorAll('.izin-chip').forEach(c => c.classList.remove('active'));
             el.classList.add('active');
+            
+            state.selectedIzin = {
+                type: type,
+                idJenis: idJenis,
+                namaJenis: el.textContent.trim()
+            };
             
             const groupSelesai = document.getElementById('groupIzinTglSelesai');
             const kuotaInfo = document.getElementById('kuotaInfo');
@@ -741,6 +747,36 @@
             }
         }
 
+        async function loadDynamicJenisIzin() {
+            const container = document.getElementById('izinChipsContainer');
+            if (!container) return;
+            
+            container.innerHTML = '<div style="font-size:14px;color:var(--text-secondary);padding:6px 0;">Memuat kategori...</div>';
+            
+            try {
+                const res = await apiCall('getJenisIzinAktif', { idKaryawan: state.user.id });
+                if (res && res.success && res.data && res.data.length > 0) {
+                    container.innerHTML = '';
+                    res.data.forEach((item, index) => {
+                        const chip = document.createElement('div');
+                        chip.className = 'izin-chip' + (index === 0 ? ' active' : '');
+                        chip.textContent = item.Nama_Jenis;
+                        chip.onclick = () => selectIzin(chip, item.Kode, item.ID_Jenis);
+                        container.appendChild(chip);
+                        
+                        // Select the first one by default
+                        if (index === 0) {
+                            selectIzin(chip, item.Kode, item.ID_Jenis);
+                        }
+                    });
+                } else {
+                    container.innerHTML = '<div style="font-size:14px;color:red;padding:6px 0;">Gagal memuat kategori izin</div>';
+                }
+            } catch (e) {
+                container.innerHTML = '<div style="font-size:14px;color:red;padding:6px 0;">Error koneksi data</div>';
+            }
+        }
+
         async function submitIzin() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             const tglMulai = document.getElementById('izinTglMulai').value;
@@ -750,20 +786,8 @@
             // Lampiran file upload
             const fileInput = document.getElementById('izinLampiran');
             
-            const activeChip = document.querySelector('.izin-chip.active');
-            const namaJenis = activeChip ? activeChip.textContent.trim() : 'Izin';
-            const idJenis = 'JI_' + namaJenis.toUpperCase();
-            
-            // Cari tipe dari onclick attribute
-            let type = 'sakit';
-            if (activeChip) {
-                const clickAttr = activeChip.getAttribute('onclick') || '';
-                if (clickAttr.includes('sakit')) type = 'sakit';
-                else if (clickAttr.includes('izin')) type = 'izin';
-                else if (clickAttr.includes('cuti')) type = 'cuti';
-                else if (clickAttr.includes('nikah')) type = 'nikah';
-                else if (clickAttr.includes('melahirkan')) type = 'melahirkan';
-            }
+            if (!state.selectedIzin) { showToast('Pilih kategori izin dulu!', 'error'); return; }
+            const { type, idJenis, namaJenis } = state.selectedIzin;
             
             if (!tglMulai) { showToast('Pilih tanggal mulai dulu!', 'error'); return; }
             
@@ -937,9 +961,7 @@
             if (id === 'modalTugas') renderTugasList();
             if (id === 'modalBerita') renderBeritaList();
             if (id === 'modalIzin') {
-                // Set default chip to 'sakit'
-                const firstChip = document.querySelector('.izin-chip');
-                if (firstChip) selectIzin(firstChip, 'sakit');
+                loadDynamicJenisIzin();
             }
         }
         function closeModal(id) {

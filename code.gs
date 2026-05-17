@@ -90,6 +90,7 @@ function doPost(e) {
       // === IZIN ===
       case 'ajukanIzin': return jsonResponse(ajukanIzin(data));
       case 'getSisaKuota': return jsonResponse(getSisaKuota(data));
+      case 'getJenisIzinAktif': return jsonResponse(getJenisIzinAktif(data));
       
       // === JADWAL ===
       case 'getJadwalHariIni': return jsonResponse(getJadwalHariIni(data));
@@ -874,6 +875,57 @@ function getSisaKuota(data) {
       limit: limitCutiBulanan
     }
   };
+}
+
+function getJenisIzinAktif(data) {
+  try {
+    const { idKaryawan } = data;
+    const jenisIzin = getSheetData(SHEET_NAMES.MASTER_JENIS_IZIN);
+    
+    // Ambil yang statusnya Aktif
+    const aktif = jenisIzin.filter(j => j.Status === 'Aktif');
+    
+    // Cek data karyawan untuk validasi hari kerja minimal & gender jika ada
+    const karyawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN).find(k => k.ID_Karyawan === idKaryawan);
+    
+    let hariKerja = 999; // Default jika tidak ada info masuk
+    if (karyawan && karyawan.Tanggal_Masuk) {
+      const tglMasuk = new Date(karyawan.Tanggal_Masuk);
+      const selisihMs = new Date() - tglMasuk;
+      hariKerja = Math.floor(selisihMs / (1000 * 60 * 60 * 24));
+    }
+    
+    let genderKaryawan = '';
+    if (karyawan) {
+      // Cari properti gender atau jenis kelamin secara case-insensitive
+      for (let key in karyawan) {
+        if (key.toLowerCase().includes('gender') || key.toLowerCase().includes('kelamin')) {
+          genderKaryawan = karyawan[key];
+          break;
+        }
+      }
+    }
+    
+    const filtered = aktif.filter(j => {
+      // 1. Cek syarat hari kerja minimal
+      const syarat = parseInt(j.Syarat_Hari_Kerja_Minimal) || 0;
+      if (hariKerja < syarat) return false;
+      
+      // 2. Cek syarat gender khusus
+      const genderKhusus = j.Gender_Khusus;
+      if (genderKhusus && genderKhusus !== 'Semua' && genderKaryawan) {
+        if (genderKhusus.toLowerCase() !== genderKaryawan.toLowerCase()) {
+          return false;
+        }
+      }
+      return true;
+    });
+    
+    return { success: true, data: filtered };
+  } catch (e) {
+    console.error('Gagal getJenisIzinAktif:', e);
+    return { success: false, error: e.toString() };
+  }
 }
 
 // ==================== JADWAL ====================
