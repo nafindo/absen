@@ -60,7 +60,7 @@
                 }
             }
             
-            if (url.startsWith('http://') || url.startsWith('https://')) return url;
+            if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http://') || url.startsWith('https://')) return url;
             return pathGambar + url;
         }
 

@@ -2156,7 +2156,7 @@ function getChatMessages(data) {
 
 function sendChatMessage(data) {
   const { idKaryawan, nama, pesan, tipe, fileBase64, namaFile } = data;
-  if (!idKaryawan || !pesan) {
+  if (!idKaryawan || (!pesan && !fileBase64)) {
     return { success: false, error: 'Data tidak lengkap' };
   }
 
