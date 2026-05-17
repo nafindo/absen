@@ -708,7 +708,8 @@
                 }
             }
             
-            const isOvertimeActive = (state.lemburStatus === 'Approved') && 
+            const isOvertimeActive = (state.absenStatus !== 'sudah_pulang') && 
+                                     (state.lemburStatus === 'Approved') && 
                                      isCurrentTimeOutsideShift(state.jamMasukShift, state.jamPulangShift);
             
             if (isOvertimeActive) {
