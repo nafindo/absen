@@ -5404,7 +5404,8 @@
 
             if (state.karyawanList && state.karyawanList.length) {
                 state.karyawanList.filter(k => k.ID_Karyawan !== state.user.id).forEach(k => {
-                    selKaryawan.innerHTML += `<option value="${k.ID_Karyawan}" data-role="${k.Jabatan || 'Karyawan'}">${k.Nama}</option>`;
+                    const fotoUrl = k.Foto_URL || k.Foto_Profil || k.fotoUrl || '';
+                    selKaryawan.innerHTML += `<option value="${k.ID_Karyawan}" data-role="${k.Jabatan || 'Karyawan'}" data-foto="${fotoUrl}">${k.Nama}</option>`;
                 });
             }
             
@@ -5507,30 +5508,37 @@
             const card = document.getElementById('tujuanSwapCard');
             
             // Update Card Rekan Tujuan UI
-            const colleague = state.karyawanList ? state.karyawanList.find(k => k.ID_Karyawan === karyawanId) : null;
-            if (colleague) {
-                document.getElementById('tukerTujuanNama').innerText = colleague.Nama || colleague.Nama_Karyawan || 'Rekan';
-                document.getElementById('tukerTujuanRole').innerText = colleague.Jabatan || colleague.Role || 'Karyawan';
+            const selKaryawan = document.getElementById('tukerKaryawan');
+            const selectedOpt = selKaryawan.options[selKaryawan.selectedIndex];
+            
+            if (selectedOpt && selectedOpt.value) {
+                const colName = selectedOpt.text;
+                const colRole = selectedOpt.getAttribute('data-role') || 'Karyawan';
+                const colFoto = selectedOpt.getAttribute('data-foto') || '';
+                
+                document.getElementById('tukerTujuanNama').innerText = colName;
+                document.getElementById('tukerTujuanRole').innerText = colRole;
                 
                 const avatarTxt = document.getElementById('tukerTujuanAvatarText');
                 const avatarImg = document.getElementById('tukerTujuanAvatarImg');
-                const colFoto = colleague.Foto_URL || colleague.Foto_Profil || colleague.fotoUrl || '';
                 const resolved = resolveFotoUrl(colFoto);
                 if (resolved) {
                     avatarImg.src = resolved;
                     avatarImg.style.display = 'block';
                     avatarTxt.style.display = 'none';
                 } else {
-                    avatarTxt.innerText = (colleague.Nama || 'R').charAt(0).toUpperCase();
+                    avatarTxt.innerText = (colName || 'R').charAt(0).toUpperCase();
                     avatarTxt.style.display = 'flex';
                     avatarImg.style.display = 'none';
                 }
             } else {
                 document.getElementById('tukerTujuanNama').innerText = 'Pilih Rekan';
                 document.getElementById('tukerTujuanRole').innerText = 'Jabatan';
-                document.getElementById('tukerTujuanAvatarText').innerText = '?';
-                document.getElementById('tukerTujuanAvatarText').style.display = 'flex';
-                document.getElementById('tukerTujuanAvatarImg').style.display = 'none';
+                const avatarTxt = document.getElementById('tukerTujuanAvatarText');
+                const avatarImg = document.getElementById('tukerTujuanAvatarImg');
+                avatarTxt.innerText = '?';
+                avatarTxt.style.display = 'flex';
+                avatarImg.style.display = 'none';
             }
             
             if (!karyawanId || !tanggal) {
