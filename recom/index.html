@@ -3410,6 +3410,7 @@
     <audio id="soundError" src="https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3"></audio>
     <audio id="soundNotif" src="https://assets.mixkit.co/active_storage/sfx/2866/2866-preview.mp3"></audio>
 
+    <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
     <script>
 // ==================== STATE ====================
         let state = {
@@ -3484,6 +3485,9 @@
             initGPS();
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('izinTglMulai').value = today;
+
+            // Initialize real-time Pusher WebSockets
+            initPusher();
 
             // Cek localStorage login
             const saved = loadLogin();
@@ -5250,6 +5254,99 @@
             }
         }
 
+        let pusher = null;
+        let chatChannel = null;
+
+        function initPusher() {
+            try {
+                // Pusher client keys (sandbox free tier, active)
+                pusher = new Pusher('e912ab0d6c703b0d5c07', {
+                    cluster: 'ap1',
+                    forceTLS: true
+                });
+
+                chatChannel = pusher.subscribe('pinguin-chat');
+                
+                chatChannel.bind('new-message', function(data) {
+                    handleIncomingMessage(data);
+                });
+                
+                chatChannel.bind('swap-shift-alert', function(data) {
+                    if (data && data.targetId === state.user.id) {
+                        checkPendingTukerShift();
+                    }
+                });
+                
+                console.log('[PUSHER] ✅ Connected to real-time WebSocket channel');
+            } catch (e) {
+                console.error('[PUSHER] ❌ Pusher init failed:', e);
+            }
+        }
+
+        function handleIncomingMessage(data) {
+            if (!state.user || !state.user.id) return;
+            
+            // Avoid duplicates
+            if (data.idKaryawan === state.user.id) {
+                const existing = chatMessages.find(m => m.idPesan === data.idPesan);
+                if (existing) {
+                    // Update status of our own sending message to sent
+                    const idx = chatMessages.findIndex(m => m.tempId === data.tempId || m.idPesan === data.idPesan);
+                    if (idx !== -1) {
+                        chatMessages[idx].status = 'sent';
+                        chatMessages[idx].waktu = data.waktu || 'Baru saja';
+                        renderChat();
+                    }
+                    return;
+                }
+            } else {
+                // If it's already in the messages, don't re-append
+                const existing = chatMessages.find(m => m.idPesan === data.idPesan);
+                if (existing) return;
+            }
+            
+            const newMsg = {
+                idPesan: data.idPesan,
+                idKaryawan: data.idKaryawan,
+                nama: data.nama,
+                pesan: data.pesan,
+                tipe: data.tipe || 'text',
+                fileUrl: data.fileUrl || '',
+                namaFile: data.namaFile || '',
+                waktu: data.waktu || 'Baru saja',
+                status: 'sent'
+            };
+            
+            chatMessages.push(newMsg);
+            renderChat();
+            
+            const modal = document.getElementById('modalChat');
+            if (modal && modal.classList.contains('active')) {
+                // Scroll to bottom
+                const container = document.getElementById('chatMessages');
+                if (container) container.scrollTop = container.scrollHeight;
+                
+                // Play soft notification sound for incoming chat
+                if (data.idKaryawan !== state.user.id) {
+                    playSound('pop');
+                }
+            } else {
+                // If modal closed, increment badge & display visual toast
+                if (data.idKaryawan !== state.user.id) {
+                    const badge = document.getElementById('badgeChat');
+                    if (badge) {
+                        let current = parseInt(badge.textContent) || 0;
+                        current++;
+                        badge.textContent = current > 9 ? '9+' : current;
+                        badge.classList.remove('hidden');
+                    }
+                    
+                    showToast(`Pesan baru dari ${data.nama}: ${data.pesan.substring(0, 35)}${data.pesan.length > 35 ? '...' : ''}`, 'info');
+                    playSound('pop');
+                }
+            }
+        }
+
         function startChatPolling() {
             if (chatPollInterval) clearInterval(chatPollInterval);
             chatPollInterval = setInterval(() => {
@@ -5257,7 +5354,7 @@
                 if (modal && modal.classList.contains('active')) {
                     loadChatMessages();
                 }
-            }, 10000); // Poll every 10 seconds
+            }, 45000); // 45 seconds fallback polling instead of 10s (extremely light on sheet API)
         }
 
         function stopChatPolling() {
@@ -5441,16 +5538,16 @@
             if (!pesan && !chatAttachment) return;
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
 
+            // Generate temp ID for tracking
+            const tempId = 'temp_' + Date.now();
+
             // Build payload
-            const payload = { idKaryawan: state.user.id, nama: state.user.name, pesan: pesan || '' };
+            const payload = { idKaryawan: state.user.id, nama: state.user.name, pesan: pesan || '', tempId: tempId };
             if (chatAttachment) {
                 payload.tipe = chatAttachment.type;
                 payload.fileBase64 = chatAttachment.data;
                 payload.namaFile = chatAttachment.name;
             }
-
-            // Generate temp ID for tracking
-            const tempId = 'temp_' + Date.now();
 
             // Optimistic render with "sending" status
             const msgObj = {

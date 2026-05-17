@@ -2198,6 +2198,23 @@ function sendChatMessage(data) {
     sizeKB
   ]);
 
+  // Broadcast real-time message via Pusher WebSockets!
+  try {
+    triggerPusher('pinguin-chat', 'new-message', {
+      tempId: data.tempId || '',
+      idPesan: idPesan,
+      idKaryawan: idKaryawan,
+      nama: nama,
+      pesan: pesan,
+      tipe: tipe || 'text',
+      fileUrl: fileUrl,
+      namaFile: namaFile || '',
+      waktu: formatDateTime(new Date())
+    });
+  } catch (e) {
+    Logger.log("Pusher broadcast failed in sendChatMessage: " + e.toString());
+  }
+
   return { success: true, idPesan: idPesan };
 }
 
@@ -2235,6 +2252,16 @@ function ajukanTukerShift(data) {
     );
   } catch (e) {
     Logger.log('Gagal kirim notif tukar shift: ' + e.toString());
+  }
+
+  // Broadcast real-time swap shift request via Pusher!
+  try {
+    triggerPusher('pinguin-chat', 'swap-shift-alert', {
+      targetId: idKaryawanTujuan,
+      requesterName: nama
+    });
+  } catch (e) {
+    Logger.log('Pusher trigger failed in ajukanTukerShift: ' + e.toString());
   }
 
   return { success: true, idTuker: idTuker, message: 'Pengajuan tukar shift berhasil' };
@@ -2670,4 +2697,60 @@ function sendPushNotification(idKaryawan, title, message) {
   } catch (e) {
     Logger.log('Webpushr Push Error for ' + idKaryawan + ': ' + e.message);
   }
+}
+
+// ==================== REAL-TIME WEBSOCKET PUSHER TRIGGER ====================
+function triggerPusher(channel, eventName, dataObj) {
+  const appId = "1804230"; 
+  const key = "e912ab0d6c703b0d5c07";
+  const secret = "6b6680cd7a2f582f45cc";
+  const cluster = "ap1";
+  
+  try {
+    const body = JSON.stringify({
+      name: eventName,
+      channels: [channel],
+      data: JSON.stringify(dataObj)
+    });
+    
+    const bodyMd5 = MD5(body);
+    const timestamp = Math.floor(new Date().getTime() / 1000);
+    
+    const path = `/apps/${appId}/events`;
+    const queryString = `auth_key=${key}&auth_timestamp=${timestamp}&auth_version=1.0&body_md5=${bodyMd5}`;
+    
+    const signString = `POST\n${path}\n${queryString}`;
+    const signature = bytesToHex(Utilities.computeHmacSignature(Utilities.MacAlgorithm.HMAC_SHA_256, signString, secret));
+    
+    const url = `https://api-${cluster}.pusher.com${path}?${queryString}&auth_signature=${signature}`;
+    
+    const options = {
+      method: 'POST',
+      contentType: 'application/json',
+      payload: body,
+      muteHttpExceptions: true
+    };
+    
+    const res = UrlFetchApp.fetch(url, options);
+    Logger.log("[PUSHER] Broadcast Result: " + res.getContentText());
+  } catch(e) {
+    Logger.log("[PUSHER] Broadcast Error: " + e.toString());
+  }
+}
+
+function MD5(input) {
+  const rawHash = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, input, Utilities.Charset.UTF_8);
+  return bytesToHex(rawHash);
+}
+
+function bytesToHex(bytes) {
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) {
+    let byteVal = bytes[i];
+    if (byteVal < 0) byteVal += 256;
+    let byteHex = byteVal.toString(16);
+    if (byteHex.length === 1) byteHex = '0' + byteHex;
+    hex += byteHex;
+  }
+  return hex;
 }
