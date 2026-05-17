@@ -1148,14 +1148,20 @@
 
         function updateNotifBubble() {
             const list = document.getElementById('notifBubbleList');
-            if (!state.notifList || state.notifList.length === 0) { list.innerHTML = '<div class="notif-empty">Belum ada pemberitahuan</div>'; return; }
             const readIds = getReadNotificationIds();
-            list.innerHTML = state.notifList.map(n => {
-                const isUnread = n.status !== 'Pending' && !readIds.includes(String(n.id));
-                const unreadClass = isUnread ? 'unread-glowing' : '';
+            
+            // FILTER HANYA YANG BELUM DIBACA! Jika sudah dibaca (ID ada di readIds), tidak ditampilkan di gelembung!
+            const unreadNotifs = state.notifList ? state.notifList.filter(n => n.status !== 'Pending' && !readIds.includes(String(n.id))) : [];
+            
+            if (unreadNotifs.length === 0) { 
+                list.innerHTML = '<div class="notif-empty">Belum ada pemberitahuan</div>'; 
+                return; 
+            }
+            
+            list.innerHTML = unreadNotifs.map(n => {
                 return `
-    <div class="notif-item ${n.status === 'Approved' ? 'approved' : n.status === 'Rejected' ? 'rejected' : ''} ${unreadClass}" onclick="showNotifDetail('${n.id}', '${n.tipe}', '${n.status}', '${n.tanggal}', '${n.approvedAt || ''}')">
-      <div class="notif-item-title">${n.tipe === 'lembur' ? 'Lembur' : 'Izin/Cuti'} ${isUnread ? '<span class="unread-dot">●</span>' : ''}</div>
+    <div class="notif-item ${n.status === 'Approved' ? 'approved' : n.status === 'Rejected' ? 'rejected' : ''} unread-glowing" onclick="showNotifDetail('${n.id}', '${n.tipe}', '${n.status}', '${n.tanggal}', '${n.approvedAt || ''}')">
+      <div class="notif-item-title">${n.tipe === 'lembur' ? 'Lembur' : 'Izin/Cuti'} <span class="unread-dot">●</span></div>
       <div class="notif-item-text">Pengajuan tanggal ${n.tanggal} telah <strong>${n.status === 'Approved' ? 'disetujui' : n.status === 'Rejected' ? 'ditolak' : 'diproses'}</strong></div>
       <div class="notif-item-date">${n.approvedAt || n.tanggal}</div>
     </div>
@@ -1212,22 +1218,24 @@
                               `<p style="font-size:14px;line-height:1.5;color:#475569;margin-top:10px;">${detail}</p>` +
                               `</div>`;
                               
-            tampilPicoModal(tipePico, pesanHtml);
+            // Tandai notifikasi spesifik ini saja sebagai sudah dibaca
+            markNotificationsAsRead([String(id)]);
+            
+            // Tampilkan modal dan kirimkan callback untuk membersihkannya dari gelembung ketika ditutup
+            tampilPicoModal(tipePico, pesanHtml, function() {
+                updateNotifBadge(); // Perbarui lencana lonceng (jumlah berkurang)
+                updateNotifBubble(); // Bersihkan pesan ini dari daftar gelembung lonceng!
+            });
         }
 
         function toggleNotifBubble(e) { 
             e.stopPropagation(); 
             const bubble = document.getElementById('notifBubble');
             bubble.classList.toggle('show');
-            if (bubble.classList.contains('show') && state.notifList && state.notifList.length > 0) {
-                // Tandai semua notifikasi non-pending saat ini sebagai "telah dibaca" secara lokal
-                const idsToMark = state.notifList.filter(n => n.status !== 'Pending').map(n => String(n.id));
-                markNotificationsAsRead(idsToMark);
-                updateNotifBadge(); // Segera hilangkan dot merah/badge!
-                updateNotifBubble(); // Segera hilangkan dot unread di dalam list!
-            }
+            // Catatan: Kami tidak lagi menandai semua sebagai dibaca secara otomatis di sini.
+            // Notifikasi baru akan tetap menyala dan terlihat sampai karyawan mengklik dan melihat detailnya!
         }
-        function closeNotifBubble(e) { e.stopPropagation(); document.getElementById('notifBubble').classList.remove('show'); }
+        function closeNotifBubble(e) { if (e && e.stopPropagation) e.stopPropagation(); document.getElementById('notifBubble').classList.remove('show'); }
         document.addEventListener('click', function (e) {
             const bubble = document.getElementById('notifBubble');
             const bell = document.getElementById('notifBell');
