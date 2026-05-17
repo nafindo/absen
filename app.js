@@ -64,6 +64,27 @@
             return pathGambar + url;
         }
 
+        function getPublicViewUrl(url, tipe = 'image') {
+            if (!url || !url.trim()) return '';
+            if (url.includes('drive.google.com')) {
+                let driveId = '';
+                const reg1 = /id=([^&]+)/;
+                const reg2 = /\/file\/d\/([^/]+)/;
+                const reg3 = /\/d\/([^/]+)/;
+                
+                let match = url.match(reg1) || url.match(reg2) || url.match(reg3);
+                if (match && match[1]) {
+                    driveId = match[1];
+                    if (tipe === 'image') {
+                        return `https://drive.google.com/thumbnail?sz=w1600&id=${driveId}`;
+                    } else {
+                        return `https://drive.google.com/file/d/${driveId}/view?usp=drivesdk`;
+                    }
+                }
+            }
+            return url;
+        }
+
         // ==================== AUDIO UNLOCK ====================
         function unlockAudio() {
             if (state.audioUnlocked) return;
@@ -2520,12 +2541,12 @@
                     content = `
                     ${replyBoxHtml}
                     <div style="position:relative; border-radius:12px; overflow:hidden; max-width:260px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 2px;">
-                        <img src="${resolveFotoUrl(m.fileUrl)}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="window.open('${m.fileUrl}','_blank')" alt="Foto">
+                        <img src="${resolveFotoUrl(m.fileUrl)}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="window.open(getPublicViewUrl('${m.fileUrl}', 'image'),'_blank')" alt="Foto">
                     </div>`;
                 } else if (m.tipe === 'file' && m.fileUrl) {
                     content = `
                     ${replyBoxHtml}
-                    <a href="${m.fileUrl}" target="_blank" style="color: inherit; text-decoration: none; display: block; margin-top: 2px;">
+                    <a href="${getPublicViewUrl(m.fileUrl, 'file')}" target="_blank" style="color: inherit; text-decoration: none; display: block; margin-top: 2px;">
                         <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: ${isMe ? 'rgba(255, 255, 255, 0.15)' : '#f1f5f9'}; border-radius: 12px; font-size: 13px; font-weight: 700; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : '#e2e8f0'};">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0; color: ${isMe ? 'white' : '#3b82f6'};">
                                 <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
