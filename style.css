@@ -2000,3 +2000,279 @@
             50% { transform: translateY(-3px) scale(1.1); opacity: 1; }
             100% { transform: translateY(0) scale(0.9); opacity: 0.8; }
         }
+
+        /* ==================== STUNNING SWAP INTERFACE ==================== */
+        .swap-layout {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 16px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .swap-layout {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            .swap-direction-indicator {
+                transform: rotate(90deg);
+                margin: 6px auto;
+            }
+        }
+
+        .swap-card {
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border: 2px dashed #cbd5e1;
+            border-radius: 20px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .swap-card.active-schedule {
+            border: 2px solid #3b82f6;
+            background: linear-gradient(145deg, #ffffff, #eff6ff);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.1);
+        }
+
+        .swap-card.active-schedule.target {
+            border-color: #f97316;
+            background: linear-gradient(145deg, #ffffff, #fff7ed);
+            box-shadow: 0 10px 25px rgba(249, 115, 22, 0.1);
+        }
+
+        .swap-card-glow {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(255,255,255,0) 70%);
+            top: -50px;
+            left: -50px;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        
+        .swap-card.target .swap-card-glow {
+            background: radial-gradient(circle, rgba(249,115,22,0.1) 0%, rgba(255,255,255,0) 70%);
+        }
+
+        .swap-badge {
+            background: rgba(59, 130, 246, 0.12);
+            color: #3b82f6;
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+
+        .swap-avatar-area {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .swap-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 900;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+        }
+
+        .swap-avatar-img {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .swap-name {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 2px;
+            text-align: center;
+        }
+
+        .swap-role {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .swap-divider-line {
+            width: 100%;
+            border: none;
+            height: 1.5px;
+            background: #cbd5e1;
+            margin: 10px 0;
+            opacity: 0.5;
+        }
+
+        .swap-label {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .swap-input {
+            width: 100%;
+            background: #f1f5f9;
+            border: 1.5px solid transparent;
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .swap-input:focus {
+            background: white;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .schedule-box {
+            width: 100%;
+            border-radius: 14px;
+            padding: 12px 14px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+            min-height: 85px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .swap-card.active-schedule .schedule-box {
+            background: white;
+            border-color: rgba(59, 130, 246, 0.15);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.05);
+        }
+
+        .swap-card.active-schedule.target .schedule-box {
+            border-color: rgba(249, 115, 22, 0.15);
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.05);
+        }
+
+        .schedule-placeholder {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-align: center;
+            font-style: italic;
+        }
+
+        .schedule-active-info {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            animation: scheduleFadeIn 0.3s ease;
+        }
+
+        @keyframes scheduleFadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .schedule-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .schedule-icon-wrapper {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .schedule-libur {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--danger);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .swap-direction-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .swap-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12 rgba(59, 130, 246, 0.4);
+            animation: swapIconPulse 2s infinite alternate;
+            transition: all 0.3s ease;
+        }
+
+        .swap-circle:hover {
+            transform: scale(1.1) rotate(180deg);
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        }
+
+        @keyframes swapIconPulse {
+            0% { box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: scale(1); }
+            100% { box-shadow: 0 4px 20px rgba(59, 130, 246, 0.6); transform: scale(1.05); }
+        }
+
+        .btn-premium-swap {
+            width: 100%;
+            border-radius: 16px;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border: none;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .btn-premium-swap:hover {
+            background: linear-gradient(135deg, #2563eb, #111827);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+        }

@@ -2010,94 +2010,251 @@
         }
 
         async function populateTukerShiftModal() {
+            if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+            
             const today = new Date().toISOString().split('T')[0];
-            document.getElementById('tukerTanggal').value = today;
+            document.getElementById('tukerTanggalSaya').value = today;
+            document.getElementById('tukerTanggalTujuan').value = today;
+            document.getElementById('tukerAlasan').value = '';
 
-            // Populate toko dropdowns
-            const selTokoSaya = document.getElementById('tukerTokoSaya');
-            const selTokoTujuan = document.getElementById('tukerTokoTujuan');
-            selTokoSaya.innerHTML = '<option value="">Pilih Toko...</option>';
-            selTokoTujuan.innerHTML = '<option value="">Pilih Toko...</option>';
-            if (state.tokoList && state.tokoList.length) {
-                state.tokoList.forEach(t => {
-                    const opt = `<option value="${t.ID_Toko}">${t.Nama_Toko}</option>`;
-                    selTokoSaya.innerHTML += opt;
-                    selTokoTujuan.innerHTML += opt;
-                });
-            }
-            // Auto-select default toko user
-            if (state.user && state.user.tokoDefault) {
-                selTokoSaya.value = state.user.tokoDefault;
-                await onTukerTokoSayaChange();
+            // Setup Card Saya
+            document.getElementById('tukerSayaNama').innerText = state.user.name || 'Saya';
+            document.getElementById('tukerSayaRole').innerText = state.user.role || 'Karyawan';
+            
+            const avatarTxt = document.getElementById('tukerSayaAvatarText');
+            const avatarImg = document.getElementById('tukerSayaAvatarImg');
+            
+            const saved = loadLogin();
+            const fotoUrl = saved ? (saved.Foto_URL || saved.Foto_Profil || saved.fotoUrl || '') : '';
+            if (fotoUrl) {
+                avatarImg.src = fotoUrl;
+                avatarImg.style.display = 'block';
+                avatarTxt.style.display = 'none';
+            } else {
+                avatarTxt.innerText = (state.user.name || 'S').charAt(0).toUpperCase();
+                avatarTxt.style.display = 'flex';
+                avatarImg.style.display = 'none';
             }
 
-            // Populate karyawan list (exclude self)
+            // Populate Colleague Karyawan list (exclude self)
             const selKaryawan = document.getElementById('tukerKaryawan');
-            selKaryawan.innerHTML = '<option value="">Pilih Karyawan...</option>';
+            selKaryawan.innerHTML = '<option value="">Pilih Rekan...</option>';
             if (state.karyawanList && state.karyawanList.length) {
                 state.karyawanList.filter(k => k.ID_Karyawan !== state.user.id).forEach(k => {
-                    selKaryawan.innerHTML += `<option value="${k.ID_Karyawan}">${k.Nama}</option>`;
+                    selKaryawan.innerHTML += `<option value="${k.ID_Karyawan}" data-role="${k.Jabatan || 'Karyawan'}">${k.Nama}</option>`;
                 });
+            }
+
+            // Auto detect schedule saya for today
+            await detectSayaSchedule();
+            
+            // Reset Target Card info
+            document.getElementById('tujuanScheduleBox').innerHTML = '<div class="schedule-placeholder">Pilih rekan & tanggal...</div>';
+            document.getElementById('tujuanSwapCard').classList.remove('active-schedule');
+        }
+
+        async function detectSayaSchedule() {
+            const tanggal = document.getElementById('tukerTanggalSaya').value;
+            const container = document.getElementById('sayaScheduleBox');
+            const card = document.getElementById('sayaSwapCard');
+            
+            if (!tanggal) {
+                container.innerHTML = '<div class="schedule-placeholder">Pilih tanggal...</div>';
+                card.classList.remove('active-schedule');
+                return;
+            }
+            
+            container.innerHTML = '<div class="spinner" style="margin: 0 auto; width: 20px; height: 20px;"></div>';
+            
+            try {
+                const res = await apiCall('getKaryawanJadwalByDate', {
+                    idKaryawan: state.user.id,
+                    tanggal: tanggal
+                });
+                
+                if (res.success) {
+                    if (res.libur) {
+                        container.innerHTML = `
+                            <div class="schedule-libur">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                                </svg>
+                                <span style="font-weight:800; font-size:11px; margin-top:4px;">L I B U R</span>
+                            </div>`;
+                        document.getElementById('tukerTokoSaya').value = '';
+                        document.getElementById('tukerShiftSaya').value = '';
+                        card.classList.remove('active-schedule');
+                    } else {
+                        container.innerHTML = `
+                            <div class="schedule-active-info">
+                                <div class="schedule-row" style="color: #2563eb;">
+                                    <div class="schedule-icon-wrapper" style="background: rgba(37, 99, 235, 0.1);">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                                    </div>
+                                    <span>${res.namaToko}</span>
+                                </div>
+                                <div class="schedule-row" style="color: #475569;">
+                                    <div class="schedule-icon-wrapper" style="background: rgba(71, 85, 105, 0.1);">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    </div>
+                                    <span>${res.namaShift}</span>
+                                </div>
+                                <div class="schedule-row" style="font-size: 11px; color: #64748b; padding-left: 32px; margin-top: -4px;">
+                                    <span>${res.jamMasuk} - ${res.jamPulang}</span>
+                                </div>
+                            </div>`;
+                        document.getElementById('tukerTokoSaya').value = res.idToko;
+                        document.getElementById('tukerShiftSaya').value = res.idShift;
+                        card.classList.add('active-schedule');
+                    }
+                } else {
+                    container.innerHTML = '<div class="schedule-placeholder" style="color: #ef4444;">Gagal memuat jadwal</div>';
+                    card.classList.remove('active-schedule');
+                }
+            } catch (e) {
+                container.innerHTML = '<div class="schedule-placeholder" style="color: #ef4444;">Koneksi gagal</div>';
+                card.classList.remove('active-schedule');
             }
         }
 
-        async function onTukerTokoSayaChange() {
-            const tokoId = document.getElementById('tukerTokoSaya').value;
-            const selShift = document.getElementById('tukerShiftSaya');
-            selShift.innerHTML = '<option value="">Pilih Shift...</option>';
-            if (!tokoId) return;
-            try {
-                const res = await apiCall('getShiftByToko', { idToko: tokoId });
-                if (res.success && Array.isArray(res.data)) {
-                    res.data.forEach(s => {
-                        const jm = formatTimeFromResponse(s.Jam_Masuk);
-                        const jp = formatTimeFromResponse(s.Jam_Pulang);
-                        selShift.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${jm} - ${jp})</option>`;
-                    });
-                }
-            } catch (e) { console.log('onTukerTokoSayaChange error:', e); }
+        async function onColleagueSelectChange() {
+            await detectColleagueSchedule();
         }
 
-        async function onTukerTokoTujuanChange() {
-            const tokoId = document.getElementById('tukerTokoTujuan').value;
-            const selShift = document.getElementById('tukerShiftTujuan');
-            selShift.innerHTML = '<option value="">Pilih Shift...</option>';
-            if (!tokoId) return;
+        async function detectColleagueSchedule() {
+            const karyawanId = document.getElementById('tukerKaryawan').value;
+            const tanggal = document.getElementById('tukerTanggalTujuan').value;
+            const container = document.getElementById('tujuanScheduleBox');
+            const card = document.getElementById('tujuanSwapCard');
+            
+            if (!karyawanId || !tanggal) {
+                container.innerHTML = '<div class="schedule-placeholder">Pilih rekan & tanggal...</div>';
+                card.classList.remove('active-schedule');
+                return;
+            }
+            
+            container.innerHTML = '<div class="spinner" style="margin: 0 auto; width: 20px; height: 20px;"></div>';
+            
             try {
-                const res = await apiCall('getShiftByToko', { idToko: tokoId });
-                if (res.success && Array.isArray(res.data)) {
-                    res.data.forEach(s => {
-                        const jm = formatTimeFromResponse(s.Jam_Masuk);
-                        const jp = formatTimeFromResponse(s.Jam_Pulang);
-                        selShift.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${jm} - ${jp})</option>`;
-                    });
+                const res = await apiCall('getKaryawanJadwalByDate', {
+                    idKaryawan: karyawanId,
+                    tanggal: tanggal
+                });
+                
+                if (res.success) {
+                    if (res.libur) {
+                        container.innerHTML = `
+                            <div class="schedule-libur">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                                </svg>
+                                <span style="font-weight:800; font-size:11px; margin-top:4px;">L I B U R</span>
+                            </div>`;
+                        document.getElementById('tukerTokoTujuan').value = '';
+                        document.getElementById('tukerShiftTujuan').value = '';
+                        card.classList.remove('active-schedule');
+                    } else {
+                        container.innerHTML = `
+                            <div class="schedule-active-info">
+                                <div class="schedule-row" style="color: #f97316;">
+                                    <div class="schedule-icon-wrapper" style="background: rgba(249, 115, 22, 0.1);">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                                    </div>
+                                    <span>${res.namaToko}</span>
+                                </div>
+                                <div class="schedule-row" style="color: #475569;">
+                                    <div class="schedule-icon-wrapper" style="background: rgba(71, 85, 105, 0.1);">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    </div>
+                                    <span>${res.namaShift}</span>
+                                </div>
+                                <div class="schedule-row" style="font-size: 11px; color: #64748b; padding-left: 32px; margin-top: -4px;">
+                                    <span>${res.jamMasuk} - ${res.jamPulang}</span>
+                                </div>
+                            </div>`;
+                        document.getElementById('tukerTokoTujuan').value = res.idToko;
+                        document.getElementById('tukerShiftTujuan').value = res.idShift;
+                        card.classList.add('active-schedule');
+                    }
+                } else {
+                    container.innerHTML = '<div class="schedule-placeholder" style="color: #ef4444;">Gagal memuat jadwal</div>';
+                    card.classList.remove('active-schedule');
                 }
-            } catch (e) { console.log('onTukerTokoTujuanChange error:', e); }
+            } catch (e) {
+                container.innerHTML = '<div class="schedule-placeholder" style="color: #ef4444;">Koneksi gagal</div>';
+                card.classList.remove('active-schedule');
+            }
         }
 
-        // ==================== TUKER SHIFT ====================
         async function submitTukerShift() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+            
             const tokoSaya = document.getElementById('tukerTokoSaya').value;
-            const tokoTujuan = document.getElementById('tukerTokoTujuan').value;
-            const karyawanId = document.getElementById('tukerKaryawan').value;
             const shiftSaya = document.getElementById('tukerShiftSaya').value;
+            const tanggalSaya = document.getElementById('tukerTanggalSaya').value;
+            
+            const karyawanId = document.getElementById('tukerKaryawan').value;
+            const tokoTujuan = document.getElementById('tukerTokoTujuan').value;
             const shiftTujuan = document.getElementById('tukerShiftTujuan').value;
-            const tanggal = document.getElementById('tukerTanggal').value;
-            const alasan = document.getElementById('tukerAlasan').value;
-            if (!tokoSaya || !tokoTujuan || !karyawanId || !shiftSaya || !shiftTujuan || !tanggal) {
-                showToast('Lengkapi semua field!', 'error'); return;
+            const tanggalTujuan = document.getElementById('tukerTanggalTujuan').value;
+            
+            const alasan = document.getElementById('tukerAlasan').value.trim();
+            
+            if (!karyawanId) {
+                showToast('Pilih rekan kerja tujuan swap!', 'error'); return;
             }
+            if (!tokoSaya || !shiftSaya) {
+                showToast('Jadwal Anda pada tanggal tersebut tidak aktif/libur!', 'error'); return;
+            }
+            if (!tokoTujuan || !shiftTujuan) {
+                showToast('Jadwal rekan tujuan pada tanggal tersebut tidak aktif/libur!', 'error'); return;
+            }
+            if (!alasan) {
+                showToast('Tulis alasan tukar shift!', 'error'); return;
+            }
+            
+            const btn = document.getElementById('btnAjukanTuker');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner" style="display:inline-block; vertical-align:middle; width:16px; height:16px;"></div> Memproses...';
+            
             try {
-                await apiCall('ajukanTukerShift', {
-                    idKaryawan: state.user.id, nama: state.user.name,
-                    idTokoSaya: tokoSaya, idTokoTujuan: tokoTujuan,
+                const res = await apiCall('ajukanTukerShift', {
+                    idKaryawan: state.user.id,
+                    nama: state.user.name,
+                    idTokoSaya: tokoSaya,
+                    idTokoTujuan: tokoTujuan,
                     idKaryawanTujuan: karyawanId,
-                    shiftSaya, shiftTujuan, tanggal, alasan
+                    shiftSaya,
+                    shiftTujuan,
+                    tanggal: tanggalSaya,
+                    tanggalTujuan: tanggalTujuan,
+                    alasan: alasan
                 });
-                closeModal('modalTukerShift');
-                tampilPicoModal('sukses', 'Pengajuan tukar shift terkirim!<br>Menunggu konfirmasi karyawan lain');
-            } catch (e) { showToast('Gagal ajukan tukar shift', 'error'); }
+                
+                if (res.success) {
+                    closeModal('modalTukerShift');
+                    tampilPicoModal('sukses', '<b>Pengajuan Tukar Shift Terkirim! ⇆</b><br>Sukses mengirimkan pengajuan tukar shift. Menunggu konfirmasi dari rekan kerja Anda.');
+                    playSound('success');
+                } else {
+                    showToast(res.error || 'Gagal mengajukan tukar shift', 'error');
+                }
+            } catch (e) {
+                showToast('Koneksi backend gagal', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" style="margin-right: 8px;">
+                        <path d="M17 1l4 4-4 4"></path>
+                        <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                        <path d="M7 23l-4-4 4-4"></path>
+                        <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                    </svg>
+                    AJUKAN TUKAR SHIFT`;
+            }
         }
 
         // ==================== DATA IZIN & LEMBUR ====================

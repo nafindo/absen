@@ -95,6 +95,7 @@ function doPost(e) {
       // === JADWAL ===
       case 'getJadwalHariIni': return jsonResponse(getJadwalHariIni(data));
       case 'getJadwalMingguan': return jsonResponse(getJadwalMingguan(data));
+      case 'getKaryawanJadwalByDate': return jsonResponse(getKaryawanJadwalByDate(data));
       
       // === RAPORT ===
       case 'getRaportBulanan': return jsonResponse(getRaportBulanan(data));
@@ -1018,6 +1019,47 @@ function getJadwalMingguan(data) {
   }
   
   return { success: true, minggu: result };
+}
+
+function getKaryawanJadwalByDate(data) {
+  try {
+    const { idKaryawan, tanggal } = data;
+    if (!idKaryawan || !tanggal) return { success: false, error: 'Parameter tidak lengkap' };
+    
+    const tgl = new Date(tanggal);
+    const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const namaHari = dayNames[tgl.getDay()];
+    
+    const jadwalAll = getSheetData(SHEET_NAMES.JADWAL_KARYAWAN).filter(j => 
+      j.ID_Karyawan === idKaryawan && j.Status === 'Aktif'
+    );
+    
+    const jadwal = jadwalAll.find(j => 
+      j.Hari_Berjalan.includes(namaHari) &&
+      tgl >= new Date(j.Tanggal_Mulai) &&
+      tgl <= new Date(j.Tanggal_Selesai)
+    );
+    
+    if (!jadwal) {
+      return { success: true, libur: true };
+    }
+    
+    const toko = getSheetData(SHEET_NAMES.MASTER_TOKO).find(t => t.ID_Toko === jadwal.ID_Toko);
+    const shift = getSheetData(SHEET_NAMES.SHIFT_TOKO).find(s => s.ID_Shift === jadwal.ID_Shift);
+    
+    return {
+      success: true,
+      libur: false,
+      idToko: jadwal.ID_Toko,
+      namaToko: toko ? toko.Nama_Toko : '—',
+      idShift: jadwal.ID_Shift,
+      namaShift: shift ? shift.Nama_Shift : '—',
+      jamMasuk: shift ? shift.Jam_Masuk : '—',
+      jamPulang: shift ? shift.Jam_Pulang : '—'
+    };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
 }
 
 // ==================== RAPORT ====================
