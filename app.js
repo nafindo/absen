@@ -2062,6 +2062,15 @@
             }
             
             // Reset Target Card info
+            document.getElementById('tukerTujuanNama').innerText = 'Pilih Rekan';
+            document.getElementById('tukerTujuanRole').innerText = 'Jabatan';
+            
+            const destAvatarTxt = document.getElementById('tukerTujuanAvatarText');
+            const destAvatarImg = document.getElementById('tukerTujuanAvatarImg');
+            destAvatarTxt.innerText = '?';
+            destAvatarTxt.style.display = 'flex';
+            destAvatarImg.style.display = 'none';
+
             document.getElementById('tujuanScheduleBox').innerHTML = '<div class="schedule-placeholder">Pilih rekan...</div>';
             document.getElementById('tujuanSwapCard').classList.remove('active-schedule');
 
@@ -2149,6 +2158,33 @@
             const tanggal = document.getElementById('tukerTanggalSaya').value;
             const container = document.getElementById('tujuanScheduleBox');
             const card = document.getElementById('tujuanSwapCard');
+            
+            // Update Card Rekan Tujuan UI
+            const colleague = state.karyawanList ? state.karyawanList.find(k => k.ID_Karyawan === karyawanId) : null;
+            if (colleague) {
+                document.getElementById('tukerTujuanNama').innerText = colleague.Nama || colleague.Nama_Karyawan || 'Rekan';
+                document.getElementById('tukerTujuanRole').innerText = colleague.Jabatan || colleague.Role || 'Karyawan';
+                
+                const avatarTxt = document.getElementById('tukerTujuanAvatarText');
+                const avatarImg = document.getElementById('tukerTujuanAvatarImg');
+                const colFoto = colleague.Foto_URL || colleague.Foto_Profil || colleague.fotoUrl || '';
+                const resolved = resolveFotoUrl(colFoto);
+                if (resolved) {
+                    avatarImg.src = resolved;
+                    avatarImg.style.display = 'block';
+                    avatarTxt.style.display = 'none';
+                } else {
+                    avatarTxt.innerText = (colleague.Nama || 'R').charAt(0).toUpperCase();
+                    avatarTxt.style.display = 'flex';
+                    avatarImg.style.display = 'none';
+                }
+            } else {
+                document.getElementById('tukerTujuanNama').innerText = 'Pilih Rekan';
+                document.getElementById('tukerTujuanRole').innerText = 'Jabatan';
+                document.getElementById('tukerTujuanAvatarText').innerText = '?';
+                document.getElementById('tukerTujuanAvatarText').style.display = 'flex';
+                document.getElementById('tukerTujuanAvatarImg').style.display = 'none';
+            }
             
             if (!karyawanId || !tanggal) {
                 container.innerHTML = '<div class="schedule-placeholder">Pilih rekan...</div>';

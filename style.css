@@ -1155,6 +1155,16 @@
             flex-direction: column;
         }
 
+        @media (min-width: 601px) {
+            .modal-sheet {
+                max-width: 640px;
+                border-radius: 28px;
+                margin-bottom: 20px;
+                box-shadow: 0 20px 45px rgba(0, 0, 0, 0.15);
+                border: 1px solid rgba(226, 232, 240, 0.8);
+            }
+        }
+
         @keyframes slideUp {
             from {
                 transform: translateY(100%);
@@ -2013,11 +2023,36 @@
         @media (max-width: 600px) {
             .swap-layout {
                 grid-template-columns: 1fr;
-                gap: 12px;
+                gap: 16px;
             }
             .swap-direction-indicator {
                 transform: rotate(90deg);
-                margin: 6px auto;
+                margin: 8px auto;
+            }
+            .swap-card {
+                padding: 14px 16px !important;
+                border-radius: 16px !important;
+            }
+            .swap-badge {
+                margin-bottom: 8px !important;
+            }
+            .swap-avatar-area {
+                margin-bottom: 6px !important;
+            }
+            .swap-avatar, .swap-avatar-img {
+                width: 50px !important;
+                height: 50px !important;
+                font-size: 18px !important;
+            }
+            .swap-name {
+                font-size: 15px !important;
+            }
+            .swap-role {
+                font-size: 11px !important;
+                margin-bottom: 10px !important;
+            }
+            .swap-divider-line {
+                margin: 8px 0 !important;
             }
         }
 

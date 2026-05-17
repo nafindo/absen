@@ -633,7 +633,7 @@
                         <!-- CARD ASAL (PENGANJUR / SAYA) -->
                         <div class="swap-card origin" id="sayaSwapCard">
                             <div class="swap-card-glow"></div>
-                            <div class="swap-badge">SAYA (PENGANJUR)</div>
+                            <div class="swap-badge">SAYA</div>
                             <div class="swap-avatar-area">
                                 <div class="swap-avatar" id="tukerSayaAvatarText">-</div>
                                 <img class="swap-avatar-img" id="tukerSayaAvatarImg" style="display:none;" />
@@ -674,15 +674,21 @@
                         <div class="swap-card target" id="tujuanSwapCard">
                             <div class="swap-card-glow"></div>
                             <div class="swap-badge" style="background: rgba(249, 115, 22, 0.15); color: #f97316;">REKAN TUJUAN</div>
+                            <div class="swap-avatar-area">
+                                <div class="swap-avatar" id="tukerTujuanAvatarText">?</div>
+                                <img class="swap-avatar-img" id="tukerTujuanAvatarImg" style="display:none;" />
+                            </div>
+                            <div class="swap-name" id="tukerTujuanNama">Pilih Rekan</div>
+                            <div class="swap-role" id="tukerTujuanRole">Jabatan</div>
                             
-                            <div class="form-group" style="margin-bottom: 12px; width: 100%;">
-                                <label class="swap-label">REKAN KERJA</label>
+                            <hr class="swap-divider-line">
+                            
+                            <div class="form-group" style="margin-top: 10px; margin-bottom: 12px; width: 100%;">
+                                <label class="swap-label">PILIH REKAN KERJA</label>
                                 <select class="swap-input" id="tukerKaryawan" onchange="onColleagueSelectChange()">
                                     <option value="">Pilih Rekan...</option>
                                 </select>
                             </div>
-                            
-                            <hr class="swap-divider-line">
                             
                             <!-- DETECTED SCHEDULE INFO -->
                             <div class="schedule-box" id="tujuanScheduleBox">

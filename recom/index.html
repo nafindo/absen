@@ -1166,6 +1166,16 @@
             flex-direction: column;
         }
 
+        @media (min-width: 601px) {
+            .modal-sheet {
+                max-width: 640px;
+                border-radius: 28px;
+                margin-bottom: 20px;
+                box-shadow: 0 20px 45px rgba(0, 0, 0, 0.15);
+                border: 1px solid rgba(226, 232, 240, 0.8);
+            }
+        }
+
         @keyframes slideUp {
             from {
                 transform: translateY(100%);
@@ -2024,11 +2034,36 @@
         @media (max-width: 600px) {
             .swap-layout {
                 grid-template-columns: 1fr;
-                gap: 12px;
+                gap: 16px;
             }
             .swap-direction-indicator {
                 transform: rotate(90deg);
-                margin: 6px auto;
+                margin: 8px auto;
+            }
+            .swap-card {
+                padding: 14px 16px !important;
+                border-radius: 16px !important;
+            }
+            .swap-badge {
+                margin-bottom: 8px !important;
+            }
+            .swap-avatar-area {
+                margin-bottom: 6px !important;
+            }
+            .swap-avatar, .swap-avatar-img {
+                width: 50px !important;
+                height: 50px !important;
+                font-size: 18px !important;
+            }
+            .swap-name {
+                font-size: 15px !important;
+            }
+            .swap-role {
+                font-size: 11px !important;
+                margin-bottom: 10px !important;
+            }
+            .swap-divider-line {
+                margin: 8px 0 !important;
             }
         }
 
@@ -2921,7 +2956,7 @@
                         <!-- CARD ASAL (PENGANJUR / SAYA) -->
                         <div class="swap-card origin" id="sayaSwapCard">
                             <div class="swap-card-glow"></div>
-                            <div class="swap-badge">SAYA (PENGANJUR)</div>
+                            <div class="swap-badge">SAYA</div>
                             <div class="swap-avatar-area">
                                 <div class="swap-avatar" id="tukerSayaAvatarText">-</div>
                                 <img class="swap-avatar-img" id="tukerSayaAvatarImg" style="display:none;" />
@@ -2962,15 +2997,21 @@
                         <div class="swap-card target" id="tujuanSwapCard">
                             <div class="swap-card-glow"></div>
                             <div class="swap-badge" style="background: rgba(249, 115, 22, 0.15); color: #f97316;">REKAN TUJUAN</div>
+                            <div class="swap-avatar-area">
+                                <div class="swap-avatar" id="tukerTujuanAvatarText">?</div>
+                                <img class="swap-avatar-img" id="tukerTujuanAvatarImg" style="display:none;" />
+                            </div>
+                            <div class="swap-name" id="tukerTujuanNama">Pilih Rekan</div>
+                            <div class="swap-role" id="tukerTujuanRole">Jabatan</div>
                             
-                            <div class="form-group" style="margin-bottom: 12px; width: 100%;">
-                                <label class="swap-label">REKAN KERJA</label>
+                            <hr class="swap-divider-line">
+                            
+                            <div class="form-group" style="margin-top: 10px; margin-bottom: 12px; width: 100%;">
+                                <label class="swap-label">PILIH REKAN KERJA</label>
                                 <select class="swap-input" id="tukerKaryawan" onchange="onColleagueSelectChange()">
                                     <option value="">Pilih Rekan...</option>
                                 </select>
                             </div>
-                            
-                            <hr class="swap-divider-line">
                             
                             <!-- DETECTED SCHEDULE INFO -->
                             <div class="schedule-box" id="tujuanScheduleBox">
@@ -5368,6 +5409,15 @@
             }
             
             // Reset Target Card info
+            document.getElementById('tukerTujuanNama').innerText = 'Pilih Rekan';
+            document.getElementById('tukerTujuanRole').innerText = 'Jabatan';
+            
+            const destAvatarTxt = document.getElementById('tukerTujuanAvatarText');
+            const destAvatarImg = document.getElementById('tukerTujuanAvatarImg');
+            destAvatarTxt.innerText = '?';
+            destAvatarTxt.style.display = 'flex';
+            destAvatarImg.style.display = 'none';
+
             document.getElementById('tujuanScheduleBox').innerHTML = '<div class="schedule-placeholder">Pilih rekan...</div>';
             document.getElementById('tujuanSwapCard').classList.remove('active-schedule');
 
@@ -5455,6 +5505,33 @@
             const tanggal = document.getElementById('tukerTanggalSaya').value;
             const container = document.getElementById('tujuanScheduleBox');
             const card = document.getElementById('tujuanSwapCard');
+            
+            // Update Card Rekan Tujuan UI
+            const colleague = state.karyawanList ? state.karyawanList.find(k => k.ID_Karyawan === karyawanId) : null;
+            if (colleague) {
+                document.getElementById('tukerTujuanNama').innerText = colleague.Nama || colleague.Nama_Karyawan || 'Rekan';
+                document.getElementById('tukerTujuanRole').innerText = colleague.Jabatan || colleague.Role || 'Karyawan';
+                
+                const avatarTxt = document.getElementById('tukerTujuanAvatarText');
+                const avatarImg = document.getElementById('tukerTujuanAvatarImg');
+                const colFoto = colleague.Foto_URL || colleague.Foto_Profil || colleague.fotoUrl || '';
+                const resolved = resolveFotoUrl(colFoto);
+                if (resolved) {
+                    avatarImg.src = resolved;
+                    avatarImg.style.display = 'block';
+                    avatarTxt.style.display = 'none';
+                } else {
+                    avatarTxt.innerText = (colleague.Nama || 'R').charAt(0).toUpperCase();
+                    avatarTxt.style.display = 'flex';
+                    avatarImg.style.display = 'none';
+                }
+            } else {
+                document.getElementById('tukerTujuanNama').innerText = 'Pilih Rekan';
+                document.getElementById('tukerTujuanRole').innerText = 'Jabatan';
+                document.getElementById('tukerTujuanAvatarText').innerText = '?';
+                document.getElementById('tukerTujuanAvatarText').style.display = 'flex';
+                document.getElementById('tukerTujuanAvatarImg').style.display = 'none';
+            }
             
             if (!karyawanId || !tanggal) {
                 container.innerHTML = '<div class="schedule-placeholder">Pilih rekan...</div>';
