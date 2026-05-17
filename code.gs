@@ -2328,8 +2328,8 @@ function testConnection() {
 
 // ==================== PUSH NOTIFICATION (WEBPUSHR INTEGRATION) ====================
 function sendPushNotification(idKaryawan, title, message) {
-  let webpushrKey = 'd1b268065dbbf0e0cdcf543ee7d4efb7'; // Fallback default key
-  let webpushrAuthToken = 'c0db1490214a1e9487c53ff24ebd1492'; // Fallback default token
+  let webpushrKey = '4390bcc206161515a39ead22f9c1cf46'; // REST API Key Anda
+  let webpushrAuthToken = '121398'; // REST API Auth Token Anda
   
   try {
     const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
