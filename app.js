@@ -966,36 +966,24 @@
                 return timeStr.substring(0, 5);
             }
 
-            // Handle Google Sheets serial date strings like 1899-12-29T23:52:48.000Z
-            // or 1899-12-30T08:52:48.000Z ( Sheets epoch is Dec 30 1899 )
+            // Handle ISO date strings (like 1899-12-29T23:17:48.000Z)
             if (typeof timeStr === 'string' && (timeStr.includes('1899') || timeStr.includes('1900') || timeStr.includes('T'))) {
-                // Extract HH:mm:ss from ISO string using regex - most reliable method
-                const isoMatch = timeStr.match(/T(\d{2}):(\d{2}):(\d{2})/);
-                if (isoMatch) {
-                    return isoMatch[1] + ':' + isoMatch[2];
-                }
-                // Fallback: try Date object
                 try {
                     const d = new Date(timeStr);
                     if (!isNaN(d.getTime())) {
-                        // Use UTC methods since Sheets stores as UTC
-                        const h = String(d.getUTCHours()).padStart(2, '0');
-                        const m = String(d.getUTCMinutes()).padStart(2, '0');
+                        // Use local time methods (getHours/getMinutes) which automatically accounts for local timezone offsets!
+                        const h = String(d.getHours()).padStart(2, '0');
+                        const m = String(d.getMinutes()).padStart(2, '0');
                         return h + ':' + m;
                     }
                 } catch (e) { }
-                return '--:--';
             }
 
             // Handle numeric serial number from Google Sheets
-            // Sheets stores dates as serial numbers: days since Dec 30 1899
-            // Time-only values are stored as fractions (e.g. 0.5 = 12:00)
             if (typeof timeStr === 'number' || (typeof timeStr === 'string' && /^\d+\.?\d*$/.test(timeStr))) {
                 const num = parseFloat(timeStr);
                 if (!isNaN(num)) {
-                    // Get fractional part (time) and convert to HH:mm
                     const fraction = num - Math.floor(num);
-                    // Handle negative (dates before epoch) - take absolute for time
                     const absFraction = Math.abs(fraction);
                     const totalMinutes = Math.round(absFraction * 24 * 60);
                     const h = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
@@ -1008,14 +996,15 @@
             if (typeof timeStr === 'string') {
                 const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
                 if (timeMatch) {
-                    const h = String(parseInt(timeMatch[1], 10)).padStart(2, '0');
-                    return h + ':' + timeMatch[2];
+                    const h = String(timeMatch[1]).padStart(2, '0');
+                    const m = String(timeMatch[2]).padStart(2, '0');
+                    return h + ':' + m;
                 }
             }
 
             return '--:--';
         }
-
+        
         // ==================== API ====================
         async function apiCall(action, payload = {}) {
             const maxRetries = 2;
