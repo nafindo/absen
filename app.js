@@ -1847,8 +1847,8 @@
                     
                     // Sort by timestamp
                     chatMessages.sort((a, b) => {
-                        const ta = a.waktu ? new Date(a.waktu.replace('Terkirim', '').replace('Baru saja', new Date())) : new Date(0);
-                        const tb = b.waktu ? new Date(b.waktu.replace('Terkirim', '').replace('Baru saja', new Date())) : new Date(0);
+                        const ta = safeParseDate(a.waktu) || new Date(0);
+                        const tb = safeParseDate(b.waktu) || new Date(0);
                         return ta - tb;
                     });
                     
@@ -2037,27 +2037,111 @@
             return `hsl(${h}, 75%, 40%)`;
         }
 
-        function formatChatTime(dateStr) {
-            if (!dateStr || dateStr === 'Baru saja' || dateStr === 'Mengirim...') return dateStr;
-            try {
-                // Konversi format yyyy-mm-dd ke yyyy/mm/dd agar kompatibel di iOS/Safari
-                const safeDateStr = dateStr.replace(/-/g, '/');
-                const date = new Date(safeDateStr);
-                const today = new Date();
-                
-                const hours = String(date.getHours()).padStart(2, '0');
-                const minutes = String(date.getMinutes()).padStart(2, '0');
-                const time = `${hours}:${minutes}`;
-                
-                if (date.toDateString() === today.toDateString()) {
-                    return time;
-                }
-                
-                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-                return `${date.getDate()} ${months[date.getMonth()]} ${time}`;
-            } catch (e) {
-                return dateStr;
+        function safeParseDate(dateStr) {
+            if (!dateStr) return null;
+            if (dateStr instanceof Date) return dateStr;
+            if (dateStr === 'Mengirim...' || dateStr === 'Terkirim' || dateStr === 'Baru saja') {
+                return new Date();
             }
+            
+            let date = new Date(dateStr);
+            if (!isNaN(date.getTime())) return date;
+            
+            try {
+                // Cek format dd/mm/yyyy hh:mm:ss atau dd-mm-yyyy hh:mm:ss
+                const cleaned = dateStr.replace(/,/g, '').replace(/\./g, ':').trim();
+                const parts = cleaned.split(' ');
+                if (parts.length >= 1) {
+                    const datePart = parts[0];
+                    const timePart = parts[1] || '00:00:00';
+                    
+                    let day, month, year;
+                    if (datePart.includes('/')) {
+                        const dParts = datePart.split('/');
+                        day = parseInt(dParts[0], 10);
+                        month = parseInt(dParts[1], 10) - 1;
+                        year = parseInt(dParts[2], 10);
+                    } else if (datePart.includes('-')) {
+                        const dParts = datePart.split('-');
+                        if (dParts[0].length === 4) {
+                            year = parseInt(dParts[0], 10);
+                            month = parseInt(dParts[1], 10) - 1;
+                            day = parseInt(dParts[2], 10);
+                        } else {
+                            day = parseInt(dParts[0], 10);
+                            month = parseInt(dParts[1], 10) - 1;
+                            year = parseInt(dParts[2], 10);
+                        }
+                    }
+                    
+                    const tParts = timePart.split(':');
+                    const hours = parseInt(tParts[0] || 0, 10);
+                    const minutes = parseInt(tParts[1] || 0, 10);
+                    const seconds = parseInt(tParts[2] || 0, 10);
+                    
+                    if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                        const parsed = new Date(year, month, day, hours, minutes, seconds);
+                        if (!isNaN(parsed.getTime())) return parsed;
+                    }
+                }
+            } catch (e) {
+                console.warn('[DATE] Failed custom parsing:', dateStr, e);
+            }
+            
+            return null;
+        }
+
+        function formatChatTime(dateStr) {
+            if (!dateStr || dateStr === 'Mengirim...' || dateStr === 'Terkirim') {
+                return dateStr || 'Mengirim...';
+            }
+            if (dateStr === 'Baru saja') return 'Baru saja';
+            
+            const date = safeParseDate(dateStr);
+            if (!date || isNaN(date.getTime())) {
+                return dateStr; // Fallback aman daripada Nan:Nan
+            }
+            
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const timeStr = `${hours}:${minutes}`;
+            
+            // 1. Kurang dari 1 menit -> "Baru saja"
+            if (diffMins < 1) {
+                return 'Baru saja';
+            }
+            // 2. Kurang dari 60 menit -> "X mnt lalu"
+            if (diffMins < 60) {
+                return `${diffMins} mnt lalu`;
+            }
+            
+            const todayStr = now.toDateString();
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toDateString();
+            const dateStrDate = date.toDateString();
+            
+            // 3. Hari ini -> "Hari ini 14:30" (atau "X jam lalu" jika < 6 jam)
+            if (dateStrDate === todayStr) {
+                if (diffHours < 6) {
+                    return `${diffHours} jam lalu`;
+                }
+                return `Hari ini ${timeStr}`;
+            }
+            
+            // 4. Kemarin -> "Kemarin 14:30"
+            if (dateStrDate === yesterdayStr) {
+                return `Kemarin ${timeStr}`;
+            }
+            
+            // 5. Tanggal biasa -> "17 Mei, 14:30"
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            return `${date.getDate()} ${months[date.getMonth()]}, ${timeStr}`;
         }
 
         function renderChatEmpty() {
