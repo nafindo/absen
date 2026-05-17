@@ -2952,19 +2952,74 @@
                 return;
             }
             container.innerHTML = filtered.map(t => {
-                const priClass = (t.prioritas || 'low').toLowerCase();
+                const pri = (t.prioritas || 'Low').trim();
+                const priLower = pri.toLowerCase();
                 const isDone = t.status === 'Selesai';
-                return `<div class="tugas-card ${priClass}">
-      <div class="tugas-header">
-        <div class="tugas-judul">${escapeHtml(t.judul)}</div>
-        <div class="tugas-prioritas ${priClass}">${t.prioritas || 'Low'}</div>
-      </div>
-      <div class="tugas-deskripsi">${escapeHtml(t.deskripsi || '')}</div>
-      <div class="tugas-footer">
-        <div class="tugas-deadline">Deadline: ${t.deadline || '-'}</div>
-        ${!isDone ? `<button class="tugas-btn selesai" onclick="selesaikanTugas('${t.id}')">Selesai</button>` : '<span style="font-size:12px;color:var(--success);font-weight:800;">✓ Selesai</span>'}
-      </div>
-    </div>`;
+                
+                // Priority Tag formatting
+                let priLabel = '🟢 Biasa';
+                if (priLower === 'high' || priLower === 'penting' || priLower === 'tinggi') {
+                    priLabel = '🔴 Tinggi';
+                } else if (priLower === 'medium' || priLower === 'sedang') {
+                    priLabel = '🟡 Sedang';
+                }
+                
+                // Deadline HTML
+                let deadlineHtml = '';
+                if (t.deadline) {
+                    deadlineHtml = `
+                    <div style="display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary); font-weight: 700;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #64748b; flex-shrink:0;">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <span>Deadline: <b style="color: #475569;">${t.deadline}</b></span>
+                    </div>`;
+                } else {
+                    deadlineHtml = `
+                    <div style="display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary); font-weight: 600;">
+                        <span>Tanpa Deadline</span>
+                    </div>`;
+                }
+
+                const cardStyle = isDone 
+                    ? 'background: #f8fafc; border-left: 5px solid #10b981; opacity: 0.85;' 
+                    : `border-left: 5px solid ${priLower === 'high' ? '#ef4444' : priLower === 'medium' ? '#f59e0b' : '#10b981'};`;
+
+                return `
+                <div class="tugas-card" style="position: relative; background: var(--surface); border-radius: 16px; padding: 16px 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.03); margin-bottom: 12px; border: 1px solid #e2e8f0; ${cardStyle} transition: all 0.25s;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px;">
+                        <div style="font-size: 16px; font-weight: 800; color: #0f172a; line-height: 1.35; flex: 1;">${escapeHtml(t.judul)}</div>
+                        <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 8px; letter-spacing: 0.5px;
+                            background: ${priLower === 'high' ? '#fee2e2' : priLower === 'medium' ? '#fef3c7' : '#d1fae5'};
+                            color: ${priLower === 'high' ? '#b91c1c' : priLower === 'medium' ? '#b45309' : '#047857'}; flex-shrink: 0;">
+                            ${priLabel}
+                        </span>
+                    </div>
+                    <div style="font-size: 13.5px; line-height: 1.5; color: #475569; margin-bottom: 16px; font-weight: 500; white-space: pre-line;">${escapeHtml(t.deskripsi || '')}</div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #e2e8f0; padding-top: 12px; gap: 10px;">
+                        ${deadlineHtml}
+                        ${!isDone ? `
+                            <button class="tugas-btn selesai" onclick="selesaikanTugas('${t.id}')" 
+                                style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-size: 12.5px; font-weight: 800; padding: 8px 16px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.25); transition: all 0.2s;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="flex-shrink:0;">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Selesai
+                            </button>
+                        ` : `
+                            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #059669; font-weight: 800; background: #d1fae5; padding: 4px 10px; border-radius: 20px;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="flex-shrink:0;">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Selesai
+                            </span>
+                        `}
+                    </div>
+                </div>`;
             }).join('');
         }
 
@@ -2989,21 +3044,61 @@
         // ==================== BERITA ====================
         async function renderBeritaList() {
             const container = document.getElementById('beritaList');
-            container.innerHTML = '<div class="history-empty">Memuat berita...</div>';
+            container.innerHTML = '<div class="history-empty">Memuat info...</div>';
             try {
                 const res = await apiCall('getBeritaList', { limit: 10 });
                 if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-                    container.innerHTML = res.data.map(b => `
-        <div class="berita-card">
-          ${b.gambarUrl ? `<img src="${b.gambarUrl}" class="berita-img" alt="${escapeHtml(b.judul)}">` : ''}
-          <div class="berita-body">
-            <span class="berita-kategori" style="background:${getKategoriColor(b.kategori)};color:white;">${b.kategori || 'Umum'}</span>
-            <div class="berita-judul">${escapeHtml(b.judul)}</div>
-            <div class="berita-isi">${escapeHtml(b.isi)}</div>
-            <div class="berita-tgl">${b.tglPublish || ''}</div>
-          </div>
-        </div>
-      `).join('');
+                    container.innerHTML = res.data.map(b => {
+                        const kat = b.kategori || 'Umum';
+                        let badgeBg = 'linear-gradient(135deg, #8492a6, #64748b)';
+                        let badgeColor = 'white';
+                        
+                        if (kat === 'Penting') {
+                            badgeBg = 'linear-gradient(135deg, #ff6b6b, #ef4444)';
+                        } else if (kat === 'Info') {
+                            badgeBg = 'linear-gradient(135deg, #0d8abc, #0a6b8e)';
+                        } else if (kat === 'Event') {
+                            badgeBg = 'linear-gradient(135deg, #34c759, #10b981)';
+                        } else if (kat === 'Promo') {
+                            badgeBg = 'linear-gradient(135deg, #ff9500, #f59e0b)';
+                        }
+
+                        // Parse and format date beautifully
+                        let tglPublishHtml = '';
+                        if (b.tglPublish) {
+                            tglPublishHtml = `
+                            <div style="display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: #8b95a5; font-weight: 700; margin-top: 12px;">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color: #a0aec0; flex-shrink: 0;">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
+                                <span>Diterbitkan: ${b.tglPublish}</span>
+                            </div>`;
+                        }
+
+                        return `
+                        <div class="berita-card" style="background: var(--surface); border-radius: 20px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.03); margin-bottom: 16px; border: 1px solid #e2e8f0; transition: transform 0.2s, box-shadow 0.2s;">
+                            ${b.gambarUrl ? `
+                                <div style="position: relative; width: 100%; height: 170px; overflow: hidden; background: #f1f5f9;">
+                                    <img src="${b.gambarUrl}" class="berita-img" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;" alt="${escapeHtml(b.judul)}">
+                                    <div style="position: absolute; bottom: 12px; left: 16px;">
+                                        <span class="berita-kategori" style="background: ${badgeBg}; color: ${badgeColor}; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.5px;">${kat}</span>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div style="padding: 16px 20px 0 20px;">
+                                    <span class="berita-kategori" style="background: ${badgeBg}; color: ${badgeColor}; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">${kat}</span>
+                                </div>
+                            `}
+                            
+                            <div class="berita-body" style="padding: 16px 20px 20px;">
+                                <div class="berita-judul" style="font-size: 17px; font-weight: 800; color: #0f172a; line-height: 1.35; margin-bottom: 8px;">${escapeHtml(b.judul)}</div>
+                                <div class="berita-isi" style="font-size: 13.5px; line-height: 1.55; color: #475569; font-weight: 500; white-space: pre-line; word-break: break-word;">${escapeHtml(b.isi)}</div>
+                                ${tglPublishHtml}
+                            </div>
+                        </div>`;
+                    }).join('');
+                    
                     // Update badge
                     const badge = document.getElementById('badgeBerita');
                     if (badge) {
@@ -3011,10 +3106,10 @@
                         badge.classList.remove('hidden');
                     }
                 } else {
-                    container.innerHTML = '<div class="history-empty">Belum ada berita</div>';
+                    container.innerHTML = '<div class="history-empty">Belum ada info</div>';
                 }
             } catch (e) {
-                container.innerHTML = '<div class="history-empty">Gagal memuat berita</div>';
+                container.innerHTML = '<div class="history-empty">Gagal memuat info</div>';
             }
         }
 
