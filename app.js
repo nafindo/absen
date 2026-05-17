@@ -1154,13 +1154,65 @@
                 const isUnread = n.status !== 'Pending' && !readIds.includes(String(n.id));
                 const unreadClass = isUnread ? 'unread-glowing' : '';
                 return `
-    <div class="notif-item ${n.status === 'Approved' ? 'approved' : n.status === 'Rejected' ? 'rejected' : ''} ${unreadClass}">
+    <div class="notif-item ${n.status === 'Approved' ? 'approved' : n.status === 'Rejected' ? 'rejected' : ''} ${unreadClass}" onclick="showNotifDetail('${n.id}', '${n.tipe}', '${n.status}', '${n.tanggal}', '${n.approvedAt || ''}')">
       <div class="notif-item-title">${n.tipe === 'lembur' ? 'Lembur' : 'Izin/Cuti'} ${isUnread ? '<span class="unread-dot">●</span>' : ''}</div>
       <div class="notif-item-text">Pengajuan tanggal ${n.tanggal} telah <strong>${n.status === 'Approved' ? 'disetujui' : n.status === 'Rejected' ? 'ditolak' : 'diproses'}</strong></div>
       <div class="notif-item-date">${n.approvedAt || n.tanggal}</div>
     </div>
   `;
             }).join('');
+        }
+
+        function showNotifDetail(id, tipe, status, tanggal, approvedAt) {
+            closeNotifBubble({ stopPropagation: () => {} }); // Tutup gelembung lonceng agar tidak bertumpuk
+            
+            let tipePico = 'sukses';
+            let title = '';
+            let detail = '';
+            
+            if (tipe === 'lembur') {
+                if (status === 'Approved') {
+                    tipePico = 'sukses';
+                    title = 'Lembur Disetujui! 🎉🔥';
+                    detail = `Pengajuan lembur Anda pada tanggal <b>${tanggal}</b> telah disetujui oleh Bos!<br><br>` +
+                             `PICO sangat bangga padamu! Tetap jaga kesehatan saat lembur ya. Semangat kerja keras bagai api berkobar! 💪🐧`;
+                } else if (status === 'Rejected') {
+                    tipePico = 'error';
+                    title = 'Lembur Belum Disetujui 💔';
+                    detail = `Pengajuan lembur Anda pada tanggal <b>${tanggal}</b> belum disetujui oleh Bos.<br><br>` +
+                             `Jangan berkecil hati ya! Tetap semangat bekerja jujur, Pico selalu mendukungmu di setiap langkah! 🐧✨`;
+                } else {
+                    tipePico = 'lembur_pending';
+                    title = 'Lembur Sedang Diproses ⏳';
+                    detail = `Pengajuan lembur Anda pada tanggal <b>${tanggal}</b> sedang menunggu persetujuan.<br><br>` +
+                             `Pico sedang memantau persetujuan dari Bos untukmu. Sabar menunggu ya! 🐧🔍`;
+                }
+            } else {
+                // Izin / Cuti
+                if (status === 'Approved') {
+                    tipePico = 'izin_cuti';
+                    title = 'Izin/Cuti Disetujui! 🌴🏖️';
+                    detail = `Pengajuan izin/cuti Anda pada tanggal <b>${tanggal}</b> telah disetujui Admin.<br><br>` +
+                             `Hore! Selamat beristirahat, luangkan waktu dengan keluarga, atau pulihkan kesehatanmu ya. Pico mendoakan yang terbaik! 🐧💚`;
+                } else if (status === 'Rejected') {
+                    tipePico = 'error';
+                    title = 'Izin/Cuti Ditolak ❌';
+                    detail = `Pengajuan izin/cuti Anda pada tanggal <b>${tanggal}</b> ditolak oleh Admin.<br><br>` +
+                             `Silakan konfirmasi langsung ke bagian Admin/HRD untuk penjelasan lebih lanjut ya. Tetap semangat! 🙏🐧`;
+                } else {
+                    tipePico = 'izin_sakit';
+                    title = 'Izin Sedang Diproses ⏳';
+                    detail = `Pengajuan izin/cuti Anda pada tanggal <b>${tanggal}</b> sedang diproses oleh Admin.<br><br>` +
+                             `Tunggu sebentar ya, Pico akan segera memberi tahu Anda jika statusnya sudah diperbarui! 🐧⏱️`;
+                }
+            }
+            
+            const pesanHtml = `<div style="text-align:center;">` +
+                              `<h3 style="margin-top:0;color:${tipePico === 'error' ? '#C62828' : '#0D8ABC'};font-size:18px;font-weight:800;">${title}</h3>` +
+                              `<p style="font-size:14px;line-height:1.5;color:#475569;margin-top:10px;">${detail}</p>` +
+                              `</div>`;
+                              
+            tampilPicoModal(tipePico, pesanHtml);
         }
 
         function toggleNotifBubble(e) { 
