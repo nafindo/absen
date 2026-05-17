@@ -1152,6 +1152,15 @@
 
         // ==================== MODAL UTILS ====================
         function openModal(id) {
+            if (id === 'modalLembur') {
+                if (state.lemburStatus === 'Pending') {
+                    tampilPicoModal('lembur_pending', '<b>Lembur Menunggu Approval ⏳</b><br>Pengajuan lembur Anda hari ini sedang diproses. Sabar ya, Pico sedang memantau persetujuan dari Bos! 🐧');
+                    return;
+                } else if (state.lemburStatus === 'Approved') {
+                    tampilPicoModal('sukses', '<b>Lembur Telah Disetujui! 🔥</b><br>Selamat! Pengajuan lembur Anda hari ini telah disetujui Bos. Selamat bekerja lembur, tetap semangat & jaga kesehatan! 💪🔥');
+                    return;
+                }
+            }
             document.getElementById(id).classList.add('active');
             document.body.style.overflow = 'hidden';
             if (id === 'modalJadwal') renderJadwal();
