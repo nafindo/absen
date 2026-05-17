@@ -9,7 +9,7 @@
     <meta name="theme-color" content="#0D8ABC">
     <title>Absensi Karyawan</title>
     <style>
-        :root {
+:root {
             --primary: #0D8ABC;
             --primary-dark: #0A6B8E;
             --primary-light: #E3F2FD;
@@ -471,6 +471,30 @@
             font-weight: 500;
         }
 
+        .unread-glowing {
+            box-shadow: 0 0 8px rgba(13, 138, 188, 0.12);
+            animation: unreadPulse 2s infinite alternate;
+            position: relative;
+        }
+
+        .unread-dot {
+            color: #0D8ABC;
+            font-size: 10px;
+            margin-left: 6px;
+            vertical-align: middle;
+            animation: blinkUnread 1s infinite alternate;
+        }
+
+        @keyframes unreadPulse {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.01); }
+        }
+
+        @keyframes blinkUnread {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
         /* ===== TAB CONTENT ===== */
         .tab-content {
             display: none;
@@ -548,6 +572,14 @@
 
         .status-line .ok {
             color: var(--success);
+        }
+
+        #statusMasuk.ok {
+            color: var(--success);
+        }
+
+        #statusPulang.ok {
+            color: #F97316; /* Jingga/Orange Kontras untuk Pulang */
         }
 
         .status-line .pending {
@@ -942,6 +974,14 @@
             transform: none;
         }
 
+        button#btnLembur:disabled {
+            background: #F1F5F9 !important;
+            color: #94A3B8 !important;
+            border: 2px solid #E2E8F0 !important;
+            box-shadow: none !important;
+            opacity: 1 !important;
+        }
+
         .btn-success {
             background: linear-gradient(135deg, var(--success), var(--success-dark));
             color: white;
@@ -1185,27 +1225,39 @@
 
         /* ===== IZIN MODAL ===== */
         .izin-chips {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
             gap: 10px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
         .izin-chip {
-            padding: 10px 18px;
-            border-radius: 24px;
-            border: 2px solid #E8ECF1;
-            background: white;
-            font-size: 14px;
+            padding: 12px 6px;
+            border-radius: 16px;
+            border: 2px solid rgba(226, 232, 240, 0.8);
+            background: #F8FAFC;
+            font-size: 13.5px;
             cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 700;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 800;
+            text-align: center;
+            color: #475569;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            user-select: none;
+        }
+
+        .izin-chip:hover {
+            background: #F1F5F9;
+            border-color: #CBD5E1;
+            color: #1E293B;
         }
 
         .izin-chip.active {
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary) 0%, #0369a1 100%);
             color: white;
-            border-color: var(--primary);
+            border-color: transparent;
+            box-shadow: 0 4px 12px rgba(13, 138, 188, 0.3);
+            transform: translateY(-2px);
         }
 
         .izin-chip:active {
@@ -1887,26 +1939,386 @@
         .gap-2 {
             gap: 8px;
         }
-    </style>
+
+        /* ==================== OVERTIME GLOW AURA ==================== */
+        @keyframes overtimeFlame {
+            0% {
+                box-shadow: inset 0 0 15px #FF3D00, 0 0 10px #FF9100;
+                border-color: #FF3D00;
+            }
+            50% {
+                box-shadow: inset 0 0 35px #FF3D00, 0 0 25px #FF9100;
+                border-color: #FF9100;
+            }
+            100% {
+                box-shadow: inset 0 0 15px #FF3D00, 0 0 10px #FF9100;
+                border-color: #FF3D00;
+            }
+        }
+
+        .overtime-screen-glow {
+            position: fixed;
+            inset: 0;
+            border: 4px solid transparent;
+            pointer-events: none;
+            z-index: 999999;
+            border-radius: 0;
+            transition: all 0.5s ease;
+            display: none;
+        }
+
+        .overtime-glow-active .overtime-screen-glow {
+            display: block;
+            animation: overtimeFlame 2.5s infinite alternate;
+        }
+
+        /* ==================== BUTTON FLAME OVERLAY ==================== */
+        .overtime-glow-active #menuLembur {
+            animation: buttonFlame 1.5s infinite alternate;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #FF3D00 !important;
+            box-shadow: 0 0 15px rgba(255, 61, 0, 0.5) !important;
+        }
+
+        .overtime-glow-active #menuLembur::before {
+            content: '🔥';
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 14px;
+            animation: fireFloat 1.2s infinite ease-in-out;
+        }
+
+        .overtime-glow-active #btnLembur {
+            animation: buttonFlame 1.5s infinite alternate;
+            background: linear-gradient(135deg, #FF3D00, #FF9100) !important;
+            border-color: #FF3D00 !important;
+            box-shadow: 0 0 20px rgba(255, 61, 0, 0.6) !important;
+        }
+
+        @keyframes buttonFlame {
+            0% {
+                box-shadow: 0 0 8px #FF3D00;
+            }
+            100% {
+                box-shadow: 0 0 20px #FF9100, 0 0 10px rgba(255, 61, 0, 0.4);
+            }
+        }
+
+        @keyframes fireFloat {
+            0% { transform: translateY(0) scale(0.9); opacity: 0.8; }
+            50% { transform: translateY(-3px) scale(1.1); opacity: 1; }
+            100% { transform: translateY(0) scale(0.9); opacity: 0.8; }
+        }
+
+        /* ==================== STUNNING SWAP INTERFACE ==================== */
+        .swap-layout {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 16px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .swap-layout {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            .swap-direction-indicator {
+                transform: rotate(90deg);
+                margin: 6px auto;
+            }
+        }
+
+        .swap-card {
+            background: linear-gradient(145deg, #ffffff, #f8fafc);
+            border: 2px dashed #cbd5e1;
+            border-radius: 20px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .swap-card.active-schedule {
+            border: 2px solid #3b82f6;
+            background: linear-gradient(145deg, #ffffff, #eff6ff);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.1);
+        }
+
+        .swap-card.active-schedule.target {
+            border-color: #f97316;
+            background: linear-gradient(145deg, #ffffff, #fff7ed);
+            box-shadow: 0 10px 25px rgba(249, 115, 22, 0.1);
+        }
+
+        .swap-card-glow {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(255,255,255,0) 70%);
+            top: -50px;
+            left: -50px;
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+        
+        .swap-card.target .swap-card-glow {
+            background: radial-gradient(circle, rgba(249,115,22,0.1) 0%, rgba(255,255,255,0) 70%);
+        }
+
+        .swap-badge {
+            background: rgba(59, 130, 246, 0.12);
+            color: #3b82f6;
+            padding: 4px 12px;
+            border-radius: 100px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+
+        .swap-avatar-area {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .swap-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 900;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+        }
+
+        .swap-avatar-img {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .swap-name {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--text);
+            margin-bottom: 2px;
+            text-align: center;
+        }
+
+        .swap-role {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .swap-divider-line {
+            width: 100%;
+            border: none;
+            height: 1.5px;
+            background: #cbd5e1;
+            margin: 10px 0;
+            opacity: 0.5;
+        }
+
+        .swap-label {
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .swap-input {
+            width: 100%;
+            background: #f1f5f9;
+            border: 1.5px solid transparent;
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .swap-input:focus {
+            background: white;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .schedule-box {
+            width: 100%;
+            border-radius: 14px;
+            padding: 12px 14px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+            min-height: 85px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .swap-card.active-schedule .schedule-box {
+            background: white;
+            border-color: rgba(59, 130, 246, 0.15);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.05);
+        }
+
+        .swap-card.active-schedule.target .schedule-box {
+            border-color: rgba(249, 115, 22, 0.15);
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.05);
+        }
+
+        .schedule-placeholder {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-align: center;
+            font-style: italic;
+        }
+
+        .schedule-active-info {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            animation: scheduleFadeIn 0.3s ease;
+        }
+
+        @keyframes scheduleFadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .schedule-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .schedule-icon-wrapper {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .schedule-libur {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--danger);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .swap-direction-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .swap-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12 rgba(59, 130, 246, 0.4);
+            animation: swapIconPulse 2s infinite alternate;
+            transition: all 0.3s ease;
+        }
+
+        .swap-circle:hover {
+            transform: scale(1.1) rotate(180deg);
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        }
+
+        @keyframes swapIconPulse {
+            0% { box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); transform: scale(1); }
+            100% { box-shadow: 0 4px 20px rgba(59, 130, 246, 0.6); transform: scale(1.05); }
+        }
+
+        .btn-premium-swap {
+            width: 100%;
+            border-radius: 16px;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border: none;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .btn-premium-swap:hover {
+            background: linear-gradient(135deg, #2563eb, #111827);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+        }
+</style>
     <base target="_blank">
     <base target="_blank">
     <base target="_blank">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="logo.png">
 </head>
 
 <body>
 
+    <!-- Overtime Viewport Glow Aura -->
+    <div class="overtime-screen-glow"></div>
+
+    <!-- ===== SPLASH LOADING SCREEN ===== -->
+    <div id="splashScreen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg, #0F172A 0%, #1E293B 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;transition:opacity 0.4s ease, visibility 0.4s ease;">
+        <div style="margin-bottom:24px;text-align:center;display:flex;flex-direction:column;align-items:center;">
+            <img src="logo.png" alt="Logo" style="width:96px;height:96px;border-radius:24px;margin-bottom:16px;box-shadow:0 8px 24px rgba(13,138,188,0.3);border:2px solid rgba(255,255,255,0.1);">
+            <h1 style="color:#FFFFFF;font-size:32px;font-weight:900;margin:0;letter-spacing:1px;background:linear-gradient(45deg, #0D8ABC, #10B981);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 2px 10px rgba(13,138,188,0.15);">Absensi Pro</h1>
+            <p style="color:#94A3B8;font-size:11px;margin-top:6px;font-weight:600;letter-spacing:3px;text-transform:uppercase;opacity:0.8;">Attendance System</p>
+        </div>
+        <div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.08);border-left-color:#0D8ABC;border-top-color:#10B981;border-radius:50%;animation:spinSplash 0.9s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite;"></div>
+    </div>
+    <style>
+        @keyframes spinSplash { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+
     <!-- ===== LOGIN SCREEN ===== -->
     <div class="login-screen" id="loginScreen">
         <div class="login-logo-wrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-            </svg>
+            <img src="logo.png" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:26px;">
         </div>
-        <div class="login-app-name">Absensi Karyawan</div>
+        <div class="login-app-name">Absensi Pro</div>
         <div class="login-app-sub">Pilih nama Anda untuk masuk</div>
         <div class="login-card">
             <div class="login-error" id="loginError"></div>
@@ -2005,17 +2417,17 @@
                         </div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number" id="statAlpa" style="color:var(--text);">0</div>
+                        <div class="stat-number" id="statAlpa" style="color:var(--danger);">0</div>
                         <div class="stat-label">Alpa</div>
                         <div class="stat-bar">
-                            <div class="stat-bar-fill" id="barAlpa" style="width:0%;background:var(--text);"></div>
+                            <div class="stat-bar-fill" id="barAlpa" style="width:0%;background:var(--danger);"></div>
                         </div>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-number" id="statTelat" style="color:var(--danger);">0</div>
+                        <div class="stat-number" id="statTelat" style="color:#F97316;">0</div>
                         <div class="stat-label">Terlambat</div>
                         <div class="stat-bar">
-                            <div class="stat-bar-fill" id="barTelat" style="width:0%;background:var(--danger);"></div>
+                            <div class="stat-bar-fill" id="barTelat" style="width:0%;background:#F97316;"></div>
                         </div>
                     </div>
                 </div>
@@ -2037,7 +2449,7 @@
                     </div>
                     <div class="menu-label">Izin</div>
                 </button>
-                <button class="menu-item" onclick="openModal('modalLembur')">
+                <button class="menu-item" id="menuLembur" onclick="openModal('modalLembur')">
                     <div class="menu-icon" style="background:#FFF3E0;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="#FF9500" stroke-width="2" stroke-linecap="round"
                             stroke-linejoin="round">
@@ -2494,72 +2906,94 @@
                     <h2>Tukar Shift</h2><button class="modal-close"
                         onclick="closeModal('modalTukerShift')">&#10005;</button>
                 </div>
-                <div class="modal-body">
-                    <div
-                        style="font-size:14px;font-weight:800;color:var(--text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">
-                        Toko & Karyawan</div>
-                    <!-- Toko Section -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Toko Saya</label>
-                            <select class="form-select" id="tukerTokoSaya" onchange="onTukerTokoSayaChange()">
-                                <option value="">Pilih Toko...</option>
-                            </select>
+                <div class="modal-body" style="padding: 16px 20px 24px;">
+                    <!-- TWO CARD SWAP INTERFACE -->
+                    <div class="swap-layout">
+                        <!-- CARD ASAL (PENGANJUR / SAYA) -->
+                        <div class="swap-card origin" id="sayaSwapCard">
+                            <div class="swap-card-glow"></div>
+                            <div class="swap-badge">SAYA (PENGANJUR)</div>
+                            <div class="swap-avatar-area">
+                                <div class="swap-avatar" id="tukerSayaAvatarText">-</div>
+                                <img class="swap-avatar-img" id="tukerSayaAvatarImg" style="display:none;" />
+                            </div>
+                            <div class="swap-name" id="tukerSayaNama">Nama Saya</div>
+                            <div class="swap-role" id="tukerSayaRole">Jabatan</div>
+                            
+                            <hr class="swap-divider-line">
+                            
+                            <div class="form-group" style="margin-top: 10px; margin-bottom: 12px; width: 100%;">
+                                <label class="swap-label">PILIH TANGGAL SAYA</label>
+                                <input type="date" class="swap-input" id="tukerTanggalSaya" onchange="detectSayaSchedule()">
+                            </div>
+                            
+                            <!-- DETECTED SCHEDULE INFO -->
+                            <div class="schedule-box" id="sayaScheduleBox">
+                                <div class="schedule-placeholder">Pilih tanggal...</div>
+                            </div>
+                            
+                            <!-- Hidden inputs to hold values for submission -->
+                            <input type="hidden" id="tukerTokoSaya" value="">
+                            <input type="hidden" id="tukerShiftSaya" value="">
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Toko Tujuan</label>
-                            <select class="form-select" id="tukerTokoTujuan" onchange="onTukerTokoTujuanChange()">
-                                <option value="">Pilih Toko...</option>
-                            </select>
+                        
+                        <!-- SWAP ANIMATED DIVIDER -->
+                        <div class="swap-direction-indicator">
+                            <div class="swap-circle">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="17 1 21 5 17 9"></polyline>
+                                    <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                                    <polyline points="7 23 3 19 7 15"></polyline>
+                                    <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        
+                        <!-- CARD TUJUAN (REKAN KERJA / PENERIMA) -->
+                        <div class="swap-card target" id="tujuanSwapCard">
+                            <div class="swap-card-glow"></div>
+                            <div class="swap-badge" style="background: rgba(249, 115, 22, 0.15); color: #f97316;">REKAN TUJUAN</div>
+                            
+                            <div class="form-group" style="margin-bottom: 12px; width: 100%;">
+                                <label class="swap-label">REKAN KERJA</label>
+                                <select class="swap-input" id="tukerKaryawan" onchange="onColleagueSelectChange()">
+                                    <option value="">Pilih Rekan...</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group" style="margin-bottom: 12px; width: 100%;">
+                                <label class="swap-label">TANGGAL SHIFT REKAN</label>
+                                <input type="date" class="swap-input" id="tukerTanggalTujuan" onchange="detectColleagueSchedule()">
+                            </div>
+                            
+                            <hr class="swap-divider-line">
+                            
+                            <!-- DETECTED SCHEDULE INFO -->
+                            <div class="schedule-box" id="tujuanScheduleBox">
+                                <div class="schedule-placeholder">Pilih rekan & tanggal...</div>
+                            </div>
+                            
+                            <!-- Hidden inputs to hold values for submission -->
+                            <input type="hidden" id="tukerTokoTujuan" value="">
+                            <input type="hidden" id="tukerShiftTujuan" value="">
                         </div>
                     </div>
-                    <!-- Karyawan -->
-                    <div class="form-group" style="margin-bottom:14px;">
-                        <label class="form-label">Karyawan Tujuan</label>
-                        <select class="form-select" id="tukerKaryawan">
-                            <option value="">Pilih Karyawan...</option>
-                        </select>
+                    
+                    <!-- REASON FOR SWAP -->
+                    <div class="form-group" style="margin-top: 20px; margin-bottom: 20px;">
+                        <label class="form-label" style="font-weight: 800; font-size: 13px; color: var(--text-secondary); letter-spacing: 0.5px;">ALASAN TUKAR SHIFT</label>
+                        <textarea class="form-input" id="tukerAlasan" rows="2" style="background: var(--card-bg); border: 1.5px solid var(--border); border-radius: 12px; padding: 12px; font-size: 14px;" placeholder="Tulis alasan mengapa ingin tukar shift..."></textarea>
                     </div>
-
-                    <div
-                        style="font-size:14px;font-weight:800;color:var(--text-secondary);margin:16px 0 10px;text-transform:uppercase;letter-spacing:0.5px;">
-                        Shift</div>
-                    <!-- Shift Section -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Shift Saya</label>
-                            <select class="form-select" id="tukerShiftSaya">
-                                <option value="">Pilih...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Shift Tujuan</label>
-                            <select class="form-select" id="tukerShiftTujuan">
-                                <option value="">Pilih...</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div
-                        style="font-size:14px;font-weight:800;color:var(--text-secondary);margin:16px 0 10px;text-transform:uppercase;letter-spacing:0.5px;">
-                        Detail</div>
-                    <div class="form-group" style="margin-bottom:14px;">
-                        <label class="form-label">Tanggal</label>
-                        <input type="date" class="form-select" id="tukerTanggal">
-                    </div>
-                    <div class="form-group" style="margin-bottom:14px;">
-                        <label class="form-label">Alasan</label>
-                        <textarea class="form-input" id="tukerAlasan" rows="2"
-                            placeholder="Alasan tukar shift..."></textarea>
-                    </div>
-                    <button class="btn btn-primary" onclick="submitTukerShift()">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+                    
+                    <!-- ACTION BUTTON -->
+                    <button class="btn btn-primary btn-premium-swap" onclick="submitTukerShift()" id="btnAjukanTuker">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" style="margin-right: 8px;">
                             <path d="M17 1l4 4-4 4"></path>
                             <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
                             <path d="M7 23l-4-4 4-4"></path>
                             <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
                         </svg>
-                        Ajukan Tukar Shift
+                        AJUKAN TUKAR SHIFT
                     </button>
                 </div>
             </div>
@@ -2617,17 +3051,9 @@
                     <button class="btn btn-primary" style="width:auto;padding:10px 14px;font-size:14px;min-height:40px;"
                         onclick="navJadwal(1)">Depan &#9654;</button>
                 </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Hari</th>
-                            <th>Toko</th>
-                            <th>Shift</th>
-                            <th>Jam</th>
-                        </tr>
-                    </thead>
-                    <tbody id="jadwalTbody"></tbody>
-                </table>
+                <div id="jadwalContainer" style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px; max-height: 60vh; overflow-y: auto; padding: 4px;">
+                    <!-- Beautiful modern calendar-like card items will be generated here dynamically -->
+                </div>
             </div>
         </div>
     </div>
@@ -2710,46 +3136,66 @@
 
     <!-- Modal Izin -->
     <div class="modal-overlay" id="modalIzin" onclick="closeModalOnOverlay(event, 'modalIzin')">
-        <div class="modal-sheet">
-            <div class="modal-header">
-                <h2>Ajukan Izin / Cuti</h2><button class="modal-close"
-                    onclick="closeModal('modalIzin')">&#10005;</button>
+        <div class="modal-sheet" style="max-width: 500px; border-radius: 28px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.8);">
+            <div class="modal-header" style="padding: 24px 24px 20px 24px; border-bottom: none;">
+                <h2 style="font-size: 22px; font-weight: 800; color: #1E293B; letter-spacing: -0.5px;">Ajukan Izin / Cuti</h2>
+                <button class="modal-close" onclick="closeModal('modalIzin')" style="background: #F1F5F9; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">&#10005;</button>
             </div>
-            <div class="modal-body">
-                <div
-                    style="font-size:14px;font-weight:800;color:var(--text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">
-                    Pilih Jenis</div>
-                <div class="izin-chips">
+            <div class="modal-body" style="padding: 0 24px 24px 24px;">
+                <div style="font-size: 11px; font-weight: 800; color: #94A3B8; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1.5px;">Pilih Kategori</div>
+                <div class="izin-chips" id="izinChipsContainer" style="margin-bottom: 20px;">
                     <div class="izin-chip active" onclick="selectIzin(this, 'sakit')">Sakit</div>
                     <div class="izin-chip" onclick="selectIzin(this, 'izin')">Izin</div>
                     <div class="izin-chip" onclick="selectIzin(this, 'cuti')">Cuti</div>
                     <div class="izin-chip" onclick="selectIzin(this, 'nikah')">Nikah</div>
                     <div class="izin-chip" onclick="selectIzin(this, 'melahirkan')">Melahirkan</div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group"><label class="form-label">Mulai</label><input type="date"
-                            class="form-select" id="izinTglMulai"></div>
-                    <div class="form-group"><label class="form-label">Selesai</label><input type="date"
-                            class="form-select" id="izinTglSelesai"></div>
+                
+                <div class="date-row" style="display: flex; gap: 14px; margin-bottom: 18px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px;">Mulai Tanggal</label>
+                        <input type="date" class="form-select" id="izinTglMulai" style="margin-bottom: 0; border-radius: 16px; height: 48px; border: 2px solid #E2E8F0; padding: 0 16px; font-size: 15px; font-weight: 600;">
+                    </div>
+                    <div class="form-group" id="groupIzinTglSelesai" style="flex: 1; margin-bottom: 0; display: none;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px;">Selesai Tanggal</label>
+                        <input type="date" class="form-select" id="izinTglSelesai" style="margin-bottom: 0; border-radius: 16px; height: 48px; border: 2px solid #E2E8F0; padding: 0 16px; font-size: 15px; font-weight: 600;">
+                    </div>
                 </div>
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label class="form-label">Alasan</label>
-                    <textarea class="form-input" id="izinAlasan" rows="3" placeholder="Tulis alasan..."></textarea>
+
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px;">Alasan / Keterangan</label>
+                    <textarea class="form-input" id="izinAlasan" rows="3" placeholder="Tulis alasan pengajuan secara lengkap..." style="border-radius: 16px; border: 2px solid #E2E8F0; padding: 14px 16px; font-size: 15px; min-height: 80px; font-weight: 500;"></textarea>
                 </div>
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label class="form-label">Lampiran (Opsional)</label>
-                    <input type="file" class="form-select" id="izinLampiran" accept="image/*,.pdf">
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px;">Lampiran Dokumen / Foto Bukti</label>
+                    <div class="file-upload-wrapper" style="position: relative; width: 100%;">
+                        <input type="file" id="izinLampiran" accept="image/*,.pdf" style="display: none;" onchange="updateFileName(this)">
+                        <div class="file-upload-btn" onclick="document.getElementById('izinLampiran').click()" style="display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 14px 16px; border: 2px dashed #CBD5E1; border-radius: 16px; background: #F8FAFC; color: #64748B; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.25s ease;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transition: transform 0.2s ease;">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <span id="izinLampiranLabel">Pilih file surat dokter / bukti foto</span>
+                        </div>
+                    </div>
+                    <div id="izinLampiranPreviewContainer" style="display: none; margin-top: 16px; position: relative; border-radius: 16px; overflow: hidden; border: 2px solid #E2E8F0; width: 100%; aspect-ratio: 16/9; max-height: 260px; background: #F8FAFC; box-shadow: inset 0 2px 8px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03);">
+                        <img id="izinLampiranPreview" src="" style="width: 100%; height: 100%; object-fit: contain; display: block; margin: 0 auto;">
+                        <button type="button" onclick="resetIzinLampiran(event)" style="position: absolute; top: 10px; right: 10px; background: rgba(15, 23, 42, 0.75); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; backdrop-filter: blur(4px); transition: all 0.2s; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">&#10005;</button>
+                    </div>
                 </div>
-                <div style="background:#FFF8E1;padding:14px 16px;border-radius:12px;font-size:14px;color:#F57F17;margin-bottom:16px;font-weight:600;"
-                    id="kuotaInfo">
+
+                <div style="background: linear-gradient(135deg, #FFFDEB 0%, #FFF8E1 100%); padding: 14px 18px; border-radius: 16px; border: 1.5px dashed #FFE082; font-size: 13px; color: #B78103; margin-bottom: 20px; display: none; align-items: center; gap: 10px; box-shadow: inset 0 1px 3px rgba(251,192,45,0.05); font-weight: 700;" id="kuotaInfo">
                     Sisa kuota: Cuti Tahunan <strong>-</strong>
                 </div>
-                <button class="btn btn-primary" onclick="submitIzin()">
+
+                <button class="btn btn-primary" onclick="submitIzin()" style="width: 100%; height: 50px; border-radius: 16px; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(13, 138, 188, 0.2); transition: all 0.25s;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
                         <line x1="12" y1="19" x2="12" y2="5"></line>
                         <polyline points="5 12 12 5 19 12"></polyline>
                     </svg>
-                    Ajukan Izin
+                    Kirim Pengajuan
                 </button>
             </div>
         </div>
@@ -2757,64 +3203,56 @@
 
     <!-- Modal Lembur -->
     <div class="modal-overlay" id="modalLembur" onclick="closeModalOnOverlay(event, 'modalLembur')">
-        <div class="modal-sheet">
-            <div class="modal-header">
-                <h2>Pengajuan Lembur</h2><button class="modal-close"
-                    onclick="closeModal('modalLembur')">&#10005;</button>
+        <div class="modal-sheet" style="max-width: 500px; border-radius: 28px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.8);">
+            <div class="modal-header" style="padding: 24px 24px 20px 24px; border-bottom: none;">
+                <h2 style="font-size: 22px; font-weight: 800; color: #1E293B; letter-spacing: -0.5px;">Pengajuan Lembur</h2>
+                <button class="modal-close" onclick="closeModal('modalLembur')" style="background: #F1F5F9; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">&#10005;</button>
             </div>
-            <div class="modal-body">
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label class="form-label">Toko Lembur</label>
-                    <select class="form-select" id="lemburToko"></select>
+            <div class="modal-body" style="padding: 0 24px 24px 24px;">
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px;">Toko Lembur</label>
+                    <select class="form-select" id="lemburToko" style="border-radius: 16px; height: 48px; border: 2px solid #E2E8F0; padding: 0 16px; font-size: 15px; font-weight: 600; width: 100%;"></select>
                 </div>
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label class="form-label">Alasan</label>
-                    <select class="form-select" id="lemburAlasanType" onchange="toggleLemburAlasan()">
-                        <option value="event">Event / Promo</option>
-                        <option value="stok">Stok Masuk</option>
-                        <option value="bersih">Bersih-bersih</option>
-                        <option value="lainnya">Lainnya...</option>
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px;">Keterangan Lembur</label>
+                    <select class="form-select" id="lemburKeteranganType" onchange="toggleLemburKeterangan()" style="border-radius: 16px; height: 48px; border: 2px solid #E2E8F0; padding: 0 16px; font-size: 15px; font-weight: 600; width: 100%;">
+                        <option value="Event / Promo">Event / Promo</option>
+                        <option value="Stok Masuk">Stok Masuk</option>
+                        <option value="Bersih-bersih">Bersih-bersih</option>
+                        <option value="Stock Opname">Stock Opname</option>
+                        <option value="Lainnya">Lainnya...</option>
                     </select>
                 </div>
-                <div class="form-group hidden" id="lemburAlasanManual" style="margin-bottom:14px;">
-                    <textarea class="form-input" rows="2" placeholder="Sebutkan alasan..."></textarea>
+                <div class="form-group hidden" id="lemburKeteranganManualGroup" style="margin-bottom: 18px;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px;">Detail Keterangan</label>
+                    <textarea class="form-input" id="lemburKeteranganManual" rows="2" placeholder="Tulis keterangan lembur detail di sini..." style="border-radius: 16px; border: 2px solid #E2E8F0; padding: 14px 16px; font-size: 15px; min-height: 70px; font-weight: 500; width: 100%;"></textarea>
                 </div>
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label class="form-label">Foto Selfie Lembur</label>
-                    <div
-                        style="position:relative;width:100%;aspect-ratio:3/4;background:#111;border-radius:16px;overflow:hidden;min-height:200px;max-height:35vh;">
-                        <div id="lemburCameraOverlay"
-                            style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;gap:10px;z-index:5;">
-                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white"
-                                stroke-width="1.5">
-                                <path
-                                    d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z">
-                                </path>
+                
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px;">Foto Bukti Kegiatan Lembur</label>
+                    <div class="file-upload-wrapper" style="position: relative; width: 100%;">
+                        <!-- capture="environment" forces native camera rear on mobile, preventing gallery uploads -->
+                        <input type="file" id="lemburFotoInput" accept="image/*" capture="environment" style="display: none;" onchange="handleLemburFotoSelect(this)">
+                        <div class="file-upload-btn" onclick="document.getElementById('lemburFotoInput').click()" style="display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 14px 16px; border: 2px dashed #CBD5E1; border-radius: 16px; background: #F8FAFC; color: #64748B; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.25s ease;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transition: transform 0.2s ease;">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
                                 <circle cx="12" cy="13" r="4"></circle>
                             </svg>
-                            <div style="font-size:14px;font-weight:700;">Kamera Lembur</div>
-                            <button
-                                style="padding:10px 20px;background:var(--primary);color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;"
-                                onclick="startLemburCamera()">Nyalakan Kamera</button>
+                            <span id="lemburFotoLabel">Ambil Foto Bukti (Kamera)</span>
                         </div>
-                        <video id="lemburVideo" autoplay playsinline muted
-                            style="width:100%;height:100%;object-fit:cover;display:none;transform:scaleX(-1);"></video>
-                        <img id="lemburPreview"
-                            style="width:100%;height:100%;object-fit:cover;display:none;transform:scaleX(-1);">
-                        <canvas id="lemburCanvas" style="display:none;"></canvas>
-                        <button id="lemburCaptureBtn"
-                            style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);width:60px;height:60px;background:white;border:4px solid rgba(255,255,255,0.8);border-radius:50%;cursor:pointer;z-index:10;display:none;"
-                            onclick="captureLemburPhoto()"></button>
-                        <button id="lemburRetakeBtn" class="retake-btn" style="display:none;"
-                            onclick="retakeLemburPhoto()">Ulangi</button>
+                    </div>
+                    <div id="lemburFotoPreviewContainer" style="display: none; margin-top: 16px; position: relative; border-radius: 16px; overflow: hidden; border: 2px solid #E2E8F0; width: 100%; aspect-ratio: 16/9; max-height: 260px; background: #F8FAFC; box-shadow: inset 0 2px 8px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03);">
+                        <img id="lemburFotoPreview" src="" style="width: 100%; height: 100%; object-fit: contain; display: block; margin: 0 auto;">
+                        <button type="button" onclick="resetLemburFoto(event)" style="position: absolute; top: 10px; right: 10px; background: rgba(15, 23, 42, 0.75); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; backdrop-filter: blur(4px); transition: all 0.2s; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">&#10005;</button>
                     </div>
                 </div>
-                <button class="btn btn-warning" onclick="submitLembur()">
+
+                <button class="btn btn-warning" onclick="submitLembur()" style="width: 100%; height: 50px; border-radius: 16px; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); transition: all 0.25s;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
                         <circle cx="12" cy="12" r="10"></circle>
                         <polyline points="12 6 12 12 16 14"></polyline>
                     </svg>
-                    Ajukan Lembur
+                    Kirim Pengajuan Lembur
                 </button>
             </div>
         </div>
@@ -2866,15 +3304,15 @@
     <audio id="soundNotif" src="https://assets.mixkit.co/active_storage/sfx/2866/2866-preview.mp3"></audio>
 
     <script>
-        // ==================== STATE ====================
+// ==================== STATE ====================
         let state = {
             user: null, photoData: null, gps: { lat: null, lng: null, accuracy: null, jarak: null },
-            absenStatus: 'belum_masuk', isLemburMode: false, jadwalOffset: 0, stream: null,
+            absenStatus: 'belum_masuk', absenTokoId: '', lemburTokoId: '', isLemburMode: false, jadwalOffset: 0, stream: null,
             tokoList: [], shiftList: [], karyawanList: [], notifList: [], notifShown: false,
             lemburStream: null, lemburPhotoData: null, audioUnlocked: false
         };
 
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbySMzB3SsqaMqJITxhXu1eWorAB_I5BboEcqNcncwLfSo4Iu_vDvGu50rth3IM6g2I/exec';
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDyDhOWjdbi1dO9HBbcSEZumOkBGlg2Z4UzJ-YqcirnX7u487kUUOYota52PV-5BlN/exec';
         const LS_KEY = 'absensi_user_v2';
         const pathGambar = "https://lh3.googleusercontent.com/d/";
         const picoImages = {
@@ -2934,13 +3372,6 @@
             initGPS();
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('izinTglMulai').value = today;
-            document.getElementById('izinTglSelesai').value = today;
-
-            // Test connection first
-            await testBackendConnection();
-
-            // Load karyawan list untuk dropdown login
-            await loadKaryawanDropdown();
 
             // Cek localStorage login
             const saved = loadLogin();
@@ -2950,22 +3381,42 @@
                 state.currentUser = state.user;
                 unlockAudio();
                 showApp();
+                
+                // Daftarkan ke Webpushr agar bisa menerima notifikasi push latar belakang
+                try { registerWebpushrUser(saved.id); } catch(e) { }
                 setupUserUI(saved.fotoUrl || '');
-                await loadTokoData();
-                if (state.user.tokoDefault) {
-                    document.getElementById('selectToko').value = state.user.tokoDefault;
-                    await onTokoChange();
-                    if (state.user.shiftDefault) {
-                        document.getElementById('selectShift').value = state.user.shiftDefault;
-                        updateShiftInfo();
+                
+                // LANGSUNG HIDE SPLASH SCREEN (INSTANT LOAD!)
+                hideSplashScreen();
+
+                // Panggil API secara asinkron di background (Non-blocking!)
+                testBackendConnection();
+                loadKaryawanDropdown();
+                
+                loadTokoData().then(async () => {
+                    if (state.user.tokoDefault) {
+                        document.getElementById('selectToko').value = state.user.tokoDefault;
+                        await onTokoChange();
+                        if (state.user.shiftDefault) {
+                            document.getElementById('selectShift').value = state.user.shiftDefault;
+                            updateShiftInfo();
+                        }
                     }
-                }
-                await checkAbsenStatus();
+                });
+                checkAbsenStatus();
+                updateMonthlyRecap();
                 stopCamera();
                 showCameraOverlay();
                 checkMyApprovals();
+            } else {
+                // Jika belum login, tampilkan splash screen sampai daftar karyawan selesai dimuat
+                testBackendConnection();
+                await loadKaryawanDropdown();
+                hideSplashScreen();
             }
-            // Jika tidak ada saved login, login screen tetap tampil
+            
+            // Polling notifikasi live setiap 30 detik untuk live updates tanpa refresh!
+            setInterval(checkMyApprovals, 30000);
         });
 
         async function testBackendConnection() {
@@ -2987,6 +3438,17 @@
         function showApp() {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appContent').style.display = 'block';
+        }
+
+        function hideSplashScreen() {
+            const splash = document.getElementById('splashScreen');
+            if (splash) {
+                splash.style.opacity = '0';
+                splash.style.visibility = 'hidden';
+                setTimeout(() => {
+                    try { splash.remove(); } catch(e) {}
+                }, 400);
+            }
         }
 
         function setupUserUI(fotoUrl) {
@@ -3044,6 +3506,9 @@
             // Simpan ke localStorage
             saveLogin({ id, name, role, tokoDefault: tokoId, shiftDefault: shiftId, fotoUrl });
 
+            // Daftarkan ke Webpushr agar bisa menerima notifikasi push latar belakang
+            try { registerWebpushrUser(id); } catch(e) { }
+
             // Unlock audio context (user gesture)
             unlockAudio();
 
@@ -3059,7 +3524,8 @@
                     updateShiftInfo();
                 }
             }
-            checkAbsenStatus();
+            await checkAbsenStatus();
+            await updateMonthlyRecap();
             updateTokoCardInfo();
             stopCamera();
             showCameraOverlay();
@@ -3219,10 +3685,23 @@
             if (!video.videoWidth || video.readyState < 2) {
                 showToast('Kamera belum siap', 'error'); return;
             }
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            // Kompres ukuran foto selfie
+            let w = video.videoWidth;
+            let h = video.videoHeight;
+            const maxDimension = 640;
+            if (w > maxDimension || h > maxDimension) {
+                if (w > h) {
+                    h = Math.round(h * maxDimension / w);
+                    w = maxDimension;
+                } else {
+                    w = Math.round(w * maxDimension / h);
+                    h = maxDimension;
+                }
+            }
+            canvas.width = w; canvas.height = h;
             const ctx = canvas.getContext('2d');
             ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0);
-            state.photoData = canvas.toDataURL('image/jpeg', 0.7);
+            state.photoData = canvas.toDataURL('image/jpeg', 0.6);
             preview.src = state.photoData; preview.style.display = 'block';
             video.style.display = 'none'; document.getElementById('retakeBtn').style.display = 'block';
             document.getElementById('captureBtn').classList.add('disabled');
@@ -3356,8 +3835,8 @@
             const nama = document.getElementById('namaTokoCard');
             if (toko) {
                 nama.textContent = toko.Nama_Toko || '-';
-                if (toko.Foto_URL || toko.Gambar || toko.fotoUrl) {
-                    img.src = toko.Foto_URL || toko.Gambar || toko.fotoUrl;
+                if (toko.Foto_Toko_URL || toko.Foto_URL || toko.Gambar || toko.fotoUrl) {
+                    img.src = toko.Foto_Toko_URL || toko.Foto_URL || toko.Gambar || toko.fotoUrl;
                     img.style.display = 'block';
                 } else {
                     img.style.display = 'none';
@@ -3372,60 +3851,177 @@
         async function checkAbsenStatus() {
             if (!state.user || !state.user.id) { state.absenStatus = 'belum_masuk'; updateButtonVisibility(); return; }
             try {
-                const today = new Date().toISOString().split('T')[0];
-                const res = await apiCall('getAbsenHariIni', { idKaryawan: state.user.id, tanggal: today });
-                if (res.success && res.data) {
-                    const d = res.data;
-                    if (d.jamPulang) {
-                        state.absenStatus = 'sudah_pulang';
-                        document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.jamMasuk);
+                const res = await apiCall('getAbsenStatus', { idKaryawan: state.user.id });
+                if (res && res.status) {
+                    state.absenStatus = res.status;
+                    state.jamMasukReal = '';
+                    state.jamMasukShift = '';
+                    state.jamPulangShift = '';
+                    state.lemburStatus = (res.lembur && res.lembur.Status) || '';
+                    state.lemburTokoId = (res.lembur && (res.lembur.ID_Toko || res.lembur.idToko)) || '';
+                    state.absenTokoId = '';
+                    if (res.status === 'sudah_pulang') {
+                        const d = res.data || {};
+                        state.absenTokoId = d.ID_Toko || d.idToko || '';
+                        state.jamMasukReal = d.Jam_Masuk || d.jamMasuk || '';
+                        state.jamMasukShift = (res.shift && res.shift.Jam_Masuk) || '';
+                        state.jamPulangShift = (res.shift && res.shift.Jam_Pulang) || '';
+                        state.jamPulangReal = d.Jam_Pulang || d.jamPulang || '';
+                        document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.Jam_Masuk || d.jamMasuk);
                         document.getElementById('statusMasuk').className = 'ok';
-                        document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(d.jamPulang);
+                        document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(d.Jam_Pulang || d.jamPulang);
                         document.getElementById('statusPulang').className = 'ok';
-                    } else if (d.jamMasuk) {
-                        state.absenStatus = 'sudah_masuk';
-                        document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.jamMasuk);
+                    } else if (res.status === 'sudah_masuk') {
+                        const d = res.data || {};
+                        state.absenTokoId = d.ID_Toko || d.idToko || '';
+                        state.jamMasukReal = d.Jam_Masuk || d.jamMasuk || '';
+                        state.jamMasukShift = (res.shift && res.shift.Jam_Masuk) || '';
+                        state.jamPulangShift = (res.shift && res.shift.Jam_Pulang) || '';
+                        document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.Jam_Masuk || d.jamMasuk);
                         document.getElementById('statusMasuk').className = 'ok';
                         document.getElementById('statusPulang').textContent = 'Pulang: --';
                         document.getElementById('statusPulang').className = 'pending';
                     } else {
-                        state.absenStatus = 'belum_masuk';
                         document.getElementById('statusMasuk').textContent = 'Masuk: --';
                         document.getElementById('statusMasuk').className = 'pending';
                         document.getElementById('statusPulang').textContent = 'Pulang: --';
                         document.getElementById('statusPulang').className = 'pending';
                     }
-                } else {
-                    state.absenStatus = 'belum_masuk';
                 }
-            } catch (e) {
-                console.log('checkAbsenStatus error:', e);
-                state.absenStatus = 'belum_masuk';
-            }
+            } catch(e) { console.error('checkAbsenStatus error:', e); }
             updateButtonVisibility();
+        }
+
+        function getEarlyCheckInMinutes(realTimeStr, shiftTimeStr) {
+            if (!realTimeStr || !shiftTimeStr) return 0;
+            const parseTimeToMinutes = (str) => {
+                const parts = String(str).split(':');
+                if (parts.length < 2) return 0;
+                return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            };
+            const realMin = parseTimeToMinutes(realTimeStr);
+            const shiftMin = parseTimeToMinutes(shiftTimeStr);
+            return shiftMin - realMin;
+        }
+
+        function getLateCheckOutMinutes(realTimeStr, shiftTimeStr) {
+            if (!realTimeStr || !shiftTimeStr) return 0;
+            const parseTimeToMinutes = (str) => {
+                const parts = String(str).split(':');
+                if (parts.length < 2) return 0;
+                return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            };
+            const realMin = parseTimeToMinutes(realTimeStr);
+            const shiftMin = parseTimeToMinutes(shiftTimeStr);
+            return realMin - shiftMin;
+        }
+
+        function isCurrentTimeOutsideShift(shiftStartStr, shiftEndStr) {
+            if (!shiftStartStr || !shiftEndStr) return false;
+            const now = new Date();
+            const curMin = now.getHours() * 60 + now.getMinutes();
+            
+            const parseTimeToMinutes = (str) => {
+                const parts = String(str).split(':');
+                if (parts.length < 2) return 0;
+                return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            };
+            
+            const startMin = parseTimeToMinutes(shiftStartStr);
+            const endMin = parseTimeToMinutes(shiftEndStr);
+            
+            if (endMin < startMin) {
+                return curMin < startMin && curMin > endMin;
+            }
+            return curMin < startMin || curMin > endMin;
         }
 
         function updateButtonVisibility() {
             const bm = document.getElementById('btnMasuk');
             const bp = document.getElementById('btnPulang');
             const bl = document.getElementById('btnLembur');
-            if (state.absenStatus === 'belum_masuk') {
+            const ml = document.getElementById('menuLembur');
+            
+            if (!bl) return;
+            
+            if (!state.user || !state.user.id) {
                 bm.classList.remove('hidden');
                 bp.classList.add('hidden');
                 bl.classList.add('hidden');
+                return;
+            }
+            
+            bl.classList.remove('hidden');
+            
+            let isLemburDisabled = false;
+            
+            if (state.absenStatus === 'belum_masuk') {
+                bm.classList.remove('hidden');
+                bp.classList.add('hidden');
+                isLemburDisabled = true;
+                bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Belum Absen Masuk`;
             } else if (state.absenStatus === 'sudah_masuk') {
                 bm.classList.add('hidden');
                 bp.classList.remove('hidden');
-                bl.classList.remove('hidden');
+                
+                // Selama shift berjalan (sudah absen masuk), tombol lembur selalu aktif/bisa diakses
+                isLemburDisabled = false;
+                bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> MODE LEMBUR`;
             } else if (state.absenStatus === 'sudah_pulang') {
-                // All buttons hidden after pulang
                 bm.classList.add('hidden');
                 bp.classList.add('hidden');
-                bl.classList.add('hidden');
+                
+                // Setelah absen pulang, tombol lembur kembali off
+                isLemburDisabled = true;
+                bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Sudah Absen Pulang`;
             } else {
                 bm.classList.add('hidden');
                 bp.classList.add('hidden');
                 bl.classList.add('hidden');
+            }
+            
+            bl.disabled = isLemburDisabled;
+            
+            if (ml) {
+                if (isLemburDisabled) {
+                    ml.disabled = true;
+                    ml.style.cursor = 'not-allowed';
+                    ml.style.opacity = '0.5';
+                    ml.removeAttribute('onclick');
+                    
+                    const iconWrap = ml.querySelector('.menu-icon');
+                    if (iconWrap) {
+                        iconWrap.style.background = '#F1F5F9';
+                        const svg = iconWrap.querySelector('svg');
+                        if (svg) svg.style.stroke = '#94A3B8';
+                    }
+                    const label = ml.querySelector('.menu-label');
+                    if (label) label.style.color = '#94A3B8';
+                } else {
+                    ml.disabled = false;
+                    ml.style.cursor = 'pointer';
+                    ml.style.opacity = '1';
+                    ml.setAttribute('onclick', "openModal('modalLembur')");
+                    
+                    const iconWrap = ml.querySelector('.menu-icon');
+                    if (iconWrap) {
+                        iconWrap.style.background = '#FFF3E0';
+                        const svg = iconWrap.querySelector('svg');
+                        if (svg) svg.style.stroke = '#FF9500';
+                    }
+                    const label = ml.querySelector('.menu-label');
+                    if (label) label.style.color = '';
+                }
+            }
+            
+            const isOvertimeActive = (state.absenStatus !== 'sudah_pulang') && 
+                                     (state.lemburStatus === 'Approved') && 
+                                     isCurrentTimeOutsideShift(state.jamMasukShift, state.jamPulangShift);
+            
+            if (isOvertimeActive) {
+                document.body.classList.add('overtime-glow-active');
+            } else {
+                document.body.classList.remove('overtime-glow-active');
             }
         }
 
@@ -3460,6 +4056,7 @@
                     document.getElementById('statusMasuk').className = 'ok';
                     // Refresh status so button changes to Pulang
                     await checkAbsenStatus();
+                    await updateMonthlyRecap();
                     retakePhoto();
                 } else { tampilPicoModal('error', res.error || 'Gagal absen masuk'); }
             } catch (e) { tampilPicoModal('error', 'Gagal: ' + e.message); }
@@ -3469,6 +4066,52 @@
         async function absenPulang() {
             if (!state.photoData) { tampilPicoModal('wajah_gagal', 'Ambil foto selfie dulu ya!'); return; }
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+
+            // Validasi GPS untuk Absen Pulang
+            if (state.gps.lat === null || state.gps.lng === null) {
+                showToast('Koordinat GPS belum dimuat! Nyalakan GPS Anda dan tunggu sebentar.', 'error');
+                return;
+            }
+            
+            // Jarak ke Toko Asal Absen Masuk
+            let jarakAsal = Infinity;
+            let radiusAsal = 50;
+            const asalToko = state.tokoList.find(t => t.ID_Toko === state.absenTokoId);
+            if (asalToko && asalToko.Lat && asalToko.Long) {
+                jarakAsal = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(asalToko.Lat), parseFloat(asalToko.Long));
+                radiusAsal = parseFloat(asalToko.Radius_M) || 50;
+            }
+            
+            // Jarak ke Toko Lembur (jika ada lembur yang DISETUJUI / Approved)
+            let jarakLembur = Infinity;
+            let radiusLembur = 50;
+            let lemburToko = null;
+            const isLemburApproved = state.lemburStatus === 'Approved';
+            
+            if (isLemburApproved && state.lemburTokoId) {
+                lemburToko = state.tokoList.find(t => t.ID_Toko === state.lemburTokoId);
+                if (lemburToko && lemburToko.Lat && lemburToko.Long) {
+                    jarakLembur = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(lemburToko.Lat), parseFloat(lemburToko.Long));
+                    radiusLembur = parseFloat(lemburToko.Radius_M) || 50;
+                }
+            }
+            
+            const isNearAsal = jarakAsal <= radiusAsal;
+            const isNearLembur = isLemburApproved && (jarakLembur <= radiusLembur);
+            
+            if (!isNearAsal && !isNearLembur) {
+                let msg = `<b>Gagal Absen Pulang!</b><br><br>Anda berada di luar jangkauan area toko:<br>`;
+                if (asalToko) {
+                    msg += `- <b>${Math.round(jarakAsal)}m</b> dari Toko Asal (${asalToko.Nama_Toko}) (Max ${radiusAsal}m)<br>`;
+                }
+                if (isLemburApproved && lemburToko) {
+                    msg += `- <b>${Math.round(jarakLembur)}m</b> dari Toko Lembur (${lemburToko.Nama_Toko}) (Max ${radiusLembur}m)<br>`;
+                }
+                msg += `<br><span style="color:#E53935;font-weight:800;">Silakan mendekat ke toko untuk melakukan absen pulang!</span>`;
+                tampilPicoModal('gps_jauh', msg);
+                return;
+            }
+
             const btn = document.getElementById('btnPulang');
             btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Memproses...';
             try {
@@ -3483,119 +4126,378 @@
                     document.getElementById('statusPulang').className = 'ok';
                     // Refresh status so buttons hide
                     await checkAbsenStatus();
+                    await updateMonthlyRecap();
                     retakePhoto();
                 } else { tampilPicoModal('error', res.error || 'Gagal absen pulang'); }
             } catch (e) { tampilPicoModal('error', 'Gagal: ' + e.message); }
             finally { btn.disabled = false; btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> ABSEN PULANG`; }
         }
 
-        function toggleLemburMode() { openModal('modalLembur'); }
+        function toggleLemburMode() {
+            if (state.absenStatus === 'belum_masuk') {
+                showToast('Anda harus absen masuk terlebih dahulu!', 'error');
+                return;
+            }
+            openModal('modalLembur');
+        }
 
         // ==================== LEMBUR ====================
         async function submitLembur() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             const tokoId = document.getElementById('lemburToko').value;
             const toko = state.tokoList.find(t => t.ID_Toko === tokoId);
+            
+            const ketType = document.getElementById('lemburKeteranganType').value;
+            const ketManual = document.getElementById('lemburKeteranganManual').value.trim();
+            const keterangan = ketType === 'Lainnya' ? ketManual : ketType;
+            
+            if (!keterangan) {
+                showToast('Keterangan lembur wajib diisi!', 'error');
+                return;
+            }
+            
+            if (!state.lemburPhotoData) {
+                showToast('Foto bukti lembur wajib diambil!', 'error');
+                return;
+            }
+            
+            const btn = document.querySelector('button[onclick="submitLembur()"]');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> Mengirim...';
+            
             try {
-                await apiCall('ajukanLembur', {
-                    idKaryawan: state.user.id, nama: state.user.name,
-                    idToko: tokoId, namaToko: toko ? toko.Nama_Toko : '',
-                    alasan: document.getElementById('lemburAlasanType').value,
-                    fotoBase64: state.lemburPhotoData || ''
+                const res = await apiCall('ajukanLembur', {
+                    idKaryawan: state.user.id,
+                    nama: state.user.name,
+                    idToko: tokoId,
+                    namaToko: toko ? toko.Nama_Toko : '',
+                    alasan: keterangan,
+                    fotoBase64: state.lemburPhotoData
                 });
-                closeModal('modalLembur');
-                tampilPicoModal('lembur_pending', 'Pengajuan lembur terkirim!<br>Tunggu approve dari Bos ya!');
-                retakeLemburPhoto();
-            } catch (e) { showToast('Gagal ajukan lembur', 'error'); }
+                
+                if (res.success) {
+                    closeModal('modalLembur');
+                    tampilPicoModal('lembur_pending', 'Pengajuan lembur terkirim!<br>Tunggu approve dari Bos ya!');
+                    resetLemburFoto();
+                } else {
+                    showToast(res.error || 'Gagal mengajukan lembur', 'error');
+                }
+            } catch (e) {
+                showToast('Gagal ajukan lembur: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
         }
 
-        function toggleLemburAlasan() {
-            document.getElementById('lemburAlasanManual').classList.toggle('hidden', document.getElementById('lemburAlasanType').value !== 'lainnya');
+        function toggleLemburKeterangan() {
+            const ketType = document.getElementById('lemburKeteranganType').value;
+            const manualGroup = document.getElementById('lemburKeteranganManualGroup');
+            if (manualGroup) {
+                manualGroup.classList.toggle('hidden', ketType !== 'Lainnya');
+            }
         }
 
-        let lemburStream = null, lemburPhotoData = null;
-        async function startLemburCamera() {
-            const video = document.getElementById('lemburVideo');
-            const overlay = document.getElementById('lemburCameraOverlay');
-            const captureBtn = document.getElementById('lemburCaptureBtn');
-            try {
-                if (lemburStream) lemburStream.getTracks().forEach(t => t.stop());
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-                lemburStream = stream; video.srcObject = stream; await video.play();
-                overlay.style.display = 'none'; video.style.display = 'block'; captureBtn.style.display = 'block';
-            } catch (err) { showToast('Gagal nyalakan kamera lembur: ' + err.message, 'error'); }
+        async function handleLemburFotoSelect(input) {
+            const label = document.getElementById('lemburFotoLabel');
+            const previewContainer = document.getElementById('lemburFotoPreviewContainer');
+            const previewImg = document.getElementById('lemburFotoPreview');
+            
+            if (!label) return;
+            
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                label.textContent = file.name;
+                label.parentElement.style.borderColor = 'var(--primary)';
+                label.parentElement.style.color = 'var(--primary)';
+                
+                try {
+                    // Kompresi otomatis gambar ke kualitas 60% dan lebar maks 800px
+                    const compressed = await compressImage(file, 0.6, 800);
+                    state.lemburPhotoData = compressed.base64;
+                    
+                    if (previewImg) previewImg.src = compressed.base64;
+                    if (previewContainer) previewContainer.style.display = 'block';
+                } catch (e) {
+                    console.error('Gagal kompresi foto lembur:', e);
+                    showToast('Gagal memproses gambar', 'error');
+                }
+            } else {
+                resetLemburFoto();
+            }
         }
-        function captureLemburPhoto() {
-            const video = document.getElementById('lemburVideo');
-            const canvas = document.getElementById('lemburCanvas');
-            const preview = document.getElementById('lemburPreview');
-            if (!video.videoWidth) { showToast('Kamera belum siap', 'error'); return; }
-            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0);
-            lemburPhotoData = canvas.toDataURL('image/jpeg', 0.7);
-            preview.src = lemburPhotoData; preview.style.display = 'block';
-            video.style.display = 'none'; document.getElementById('lemburCaptureBtn').style.display = 'none';
-            document.getElementById('lemburRetakeBtn').style.display = 'block';
-            if (lemburStream) { lemburStream.getTracks().forEach(t => t.stop()); lemburStream = null; }
-            showToast('Foto lembur berhasil', 'success'); playSound('success');
-        }
-        function retakeLemburPhoto() {
-            document.getElementById('lemburPreview').style.display = 'none';
-            document.getElementById('lemburVideo').style.display = 'none';
-            document.getElementById('lemburCaptureBtn').style.display = 'none';
-            document.getElementById('lemburRetakeBtn').style.display = 'none';
-            document.getElementById('lemburCameraOverlay').style.display = 'flex';
-            lemburPhotoData = null;
+
+        function resetLemburFoto(e) {
+            if (e) e.stopPropagation();
+            const fileInput = document.getElementById('lemburFotoInput');
+            const label = document.getElementById('lemburFotoLabel');
+            const previewContainer = document.getElementById('lemburFotoPreviewContainer');
+            const previewImg = document.getElementById('lemburFotoPreview');
+            
+            state.lemburPhotoData = null;
+            if (fileInput) fileInput.value = '';
+            if (label) {
+                label.textContent = 'Ambil Foto Bukti (Kamera)';
+                label.parentElement.style.borderColor = '#CBD5E1';
+                label.parentElement.style.color = '#64748B';
+            }
+            if (previewContainer) previewContainer.style.display = 'none';
+            if (previewImg) previewImg.src = '';
         }
 
         // ==================== IZIN ====================
-        function selectIzin(el, type) {
+        function selectIzin(el, type, idJenis) {
             document.querySelectorAll('.izin-chip').forEach(c => c.classList.remove('active'));
             el.classList.add('active');
+            
+            state.selectedIzin = {
+                type: type,
+                idJenis: idJenis,
+                namaJenis: el.textContent.trim()
+            };
+            
+            const groupSelesai = document.getElementById('groupIzinTglSelesai');
+            const kuotaInfo = document.getElementById('kuotaInfo');
+            
+            if (type === 'sakit') {
+                if (groupSelesai) groupSelesai.style.display = 'none';
+                if (kuotaInfo) kuotaInfo.style.display = 'none';
+            } else {
+                if (groupSelesai) groupSelesai.style.display = 'block';
+                if (kuotaInfo) {
+                    kuotaInfo.style.display = 'block';
+                    fetchAndShowKuota(type);
+                }
+            }
+        }
+
+        async function fetchAndShowKuota(type) {
+            const kuotaEl = document.getElementById('kuotaInfo');
+            if (!state.user || !state.user.id) return;
+            kuotaEl.innerHTML = 'Memuat sisa kuota...';
+            try {
+                const res = await apiCall('getSisaKuota', { idKaryawan: state.user.id });
+                if (res && res.success && res.kuota) {
+                    const k = res.kuota[type];
+                    if (k) {
+                        if (type === 'cuti' || type === 'izin') {
+                            kuotaEl.innerHTML = `Sisa kuota bulan ini (gabungan Cuti & Izin): <strong>${k.sisa !== null ? k.sisa + ' hari' : 'Tanpa batas'}</strong>`;
+                        } else {
+                            kuotaEl.innerHTML = `Sisa kuota untuk ${k.nama}: <strong>${k.sisa !== null ? k.sisa + ' hari' : 'Tanpa batas'}</strong>`;
+                        }
+                    } else {
+                        kuotaEl.innerHTML = `Sisa kuota: <strong>Tanpa batas</strong>`;
+                    }
+                } else {
+                    kuotaEl.innerHTML = 'Gagal memuat kuota';
+                }
+            } catch (e) {
+                kuotaEl.innerHTML = 'Gagal memuat kuota';
+            }
+        }
+
+        async function loadDynamicJenisIzin() {
+            const container = document.getElementById('izinChipsContainer');
+            if (!container) return;
+            
+            container.innerHTML = '<div style="font-size:14px;color:var(--text-secondary);padding:6px 0;">Memuat kategori...</div>';
+            
+            try {
+                const res = await apiCall('getJenisIzinAktif', { idKaryawan: state.user.id });
+                if (res && res.success && res.data && res.data.length > 0) {
+                    container.innerHTML = '';
+                    res.data.forEach((item, index) => {
+                        const chip = document.createElement('div');
+                        chip.className = 'izin-chip' + (index === 0 ? ' active' : '');
+                        chip.textContent = item.Nama_Jenis;
+                        chip.onclick = () => selectIzin(chip, item.Kode, item.ID_Jenis);
+                        container.appendChild(chip);
+                        
+                        // Select the first one by default
+                        if (index === 0) {
+                            selectIzin(chip, item.Kode, item.ID_Jenis);
+                        }
+                    });
+                } else {
+                    container.innerHTML = '<div style="font-size:14px;color:red;padding:6px 0;">Gagal memuat kategori izin</div>';
+                }
+            } catch (e) {
+                container.innerHTML = '<div style="font-size:14px;color:red;padding:6px 0;">Error koneksi data</div>';
+            }
         }
 
         async function submitIzin() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             const tglMulai = document.getElementById('izinTglMulai').value;
-            const tglSelesai = document.getElementById('izinTglSelesai').value;
+            const tglSelesaiInput = document.getElementById('izinTglSelesai');
             const alasan = document.getElementById('izinAlasan').value;
-            if (!tglMulai || !tglSelesai) { showToast('Pilih tanggal dulu!', 'error'); return; }
+            
+            // Lampiran file upload
+            const fileInput = document.getElementById('izinLampiran');
+            
+            if (!state.selectedIzin) { showToast('Pilih kategori izin dulu!', 'error'); return; }
+            const { type, idJenis, namaJenis } = state.selectedIzin;
+            
+            if (!tglMulai) { showToast('Pilih tanggal mulai dulu!', 'error'); return; }
+            
+            let tglSelesai = '';
+            if (type !== 'sakit') {
+                tglSelesai = tglSelesaiInput.value;
+                if (!tglSelesai) { showToast('Pilih tanggal selesai dulu!', 'error'); return; }
+                if (new Date(tglSelesai) < new Date(tglMulai)) {
+                    showToast('Tanggal selesai tidak boleh sebelum tanggal mulai!', 'error');
+                    return;
+                }
+            }
+            
             if (!alasan.trim()) { showToast('Isi alasan dulu!', 'error'); return; }
-            const activeChip = document.querySelector('.izin-chip.active');
-            const namaJenis = activeChip ? activeChip.textContent.trim() : 'Izin';
-            const idJenis = 'JI_' + namaJenis.toUpperCase();
-            try {
-                await apiCall('ajukanIzin', {
-                    idKaryawan: state.user.id, nama: state.user.name,
-                    idJenisIzin: idJenis, namaJenis: namaJenis,
-                    tglMulai, tglSelesai, alasan, lampiranBase64: ''
-                });
-                closeModal('modalIzin');
-                tampilPicoModal('izin_cuti', 'Pengajuan izin terkirim!<br>Menunggu approve admin');
-            } catch (e) { showToast('Gagal ajukan izin', 'error'); }
-        }
 
+            // Set button to loading state
+            const submitBtn = document.querySelector('#modalIzin .btn-primary');
+            const originalHtml = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="spinner"></div> Mengirim...';
+
+            const proceedSubmit = async (base64Data = '') => {
+                try {
+                    const res = await apiCall('ajukanIzin', {
+                        idKaryawan: state.user.id, nama: state.user.name,
+                        idJenisIzin: idJenis, namaJenis: namaJenis,
+                        tglMulai: tglMulai, tglSelesai: tglSelesai, alasan: alasan, lampiranBase64: base64Data
+                    });
+                    if (res && res.success) {
+                        closeModal('modalIzin');
+                        // Reset form fields
+                        document.getElementById('izinAlasan').value = '';
+                        if (tglSelesaiInput) tglSelesaiInput.value = '';
+                        if (fileInput) {
+                            fileInput.value = '';
+                            updateFileName(fileInput);
+                        }
+                        tampilPicoModal('izin_cuti', 'Pengajuan izin terkirim!<br>Menunggu approve admin');
+                    } else {
+                        showToast(res.error || 'Gagal ajukan izin', 'error');
+                    }
+                } catch (e) { 
+                    showToast('Gagal ajukan izin', 'error'); 
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalHtml;
+                }
+            };
+
+            // Baca file lampiran jika ada (Kompresi Gambar otomatis)
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+                const file = fileInput.files[0];
+                try {
+                    let base64Data = '';
+                    if (file.type.startsWith('image/')) {
+                        // Kompresi gambar ke kualitas 60% dan lebar maks 800px
+                        const compressed = await compressImage(file, 0.6, 800);
+                        base64Data = compressed.base64;
+                    } else {
+                        // Jika PDF, baca langsung
+                        base64Data = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(file);
+                        });
+                    }
+                    await proceedSubmit(base64Data);
+                } catch (e) {
+                    console.error('Gagal memproses lampiran:', e);
+                    showToast('Gagal memproses file lampiran', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalHtml;
+                }
+            } else {
+                await proceedSubmit('');
+            }
+        }
+ 
         // ==================== JADWAL ====================
         function navJadwal(dir) { state.jadwalOffset += dir; renderJadwal(); }
-
+ 
         async function renderJadwal() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             try {
                 const now = new Date(); now.setDate(now.getDate() + state.jadwalOffset * 7);
                 const res = await apiCall('getJadwalMingguan', { idKaryawan: state.user.id, tanggalReferensi: now.toISOString() });
                 if (res.success) {
-                    const tbody = document.getElementById('jadwalTbody');
-                    tbody.innerHTML = res.minggu.map(j => {
+                    const container = document.getElementById('jadwalContainer');
+                    
+                    // Mendapatkan index hari ini (Senin = 0, ..., Minggu = 6)
+                    const todayIndex = (new Date().getDay() + 6) % 7;
+                    
+                    container.innerHTML = res.minggu.map((j, index) => {
                         const jm = formatTimeFromResponse(j.jamMasuk);
                         const jp = formatTimeFromResponse(j.jamPulang);
-                        return `<tr class="${j.libur ? 'libur' : ''} ${j.namaHari === new Date().toLocaleDateString('id-ID', { weekday: 'long' }) && state.jadwalOffset === 0 ? 'today' : ''}">
-          <td><div style="font-weight:800;font-size:15px;">${j.namaHari}</div><div style="font-size:13px;color:var(--text-secondary);">${j.tanggal}</div></td>
-          <td>${j.toko !== '-' ? '<span class="badge badge-blue">' + j.toko + '</span>' : '-'}</td>
-          <td>${j.shift !== '-' ? '<span class="badge badge-green">' + j.shift + '</span>' : '-'}</td>
-          <td>${j.jamMasuk !== '-' ? jm + ' - ' + jp : '-'}</td>
-        </tr>`;
+                        
+                        const isLibur = j.libur || j.toko === '—' || j.toko === '-';
+                        let isToday = false;
+                        let isPassed = false;
+                        
+                        if (state.jadwalOffset < 0) {
+                            isPassed = true;
+                        } else if (state.jadwalOffset === 0) {
+                            if (index < todayIndex) isPassed = true;
+                            else if (index === todayIndex) isToday = true;
+                        }
+                        
+                        let cardStyle = '';
+                        let todayBadge = '';
+                        let statusBadge = '';
+                        
+                        if (isToday) {
+                            cardStyle = `background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%); border: 2.5px solid #10B981; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.18); transform: scale(1.01);`;
+                            todayBadge = `<span style="background: #10B981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 8px; box-shadow: 0 2px 6px rgba(16,185,129,0.2);">Hari Ini</span>`;
+                        } else if (isPassed) {
+                            cardStyle = `background: #F8FAFC; border: 1.5px solid #E2E8F0; opacity: 0.45; filter: grayscale(10%);`;
+                        } else {
+                            cardStyle = `background: white; border: 1.5px solid #E2E8F0; box-shadow: 0 4px 12px rgba(0,0,0,0.015);`;
+                        }
+                        
+                        if (isLibur) {
+                            statusBadge = `<span class="badge" style="background: #FEE2E2; color: #EF4444; border: 1px solid #FECACA; font-weight: 800; font-size: 11px; padding: 6px 12px; border-radius: 12px;">LIBUR</span>`;
+                        } else {
+                            statusBadge = `<span class="badge badge-green" style="font-weight: 800; font-size: 11px; padding: 6px 12px; border-radius: 12px;">${j.shift}</span>`;
+                        }
+                        
+                        const tglSplit = j.tanggal.split(' ');
+                        const tglHari = tglSplit[0] || '';
+                        const tglBulan = tglSplit[1] || '';
+                        
+                        return `
+<div class="jadwal-card" style="border-radius: 20px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; transition: all 0.25s ease; ${cardStyle}">
+    <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="text-align: center; min-width: 55px; padding-right: 12px; border-right: 2px solid ${isToday ? '#10B981' : isPassed ? '#CBD5E1' : '#0D8ABC'};">
+            <div style="font-size: 10px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.3px;">${j.namaHari}</div>
+            <div style="font-size: 20px; font-weight: 900; color: #1E293B; margin-top: 1px; line-height: 1.1;">${tglHari}</div>
+            <div style="font-size: 9px; font-weight: 800; color: #94A3B8; text-transform: uppercase;">${tglBulan}</div>
+        </div>
+        <div style="text-align: left;">
+            <div style="display: flex; align-items: center; flex-wrap: wrap;">
+                <h4 style="font-size: 15px; font-weight: 800; color: #1E293B; margin: 0; line-height: 1.2;">${isLibur ? 'Hari Libur / Off' : j.toko}</h4>
+                ${todayBadge}
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 5px; font-size: 12px; font-weight: 700; color: #64748B;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity: 0.85;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>${isLibur ? '—' : jm + ' - ' + jp}</span>
+            </div>
+        </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+        ${statusBadge}
+    </div>
+</div>
+`;
                     }).join('');
+                    
                     const senin = new Date(now); senin.setDate(now.getDate() - now.getDay() + 1);
                     const minggu = new Date(senin); minggu.setDate(senin.getDate() + 6);
                     document.getElementById('jadwalPeriode').textContent = senin.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) + ' - ' + minggu.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -3641,28 +4543,120 @@
             } catch (e) { console.log('checkMyApprovals error:', e); }
         }
 
+        function getReadNotificationIds() {
+            try {
+                const data = localStorage.getItem('read_notif_ids');
+                return data ? JSON.parse(data) : [];
+            } catch (e) { return []; }
+        }
+
+        function markNotificationsAsRead(ids) {
+            try {
+                const readIds = getReadNotificationIds();
+                const updated = Array.from(new Set([...readIds, ...ids]));
+                localStorage.setItem('read_notif_ids', JSON.stringify(updated));
+            } catch (e) {}
+        }
+
         function updateNotifBadge() {
             const badge = document.getElementById('notifBadge');
-            const bell = document.getElementById('notifBell');
-            const count = state.notifList ? state.notifList.filter(n => n.status !== 'Pending').length : 0;
+            const readIds = getReadNotificationIds();
+            const unreadNotifs = state.notifList ? state.notifList.filter(n => n.status !== 'Pending' && !readIds.includes(String(n.id))) : [];
+            const count = unreadNotifs.length;
             if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.classList.remove('hidden'); }
             else { badge.classList.add('hidden'); }
         }
 
         function updateNotifBubble() {
             const list = document.getElementById('notifBubbleList');
-            if (!state.notifList || state.notifList.length === 0) { list.innerHTML = '<div class="notif-empty">Belum ada pemberitahuan</div>'; return; }
-            list.innerHTML = state.notifList.map(n => `
-    <div class="notif-item ${n.status === 'Approved' ? 'approved' : n.status === 'Rejected' ? 'rejected' : ''}">
-      <div class="notif-item-title">${n.tipe === 'lembur' ? 'Lembur' : 'Izin/Cuti'}</div>
+            const readIds = getReadNotificationIds();
+            
+            // FILTER HANYA YANG BELUM DIBACA! Jika sudah dibaca (ID ada di readIds), tidak ditampilkan di gelembung!
+            const unreadNotifs = state.notifList ? state.notifList.filter(n => n.status !== 'Pending' && !readIds.includes(String(n.id))) : [];
+            
+            if (unreadNotifs.length === 0) { 
+                list.innerHTML = '<div class="notif-empty">Belum ada pemberitahuan</div>'; 
+                return; 
+            }
+            
+            list.innerHTML = unreadNotifs.map(n => {
+                return `
+    <div class="notif-item ${n.status === 'Approved' ? 'approved' : n.status === 'Rejected' ? 'rejected' : ''} unread-glowing" onclick="showNotifDetail('${n.id}', '${n.tipe}', '${n.status}', '${n.tanggal}', '${n.approvedAt || ''}')">
+      <div class="notif-item-title">${n.tipe === 'lembur' ? 'Lembur' : 'Izin/Cuti'} <span class="unread-dot">●</span></div>
       <div class="notif-item-text">Pengajuan tanggal ${n.tanggal} telah <strong>${n.status === 'Approved' ? 'disetujui' : n.status === 'Rejected' ? 'ditolak' : 'diproses'}</strong></div>
       <div class="notif-item-date">${n.approvedAt || n.tanggal}</div>
     </div>
-  `).join('');
+  `;
+            }).join('');
         }
 
-        function toggleNotifBubble(e) { e.stopPropagation(); document.getElementById('notifBubble').classList.toggle('show'); }
-        function closeNotifBubble(e) { e.stopPropagation(); document.getElementById('notifBubble').classList.remove('show'); }
+        function showNotifDetail(id, tipe, status, tanggal, approvedAt) {
+            closeNotifBubble({ stopPropagation: () => {} }); // Tutup gelembung lonceng agar tidak bertumpuk
+            
+            let tipePico = 'sukses';
+            let title = '';
+            let detail = '';
+            
+            if (tipe === 'lembur') {
+                if (status === 'Approved') {
+                    tipePico = 'sukses';
+                    title = 'Lembur Disetujui! 🎉🔥';
+                    detail = `Pengajuan lembur Anda pada tanggal <b>${tanggal}</b> telah disetujui oleh Bos!<br><br>` +
+                             `PICO sangat bangga padamu! Tetap jaga kesehatan saat lembur ya. Semangat kerja keras bagai api berkobar! 💪🐧`;
+                } else if (status === 'Rejected') {
+                    tipePico = 'error';
+                    title = 'Lembur Belum Disetujui 💔';
+                    detail = `Pengajuan lembur Anda pada tanggal <b>${tanggal}</b> belum disetujui oleh Bos.<br><br>` +
+                             `Jangan berkecil hati ya! Tetap semangat bekerja jujur, Pico selalu mendukungmu di setiap langkah! 🐧✨`;
+                } else {
+                    tipePico = 'lembur_pending';
+                    title = 'Lembur Sedang Diproses ⏳';
+                    detail = `Pengajuan lembur Anda pada tanggal <b>${tanggal}</b> sedang menunggu persetujuan.<br><br>` +
+                             `Pico sedang memantau persetujuan dari Bos untukmu. Sabar menunggu ya! 🐧🔍`;
+                }
+            } else {
+                // Izin / Cuti
+                if (status === 'Approved') {
+                    tipePico = 'izin_cuti';
+                    title = 'Izin/Cuti Disetujui! 🌴🏖️';
+                    detail = `Pengajuan izin/cuti Anda pada tanggal <b>${tanggal}</b> telah disetujui Admin.<br><br>` +
+                             `Hore! Selamat beristirahat, luangkan waktu dengan keluarga, atau pulihkan kesehatanmu ya. Pico mendoakan yang terbaik! 🐧💚`;
+                } else if (status === 'Rejected') {
+                    tipePico = 'error';
+                    title = 'Izin/Cuti Ditolak ❌';
+                    detail = `Pengajuan izin/cuti Anda pada tanggal <b>${tanggal}</b> ditolak oleh Admin.<br><br>` +
+                             `Silakan konfirmasi langsung ke bagian Admin/HRD untuk penjelasan lebih lanjut ya. Tetap semangat! 🙏🐧`;
+                } else {
+                    tipePico = 'izin_sakit';
+                    title = 'Izin Sedang Diproses ⏳';
+                    detail = `Pengajuan izin/cuti Anda pada tanggal <b>${tanggal}</b> sedang diproses oleh Admin.<br><br>` +
+                             `Tunggu sebentar ya, Pico akan segera memberi tahu Anda jika statusnya sudah diperbarui! 🐧⏱️`;
+                }
+            }
+            
+            const pesanHtml = `<div style="text-align:center;">` +
+                              `<h3 style="margin-top:0;color:${tipePico === 'error' ? '#C62828' : '#0D8ABC'};font-size:18px;font-weight:800;">${title}</h3>` +
+                              `<p style="font-size:14px;line-height:1.5;color:#475569;margin-top:10px;">${detail}</p>` +
+                              `</div>`;
+                              
+            // Tandai notifikasi spesifik ini saja sebagai sudah dibaca
+            markNotificationsAsRead([String(id)]);
+            
+            // Tampilkan modal dan kirimkan callback untuk membersihkannya dari gelembung ketika ditutup
+            tampilPicoModal(tipePico, pesanHtml, function() {
+                updateNotifBadge(); // Perbarui lencana lonceng (jumlah berkurang)
+                updateNotifBubble(); // Bersihkan pesan ini dari daftar gelembung lonceng!
+            });
+        }
+
+        function toggleNotifBubble(e) { 
+            e.stopPropagation(); 
+            const bubble = document.getElementById('notifBubble');
+            bubble.classList.toggle('show');
+            // Catatan: Kami tidak lagi menandai semua sebagai dibaca secara otomatis di sini.
+            // Notifikasi baru akan tetap menyala dan terlihat sampai karyawan mengklik dan melihat detailnya!
+        }
+        function closeNotifBubble(e) { if (e && e.stopPropagation) e.stopPropagation(); document.getElementById('notifBubble').classList.remove('show'); }
         document.addEventListener('click', function (e) {
             const bubble = document.getElementById('notifBubble');
             const bell = document.getElementById('notifBell');
@@ -3677,6 +4671,15 @@
 
         // ==================== MODAL UTILS ====================
         function openModal(id) {
+            if (id === 'modalLembur') {
+                if (state.lemburStatus === 'Pending') {
+                    tampilPicoModal('lembur_pending', '<b>Lembur Menunggu Approval ⏳</b><br>Pengajuan lembur Anda hari ini sedang diproses. Sabar ya, Pico sedang memantau persetujuan dari Bos! 🐧');
+                    return;
+                } else if (state.lemburStatus === 'Approved') {
+                    tampilPicoModal('sukses', '<b>Lembur Telah Disetujui! 🔥</b><br>Selamat! Pengajuan lembur Anda hari ini telah disetujui Bos. Selamat bekerja lembur, tetap semangat & jaga kesehatan! 💪🔥');
+                    return;
+                }
+            }
             document.getElementById(id).classList.add('active');
             document.body.style.overflow = 'hidden';
             if (id === 'modalJadwal') renderJadwal();
@@ -3684,11 +4687,77 @@
             if (id === 'modalTukerShift') populateTukerShiftModal();
             if (id === 'modalTugas') renderTugasList();
             if (id === 'modalBerita') renderBeritaList();
+            if (id === 'modalIzin') {
+                loadDynamicJenisIzin();
+            }
         }
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
             document.body.style.overflow = '';
             if (id === 'modalChat') stopChatPolling();
+            if (id === 'modalIzin') {
+                const fileInput = document.getElementById('izinLampiran');
+                if (fileInput) {
+                    fileInput.value = '';
+                    updateFileName(fileInput);
+                }
+            }
+            if (id === 'modalLembur') {
+                resetLemburFoto();
+                const typeSelect = document.getElementById('lemburKeteranganType');
+                if (typeSelect) {
+                    typeSelect.value = 'Event / Promo';
+                    toggleLemburKeterangan();
+                }
+                const manualText = document.getElementById('lemburKeteranganManual');
+                if (manualText) manualText.value = '';
+            }
+        }
+
+        function updateFileName(input) {
+            const label = document.getElementById('izinLampiranLabel');
+            const previewContainer = document.getElementById('izinLampiranPreviewContainer');
+            const previewImg = document.getElementById('izinLampiranPreview');
+            
+            if (!label) return;
+            
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                label.textContent = file.name;
+                label.parentElement.style.borderColor = 'var(--primary)';
+                label.parentElement.style.color = 'var(--primary)';
+                
+                // Tampilkan preview jika berupa gambar
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        if (previewImg) previewImg.src = e.target.result;
+                        if (previewContainer) previewContainer.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else if (file.type === 'application/pdf') {
+                    // Tampilkan ikon placeholder PDF
+                    if (previewImg) previewImg.src = 'https://cdn-icons-png.flaticon.com/512/337/337946.png';
+                    if (previewContainer) previewContainer.style.display = 'block';
+                } else {
+                    if (previewContainer) previewContainer.style.display = 'none';
+                }
+            } else {
+                label.textContent = 'Pilih file surat dokter / bukti foto';
+                label.parentElement.style.borderColor = '#CBD5E1';
+                label.parentElement.style.color = '#64748B';
+                if (previewContainer) previewContainer.style.display = 'none';
+                if (previewImg) previewImg.src = '';
+            }
+        }
+
+        function resetIzinLampiran(e) {
+            if (e) e.stopPropagation();
+            const fileInput = document.getElementById('izinLampiran');
+            if (fileInput) {
+                fileInput.value = '';
+                updateFileName(fileInput);
+            }
         }
         function closeModalOnOverlay(e, id) { if (e.target.id === id) closeModal(id); }
 
@@ -3840,36 +4909,24 @@
                 return timeStr.substring(0, 5);
             }
 
-            // Handle Google Sheets serial date strings like 1899-12-29T23:52:48.000Z
-            // or 1899-12-30T08:52:48.000Z ( Sheets epoch is Dec 30 1899 )
+            // Handle ISO date strings (like 1899-12-29T23:17:48.000Z)
             if (typeof timeStr === 'string' && (timeStr.includes('1899') || timeStr.includes('1900') || timeStr.includes('T'))) {
-                // Extract HH:mm:ss from ISO string using regex - most reliable method
-                const isoMatch = timeStr.match(/T(\d{2}):(\d{2}):(\d{2})/);
-                if (isoMatch) {
-                    return isoMatch[1] + ':' + isoMatch[2];
-                }
-                // Fallback: try Date object
                 try {
                     const d = new Date(timeStr);
                     if (!isNaN(d.getTime())) {
-                        // Use UTC methods since Sheets stores as UTC
-                        const h = String(d.getUTCHours()).padStart(2, '0');
-                        const m = String(d.getUTCMinutes()).padStart(2, '0');
+                        // Use local time methods (getHours/getMinutes) which automatically accounts for local timezone offsets!
+                        const h = String(d.getHours()).padStart(2, '0');
+                        const m = String(d.getMinutes()).padStart(2, '0');
                         return h + ':' + m;
                     }
                 } catch (e) { }
-                return '--:--';
             }
 
             // Handle numeric serial number from Google Sheets
-            // Sheets stores dates as serial numbers: days since Dec 30 1899
-            // Time-only values are stored as fractions (e.g. 0.5 = 12:00)
             if (typeof timeStr === 'number' || (typeof timeStr === 'string' && /^\d+\.?\d*$/.test(timeStr))) {
                 const num = parseFloat(timeStr);
                 if (!isNaN(num)) {
-                    // Get fractional part (time) and convert to HH:mm
                     const fraction = num - Math.floor(num);
-                    // Handle negative (dates before epoch) - take absolute for time
                     const absFraction = Math.abs(fraction);
                     const totalMinutes = Math.round(absFraction * 24 * 60);
                     const h = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
@@ -3882,14 +4939,15 @@
             if (typeof timeStr === 'string') {
                 const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
                 if (timeMatch) {
-                    const h = String(parseInt(timeMatch[1], 10)).padStart(2, '0');
-                    return h + ':' + timeMatch[2];
+                    const h = String(timeMatch[1]).padStart(2, '0');
+                    const m = String(timeMatch[2]).padStart(2, '0');
+                    return h + ':' + m;
                 }
             }
 
             return '--:--';
         }
-
+        
         // ==================== API ====================
         async function apiCall(action, payload = {}) {
             const maxRetries = 2;
@@ -4132,13 +5190,25 @@
             const video = document.getElementById('chatCameraVideo');
             const canvas = document.getElementById('chatCameraCanvas');
             if (!video.videoWidth) return;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            // Kompres ukuran foto chat
+            let w = video.videoWidth;
+            let h = video.videoHeight;
+            const maxDimension = 640;
+            if (w > maxDimension || h > maxDimension) {
+                if (w > h) {
+                    h = Math.round(h * maxDimension / w);
+                    w = maxDimension;
+                } else {
+                    w = Math.round(w * maxDimension / h);
+                    h = maxDimension;
+                }
+            }
+            canvas.width = w; canvas.height = h;
             const ctx = canvas.getContext('2d');
             ctx.translate(canvas.width, 0);
             ctx.scale(-1, 1);
             ctx.drawImage(video, 0, 0);
-            const base64 = canvas.toDataURL('image/jpeg', 0.6);
+            const base64 = canvas.toDataURL('image/jpeg', 0.5);
             chatAttachment = { type: 'image', data: base64, name: 'camera.jpg' };
             showChatAttachmentPreview('camera.jpg');
             closeChatCamera();
@@ -4246,94 +5316,251 @@
         }
 
         async function populateTukerShiftModal() {
+            if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+            
             const today = new Date().toISOString().split('T')[0];
-            document.getElementById('tukerTanggal').value = today;
+            document.getElementById('tukerTanggalSaya').value = today;
+            document.getElementById('tukerTanggalTujuan').value = today;
+            document.getElementById('tukerAlasan').value = '';
 
-            // Populate toko dropdowns
-            const selTokoSaya = document.getElementById('tukerTokoSaya');
-            const selTokoTujuan = document.getElementById('tukerTokoTujuan');
-            selTokoSaya.innerHTML = '<option value="">Pilih Toko...</option>';
-            selTokoTujuan.innerHTML = '<option value="">Pilih Toko...</option>';
-            if (state.tokoList && state.tokoList.length) {
-                state.tokoList.forEach(t => {
-                    const opt = `<option value="${t.ID_Toko}">${t.Nama_Toko}</option>`;
-                    selTokoSaya.innerHTML += opt;
-                    selTokoTujuan.innerHTML += opt;
-                });
-            }
-            // Auto-select default toko user
-            if (state.user && state.user.tokoDefault) {
-                selTokoSaya.value = state.user.tokoDefault;
-                await onTukerTokoSayaChange();
+            // Setup Card Saya
+            document.getElementById('tukerSayaNama').innerText = state.user.name || 'Saya';
+            document.getElementById('tukerSayaRole').innerText = state.user.role || 'Karyawan';
+            
+            const avatarTxt = document.getElementById('tukerSayaAvatarText');
+            const avatarImg = document.getElementById('tukerSayaAvatarImg');
+            
+            const saved = loadLogin();
+            const fotoUrl = saved ? (saved.Foto_URL || saved.Foto_Profil || saved.fotoUrl || '') : '';
+            if (fotoUrl) {
+                avatarImg.src = fotoUrl;
+                avatarImg.style.display = 'block';
+                avatarTxt.style.display = 'none';
+            } else {
+                avatarTxt.innerText = (state.user.name || 'S').charAt(0).toUpperCase();
+                avatarTxt.style.display = 'flex';
+                avatarImg.style.display = 'none';
             }
 
-            // Populate karyawan list (exclude self)
+            // Populate Colleague Karyawan list (exclude self)
             const selKaryawan = document.getElementById('tukerKaryawan');
-            selKaryawan.innerHTML = '<option value="">Pilih Karyawan...</option>';
+            selKaryawan.innerHTML = '<option value="">Pilih Rekan...</option>';
             if (state.karyawanList && state.karyawanList.length) {
                 state.karyawanList.filter(k => k.ID_Karyawan !== state.user.id).forEach(k => {
-                    selKaryawan.innerHTML += `<option value="${k.ID_Karyawan}">${k.Nama}</option>`;
+                    selKaryawan.innerHTML += `<option value="${k.ID_Karyawan}" data-role="${k.Jabatan || 'Karyawan'}">${k.Nama}</option>`;
                 });
+            }
+
+            // Auto detect schedule saya for today
+            await detectSayaSchedule();
+            
+            // Reset Target Card info
+            document.getElementById('tujuanScheduleBox').innerHTML = '<div class="schedule-placeholder">Pilih rekan & tanggal...</div>';
+            document.getElementById('tujuanSwapCard').classList.remove('active-schedule');
+        }
+
+        async function detectSayaSchedule() {
+            const tanggal = document.getElementById('tukerTanggalSaya').value;
+            const container = document.getElementById('sayaScheduleBox');
+            const card = document.getElementById('sayaSwapCard');
+            
+            if (!tanggal) {
+                container.innerHTML = '<div class="schedule-placeholder">Pilih tanggal...</div>';
+                card.classList.remove('active-schedule');
+                return;
+            }
+            
+            container.innerHTML = '<div class="spinner" style="margin: 0 auto; width: 20px; height: 20px;"></div>';
+            
+            try {
+                const res = await apiCall('getKaryawanJadwalByDate', {
+                    idKaryawan: state.user.id,
+                    tanggal: tanggal
+                });
+                
+                if (res.success) {
+                    if (res.libur) {
+                        container.innerHTML = `
+                            <div class="schedule-libur">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                                </svg>
+                                <span style="font-weight:800; font-size:11px; margin-top:4px;">L I B U R</span>
+                            </div>`;
+                        document.getElementById('tukerTokoSaya').value = '';
+                        document.getElementById('tukerShiftSaya').value = '';
+                        card.classList.remove('active-schedule');
+                    } else {
+                        container.innerHTML = `
+                            <div class="schedule-active-info">
+                                <div class="schedule-row" style="color: #2563eb;">
+                                    <div class="schedule-icon-wrapper" style="background: rgba(37, 99, 235, 0.1);">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                                    </div>
+                                    <span>${res.namaToko}</span>
+                                </div>
+                                <div class="schedule-row" style="color: #475569;">
+                                    <div class="schedule-icon-wrapper" style="background: rgba(71, 85, 105, 0.1);">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    </div>
+                                    <span>${res.namaShift}</span>
+                                </div>
+                                <div class="schedule-row" style="font-size: 11px; color: #64748b; padding-left: 32px; margin-top: -4px;">
+                                    <span>${res.jamMasuk} - ${res.jamPulang}</span>
+                                </div>
+                            </div>`;
+                        document.getElementById('tukerTokoSaya').value = res.idToko;
+                        document.getElementById('tukerShiftSaya').value = res.idShift;
+                        card.classList.add('active-schedule');
+                    }
+                } else {
+                    container.innerHTML = '<div class="schedule-placeholder" style="color: #ef4444;">Gagal memuat jadwal</div>';
+                    card.classList.remove('active-schedule');
+                }
+            } catch (e) {
+                container.innerHTML = '<div class="schedule-placeholder" style="color: #ef4444;">Koneksi gagal</div>';
+                card.classList.remove('active-schedule');
             }
         }
 
-        async function onTukerTokoSayaChange() {
-            const tokoId = document.getElementById('tukerTokoSaya').value;
-            const selShift = document.getElementById('tukerShiftSaya');
-            selShift.innerHTML = '<option value="">Pilih Shift...</option>';
-            if (!tokoId) return;
-            try {
-                const res = await apiCall('getShiftByToko', { idToko: tokoId });
-                if (res.success && Array.isArray(res.data)) {
-                    res.data.forEach(s => {
-                        const jm = formatTimeFromResponse(s.Jam_Masuk);
-                        const jp = formatTimeFromResponse(s.Jam_Pulang);
-                        selShift.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${jm} - ${jp})</option>`;
-                    });
-                }
-            } catch (e) { console.log('onTukerTokoSayaChange error:', e); }
+        async function onColleagueSelectChange() {
+            await detectColleagueSchedule();
         }
 
-        async function onTukerTokoTujuanChange() {
-            const tokoId = document.getElementById('tukerTokoTujuan').value;
-            const selShift = document.getElementById('tukerShiftTujuan');
-            selShift.innerHTML = '<option value="">Pilih Shift...</option>';
-            if (!tokoId) return;
+        async function detectColleagueSchedule() {
+            const karyawanId = document.getElementById('tukerKaryawan').value;
+            const tanggal = document.getElementById('tukerTanggalTujuan').value;
+            const container = document.getElementById('tujuanScheduleBox');
+            const card = document.getElementById('tujuanSwapCard');
+            
+            if (!karyawanId || !tanggal) {
+                container.innerHTML = '<div class="schedule-placeholder">Pilih rekan & tanggal...</div>';
+                card.classList.remove('active-schedule');
+                return;
+            }
+            
+            container.innerHTML = '<div class="spinner" style="margin: 0 auto; width: 20px; height: 20px;"></div>';
+            
             try {
-                const res = await apiCall('getShiftByToko', { idToko: tokoId });
-                if (res.success && Array.isArray(res.data)) {
-                    res.data.forEach(s => {
-                        const jm = formatTimeFromResponse(s.Jam_Masuk);
-                        const jp = formatTimeFromResponse(s.Jam_Pulang);
-                        selShift.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${jm} - ${jp})</option>`;
-                    });
+                const res = await apiCall('getKaryawanJadwalByDate', {
+                    idKaryawan: karyawanId,
+                    tanggal: tanggal
+                });
+                
+                if (res.success) {
+                    if (res.libur) {
+                        container.innerHTML = `
+                            <div class="schedule-libur">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                                </svg>
+                                <span style="font-weight:800; font-size:11px; margin-top:4px;">L I B U R</span>
+                            </div>`;
+                        document.getElementById('tukerTokoTujuan').value = '';
+                        document.getElementById('tukerShiftTujuan').value = '';
+                        card.classList.remove('active-schedule');
+                    } else {
+                        container.innerHTML = `
+                            <div class="schedule-active-info">
+                                <div class="schedule-row" style="color: #f97316;">
+                                    <div class="schedule-icon-wrapper" style="background: rgba(249, 115, 22, 0.1);">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                                    </div>
+                                    <span>${res.namaToko}</span>
+                                </div>
+                                <div class="schedule-row" style="color: #475569;">
+                                    <div class="schedule-icon-wrapper" style="background: rgba(71, 85, 105, 0.1);">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    </div>
+                                    <span>${res.namaShift}</span>
+                                </div>
+                                <div class="schedule-row" style="font-size: 11px; color: #64748b; padding-left: 32px; margin-top: -4px;">
+                                    <span>${res.jamMasuk} - ${res.jamPulang}</span>
+                                </div>
+                            </div>`;
+                        document.getElementById('tukerTokoTujuan').value = res.idToko;
+                        document.getElementById('tukerShiftTujuan').value = res.idShift;
+                        card.classList.add('active-schedule');
+                    }
+                } else {
+                    container.innerHTML = '<div class="schedule-placeholder" style="color: #ef4444;">Gagal memuat jadwal</div>';
+                    card.classList.remove('active-schedule');
                 }
-            } catch (e) { console.log('onTukerTokoTujuanChange error:', e); }
+            } catch (e) {
+                container.innerHTML = '<div class="schedule-placeholder" style="color: #ef4444;">Koneksi gagal</div>';
+                card.classList.remove('active-schedule');
+            }
         }
 
-        // ==================== TUKER SHIFT ====================
         async function submitTukerShift() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+            
             const tokoSaya = document.getElementById('tukerTokoSaya').value;
-            const tokoTujuan = document.getElementById('tukerTokoTujuan').value;
-            const karyawanId = document.getElementById('tukerKaryawan').value;
             const shiftSaya = document.getElementById('tukerShiftSaya').value;
+            const tanggalSaya = document.getElementById('tukerTanggalSaya').value;
+            
+            const karyawanId = document.getElementById('tukerKaryawan').value;
+            const tokoTujuan = document.getElementById('tukerTokoTujuan').value;
             const shiftTujuan = document.getElementById('tukerShiftTujuan').value;
-            const tanggal = document.getElementById('tukerTanggal').value;
-            const alasan = document.getElementById('tukerAlasan').value;
-            if (!tokoSaya || !tokoTujuan || !karyawanId || !shiftSaya || !shiftTujuan || !tanggal) {
-                showToast('Lengkapi semua field!', 'error'); return;
+            const tanggalTujuan = document.getElementById('tukerTanggalTujuan').value;
+            
+            const alasan = document.getElementById('tukerAlasan').value.trim();
+            
+            if (!karyawanId) {
+                showToast('Pilih rekan kerja tujuan swap!', 'error'); return;
             }
+            if (!tokoSaya || !shiftSaya) {
+                showToast('Jadwal Anda pada tanggal tersebut tidak aktif/libur!', 'error'); return;
+            }
+            if (!tokoTujuan || !shiftTujuan) {
+                showToast('Jadwal rekan tujuan pada tanggal tersebut tidak aktif/libur!', 'error'); return;
+            }
+            if (!alasan) {
+                showToast('Tulis alasan tukar shift!', 'error'); return;
+            }
+            
+            const btn = document.getElementById('btnAjukanTuker');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner" style="display:inline-block; vertical-align:middle; width:16px; height:16px;"></div> Memproses...';
+            
             try {
-                await apiCall('ajukanTukerShift', {
-                    idKaryawan: state.user.id, nama: state.user.name,
-                    idTokoSaya: tokoSaya, idTokoTujuan: tokoTujuan,
+                const res = await apiCall('ajukanTukerShift', {
+                    idKaryawan: state.user.id,
+                    nama: state.user.name,
+                    idTokoSaya: tokoSaya,
+                    idTokoTujuan: tokoTujuan,
                     idKaryawanTujuan: karyawanId,
-                    shiftSaya, shiftTujuan, tanggal, alasan
+                    shiftSaya,
+                    shiftTujuan,
+                    tanggal: tanggalSaya,
+                    tanggalTujuan: tanggalTujuan,
+                    alasan: alasan
                 });
-                closeModal('modalTukerShift');
-                tampilPicoModal('sukses', 'Pengajuan tukar shift terkirim!<br>Menunggu konfirmasi karyawan lain');
-            } catch (e) { showToast('Gagal ajukan tukar shift', 'error'); }
+                
+                if (res.success) {
+                    closeModal('modalTukerShift');
+                    tampilPicoModal('sukses', '<b>Pengajuan Tukar Shift Terkirim! ⇆</b><br>Sukses mengirimkan pengajuan tukar shift. Menunggu konfirmasi dari rekan kerja Anda.');
+                    playSound('success');
+                } else {
+                    showToast(res.error || 'Gagal mengajukan tukar shift', 'error');
+                }
+            } catch (e) {
+                showToast('Koneksi backend gagal', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" style="margin-right: 8px;">
+                        <path d="M17 1l4 4-4 4"></path>
+                        <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                        <path d="M7 23l-4-4 4-4"></path>
+                        <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                    </svg>
+                    AJUKAN TUKAR SHIFT`;
+            }
         }
 
         // ==================== DATA IZIN & LEMBUR ====================
@@ -4569,7 +5796,135 @@
 
         // ==================== TOUCH FIX ====================
         document.addEventListener('touchstart', function () { }, { passive: true });
-    </script>
+
+        // ==================== MONTHLY RECAP ====================
+        async function updateMonthlyRecap() {
+            if (!state.user || !state.user.id) return;
+            try {
+                const now = new Date();
+                const res = await apiCall('getRaportBulanan', {
+                    idKaryawan: state.user.id,
+                    bulan: now.getMonth() + 1,
+                    tahun: now.getFullYear()
+                });
+                
+                if (res && res.success) {
+                    const totalHadir = res.totalHadir || 0;
+                    const totalTelat = res.totalTelat || 0;
+                    
+                    // Hitung hari kerja berjalan s.d hari ini (kecuali hari Minggu)
+                    let workingDaysUpToToday = 0;
+                    const year = now.getFullYear();
+                    const month = now.getMonth();
+                    for (let d = 1; d <= now.getDate(); d++) {
+                        const day = new Date(year, month, d).getDay();
+                        if (day !== 0) { // Bukan hari Minggu (0)
+                            workingDaysUpToToday++;
+                        }
+                    }
+                    
+                    // Hitung total hari kerja dalam bulan ini (kecuali hari Minggu)
+                    let totalWorkingDaysInMonth = 0;
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const day = new Date(year, month, d).getDay();
+                        if (day !== 0) {
+                            totalWorkingDaysInMonth++;
+                        }
+                    }
+                    if (totalWorkingDaysInMonth === 0) totalWorkingDaysInMonth = 26; // Fallback
+                    
+                    const alpa = Math.max(0, workingDaysUpToToday - totalHadir);
+                    
+                    // Update UI text
+                    const monthLabel = getMonthNameIndo(month) + ' ' + year;
+                    document.getElementById('statBulanLabel').textContent = monthLabel;
+                    document.getElementById('statHadir').textContent = totalHadir;
+                    document.getElementById('statAlpa').textContent = alpa;
+                    document.getElementById('statTelat').textContent = totalTelat;
+                    
+                    // Update progress bars (persentase)
+                    const pctHadir = Math.min(100, Math.round((totalHadir / totalWorkingDaysInMonth) * 100));
+                    const pctAlpa = Math.min(100, Math.round((alpa / totalWorkingDaysInMonth) * 100));
+                    const pctTelat = totalHadir > 0 ? Math.min(100, Math.round((totalTelat / totalHadir) * 100)) : 0;
+                    
+                    document.getElementById('barHadir').style.width = pctHadir + '%';
+                    document.getElementById('barAlpa').style.width = pctAlpa + '%';
+                    document.getElementById('barTelat').style.width = pctTelat + '%';
+                }
+            } catch (e) {
+                console.error('[RECAP] Gagal memuat rekap bulanan:', e);
+            }
+        }
+        
+        function getMonthNameIndo(monthNum) {
+            const months = [
+                'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+            ];
+            return months[monthNum];
+        }
+
+        function registerWebpushrUser(userId) {
+            if (!userId) return;
+            
+            // Minta izin notifikasi browser secara proaktif (WhatsApp style)
+            if (typeof Notification !== 'undefined') {
+                if (Notification.permission === 'default') {
+                    Notification.requestPermission().then(permission => {
+                        console.log('Browser notification permission result:', permission);
+                    });
+                }
+            }
+
+            if (typeof webpushr === 'function') {
+                webpushr('fetch_id', function(sid) {
+                    console.log('Webpushr SID fetched:', sid);
+                    webpushr('action', 'segment', { sid: String(userId) });
+                });
+            }
+        }
+
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/absen/sw.js')
+      .then(reg => {
+        console.log('SW registered');
+        
+        // Cek update service worker secara berkala
+        setInterval(() => {
+          reg.update();
+        }, 60000); // Cek setiap 1 menit
+
+        reg.addEventListener('updatefound', () => {
+          const installingWorker = reg.installing;
+          if (installingWorker) {
+            installingWorker.addEventListener('statechange', () => {
+              if (installingWorker.state === 'installed') {
+                if (navigator.serviceWorker.controller) {
+                  console.log('Versi baru PWA terpasang di background.');
+                }
+              }
+            });
+          }
+        });
+      })
+      .catch(err => console.log('SW fail', err));
+  });
+
+  // Reload otomatis ketika ada pembaruan Service Worker
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      window.location.reload();
+      refreshing = true;
+    }
+  });
+}
+</script>
+    <!-- start webpushr code --> <script>(function(w,d, s, id) {if(typeof(w.webpushr)!=='undefined') return;w.webpushr=w.webpushr||function(){(w.webpushr.q=w.webpushr.q||[]).push(arguments)};var js, fjs = d.getElementsByTagName(s)[0];js = d.createElement(s); js.id = id;js.async=1;js.src = "https://cdn.webpushr.com/app.min.js";fjs.parentNode.appendChild(js);}(window,document, 'script', 'webpushr-jssdk'));webpushr('setup',{'key':'BKNcqL5RqC90J3g9GvgvtK63d3_D5fLOWb-a8hmJ--568QbVnbEEDcvc1FASNBidhIYk729caU_u46NcbJVsyqA', 'sw': 'none' });</script><!-- end webpushr code -->
 
 </body>
 

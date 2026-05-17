@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard Admin — Absensi Pro</title>
 <style>
-  :root {
+:root {
     --primary: #1a73e8;
     --primary-dark: #1557b0;
     --primary-light: #e8f0fe;
@@ -1279,7 +1279,7 @@
 <audio id="soundNotif" src="https://assets.mixkit.co/active_storage/sfx/2866/2866-preview.mp3"></audio>
 
 <script>
- // ==================== STATE ====================
+// ==================== STATE ====================
 let currentPage = 'dashboard';
 let tokoData = [];
 let karyawanData = [];
@@ -1292,30 +1292,25 @@ let editingTokoId = null;
 let isLoading = false;
 
 // ==================== API CORE (ANTI MACET) ====================
-function apiCall(action, payload = {}) {
-  return new Promise((resolve, reject) => {
-    if (isLoading) return; // cegah double-click/double-submit
-    isLoading = true;
-    
-    google.script.run
-      .withSuccessHandler((response) => {
-        isLoading = false;
-        if (response && typeof response === 'object') {
-          if (response.success === false) {
-            reject(new Error(response.error || 'Error tidak diketahui'));
-          } else {
-            resolve(response);
-          }
-        } else {
-          reject(new Error('Response server tidak valid'));
-        }
-      })
-      .withFailureHandler((error) => {
-        isLoading = false;
-        reject(new Error(error?.message || 'Gagal terhubung ke server'));
-      })
-      .handleApiRequest({ action, ...payload });
-  });
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDyDhOWjdbi1dO9HBbcSEZumOkBGlg2Z4UzJ-YqcirnX7u487kUUOYota52PV-5BlN/exec';
+
+async function apiCall(action, payload = {}) {
+  if (isLoading) return Promise.reject(new Error('Sedang memproses...'));
+  isLoading = true;
+  
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action, ...payload })
+    });
+    const data = await res.json();
+    isLoading = false;
+    if (data.success === false) throw new Error(data.error || 'Error tidak diketahui');
+    return data;
+  } catch (e) {
+    isLoading = false;
+    throw e;
+  }
 }
 
 // ==================== AUDIO ====================
@@ -3846,6 +3841,15 @@ document.addEventListener('DOMContentLoaded', () => {
   
   showPage('dashboard');
 });
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/absen/sw.js')
+      .then(reg => console.log('SW registered'))
+      .catch(err => console.log('SW fail', err));
+  });
+}
 </script>
 </body>
 </html>
