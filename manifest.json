@@ -1,6 +1,6 @@
 {
-  "name": "AntyGravity Absensi",
-  "short_name": "Absensi",
+  "name": "Absensi Pro",
+  "short_name": "Absensi Pro",
   "start_url": "/absen/",
   "display": "standalone",
   "background_color": "#F8FAFC",
@@ -8,12 +8,12 @@
   "description": "Sistem Absensi Karyawan Multi-Toko",
   "icons": [
     {
-      "src": "https://ui-avatars.com/api/?name=AG&background=0D8ABC&color=fff&size=192",
+      "src": "https://ui-avatars.com/api/?name=AP&background=0D8ABC&color=fff&size=192",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://ui-avatars.com/api/?name=AG&background=0D8ABC&color=fff&size=512",
+      "src": "https://ui-avatars.com/api/?name=AP&background=0D8ABC&color=fff&size=512",
       "sizes": "512x512",
       "type": "image/png"
     }
