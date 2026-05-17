@@ -1282,6 +1282,83 @@ function getAbsensiHariIniLengkap(data) {
   return { success: true, data: result };
 }
 
+// ==================== LEMBUR MATH HELPER ====================
+function calculateLemburDuration(idKaryawan, tanggal) {
+  try {
+    const absensi = getSheetData(SHEET_NAMES.ABSENSI);
+    const recordMasuk = absensi.find(a => 
+      a.ID_Karyawan === idKaryawan && 
+      a.Tipe === 'Masuk' && 
+      formatDate(new Date(a.Timestamp)) === tanggal
+    );
+    
+    if (!recordMasuk) return { success: false, error: 'Data absensi masuk tidak ditemukan' };
+    
+    const jamMasukRealStr = recordMasuk.Jam_Masuk; 
+    const jamPulangRealStr = recordMasuk.Jam_Pulang;
+    
+    if (!jamMasukRealStr) return { success: false, error: 'Jam masuk real belum tercatat' };
+    
+    const idShift = recordMasuk.ID_Shift;
+    const shifts = getSheetData(SHEET_NAMES.SHIFT_TOKO);
+    const shift = shifts.find(s => s.ID_Shift === idShift);
+    
+    if (!shift) return { success: false, error: 'Shift tidak ditemukan' };
+    
+    const jamMasukShiftStr = shift.Jam_Masuk;
+    const jamPulangShiftStr = shift.Jam_Pulang;
+    
+    const parseTime = (timeStr, baseDateStr) => {
+      if (!timeStr) return null;
+      const parts = String(timeStr).split(':');
+      if (parts.length < 2) return null;
+      return new Date(baseDateStr + ' ' + parts[0] + ':' + parts[1] + ':00');
+    };
+    
+    const baseDate = tanggal;
+    const jamMasukReal = parseTime(jamMasukRealStr, baseDate);
+    const jamMasukShift = parseTime(jamMasukShiftStr, baseDate);
+    const jamPulangShift = parseTime(jamPulangShiftStr, baseDate);
+    const jamPulangReal = parseTime(jamPulangRealStr, baseDate);
+    
+    if (!jamMasukReal || !jamMasukShift) return { success: false, error: 'Gagal memproses jam masuk' };
+    
+    let durasiAwalMs = 0;
+    let durasiAkhirMs = 0;
+    
+    // A. Early Check-In Overtime (Jam masuk absen lebih awal >= 30 menit dari jam masuk shift toko)
+    const selisihAwalMs = jamMasukShift - jamMasukReal;
+    if (selisihAwalMs >= 30 * 60 * 1000) {
+      durasiAwalMs = selisihAwalMs;
+    }
+    
+    // B. Late Checkout Overtime (Jam pulang shift sampai jam pulang absen real)
+    if (jamPulangReal && jamPulangShift) {
+      const selisihAkhirMs = jamPulangReal - jamPulangShift;
+      if (selisihAkhirMs > 0) {
+        durasiAkhirMs = selisihAkhirMs;
+      }
+    }
+    
+    const totalDurasiMs = durasiAwalMs + durasiAkhirMs;
+    const totalMenit = Math.round(totalDurasiMs / 60000);
+    const durasiJam = Math.floor(totalMenit / 60);
+    const durasiMenit = totalMenit % 60;
+    
+    return {
+      success: true,
+      jamMasukReal: jamMasukRealStr,
+      jamPulangReal: jamPulangRealStr || '',
+      jamMasukShift: jamMasukShiftStr,
+      jamPulangShift: jamPulangShiftStr,
+      durasiString: durasiJam + 'j ' + durasiMenit + 'm'
+    };
+    
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
 // ==================== APPROVAL ====================
 function approveLembur(data) {
   const { idLembur, status, approvedBy } = data;
@@ -1296,33 +1373,43 @@ function approveLembur(data) {
       sheet.getRange(i + 1, 14).setValue(formatDateTime(new Date()));
       
       if (status === 'Approved') {
-        const jamMulai = allData[i][6];
-        const jamSelesai = formatTime(new Date());
-        sheet.getRange(i + 1, 8).setValue(jamSelesai);
+        const idKaryawan = allData[i][1];
+        const tanggalLembur = formatDate(new Date(allData[i][5]));
         
-        let start;
-        if (jamMulai instanceof Date) {
-          start = new Date(2000, 0, 1, jamMulai.getHours(), jamMulai.getMinutes());
+        const calc = calculateLemburDuration(idKaryawan, tanggalLembur);
+        if (calc.success) {
+          sheet.getRange(i + 1, 7).setValue(calc.jamMasukReal); // Jam Mulai = jam masuk absen real
+          sheet.getRange(i + 1, 8).setValue(calc.jamPulangReal || '-'); // Jam Selesai = jam pulang absen real
+          sheet.getRange(i + 1, 9).setValue(calc.durasiString); // Durasi Jam = hasil hitung durasi real
         } else {
-          // Parse string HH:mm
-          const parts = String(jamMulai).split(':');
-          if (parts.length >= 2) {
-            start = new Date(2000, 0, 1, parseInt(parts[0], 10), parseInt(parts[1], 10));
+          // Fallback kalkulasi lama jika absensi tidak ditemukan
+          const jamMulai = allData[i][6];
+          const jamSelesai = formatTime(new Date());
+          sheet.getRange(i + 1, 8).setValue(jamSelesai);
+          
+          let start;
+          if (jamMulai instanceof Date) {
+            start = new Date(2000, 0, 1, jamMulai.getHours(), jamMulai.getMinutes());
           } else {
-            start = new Date(2000, 0, 1, 0, 0);
+            const parts = String(jamMulai).split(':');
+            if (parts.length >= 2) {
+              start = new Date(2000, 0, 1, parseInt(parts[0], 10), parseInt(parts[1], 10));
+            } else {
+              start = new Date(2000, 0, 1, 0, 0);
+            }
           }
+          
+          const now = new Date();
+          const end = new Date(2000, 0, 1, now.getHours(), now.getMinutes());
+          
+          let durasiMs = end - start;
+          if (isNaN(durasiMs) || durasiMs < 0) {
+            durasiMs = 0;
+          }
+          const durasiJam = Math.floor(durasiMs / 3600000);
+          const durasiMenit = Math.floor((durasiMs % 3600000) / 60000);
+          sheet.getRange(i + 1, 9).setValue(durasiJam + 'j ' + durasiMenit + 'm');
         }
-        
-        const now = new Date();
-        const end = new Date(2000, 0, 1, now.getHours(), now.getMinutes());
-        
-        let durasiMs = end - start;
-        if (isNaN(durasiMs) || durasiMs < 0) {
-          durasiMs = 0;
-        }
-        const durasiJam = Math.floor(durasiMs / 3600000);
-        const durasiMenit = Math.floor((durasiMs % 3600000) / 60000);
-        sheet.getRange(i + 1, 9).setValue(durasiJam + 'j ' + durasiMenit + 'm');
       }
       
       return { success: true, message: 'Lembur ' + status.toLowerCase() };

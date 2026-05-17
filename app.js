@@ -649,77 +649,117 @@
             finally { btn.disabled = false; btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> ABSEN PULANG`; }
         }
 
-        function toggleLemburMode() { openModal('modalLembur'); }
+        function toggleLemburMode() {
+            if (state.absenStatus === 'belum_masuk') {
+                showToast('Anda harus absen masuk terlebih dahulu!', 'error');
+                return;
+            }
+            openModal('modalLembur');
+        }
 
         // ==================== LEMBUR ====================
         async function submitLembur() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             const tokoId = document.getElementById('lemburToko').value;
             const toko = state.tokoList.find(t => t.ID_Toko === tokoId);
-            try {
-                await apiCall('ajukanLembur', {
-                    idKaryawan: state.user.id, nama: state.user.name,
-                    idToko: tokoId, namaToko: toko ? toko.Nama_Toko : '',
-                    alasan: document.getElementById('lemburAlasanType').value,
-                    fotoBase64: state.lemburPhotoData || ''
-                });
-                closeModal('modalLembur');
-                tampilPicoModal('lembur_pending', 'Pengajuan lembur terkirim!<br>Tunggu approve dari Bos ya!');
-                retakeLemburPhoto();
-            } catch (e) { showToast('Gagal ajukan lembur', 'error'); }
-        }
-
-        function toggleLemburAlasan() {
-            document.getElementById('lemburAlasanManual').classList.toggle('hidden', document.getElementById('lemburAlasanType').value !== 'lainnya');
-        }
-
-        let lemburStream = null, lemburPhotoData = null;
-        async function startLemburCamera() {
-            const video = document.getElementById('lemburVideo');
-            const overlay = document.getElementById('lemburCameraOverlay');
-            const captureBtn = document.getElementById('lemburCaptureBtn');
-            try {
-                if (lemburStream) lemburStream.getTracks().forEach(t => t.stop());
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-                lemburStream = stream; video.srcObject = stream; await video.play();
-                overlay.style.display = 'none'; video.style.display = 'block'; captureBtn.style.display = 'block';
-            } catch (err) { showToast('Gagal nyalakan kamera lembur: ' + err.message, 'error'); }
-        }
-        function captureLemburPhoto() {
-            const video = document.getElementById('lemburVideo');
-            const canvas = document.getElementById('lemburCanvas');
-            const preview = document.getElementById('lemburPreview');
-            if (!video.videoWidth) { showToast('Kamera belum siap', 'error'); return; }
-            // Kompres ukuran foto lembur
-            let w = video.videoWidth;
-            let h = video.videoHeight;
-            const maxDimension = 640;
-            if (w > maxDimension || h > maxDimension) {
-                if (w > h) {
-                    h = Math.round(h * maxDimension / w);
-                    w = maxDimension;
-                } else {
-                    w = Math.round(w * maxDimension / h);
-                    h = maxDimension;
-                }
+            
+            const ketType = document.getElementById('lemburKeteranganType').value;
+            const ketManual = document.getElementById('lemburKeteranganManual').value.trim();
+            const keterangan = ketType === 'Lainnya' ? ketManual : ketType;
+            
+            if (!keterangan) {
+                showToast('Keterangan lembur wajib diisi!', 'error');
+                return;
             }
-            canvas.width = w; canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0);
-            lemburPhotoData = canvas.toDataURL('image/jpeg', 0.6);
-            preview.src = lemburPhotoData; preview.style.display = 'block';
-            video.style.display = 'none'; document.getElementById('lemburCaptureBtn').style.display = 'none';
-            document.getElementById('lemburRetakeBtn').style.display = 'block';
-            if (lemburStream) { lemburStream.getTracks().forEach(t => t.stop()); lemburStream = null; }
-            showToast('Foto lembur berhasil', 'success'); playSound('success');
+            
+            if (!state.lemburPhotoData) {
+                showToast('Foto bukti lembur wajib diambil!', 'error');
+                return;
+            }
+            
+            const btn = document.querySelector('button[onclick="submitLembur()"]');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> Mengirim...';
+            
+            try {
+                const res = await apiCall('ajukanLembur', {
+                    idKaryawan: state.user.id,
+                    nama: state.user.name,
+                    idToko: tokoId,
+                    namaToko: toko ? toko.Nama_Toko : '',
+                    alasan: keterangan,
+                    fotoBase64: state.lemburPhotoData
+                });
+                
+                if (res.success) {
+                    closeModal('modalLembur');
+                    tampilPicoModal('lembur_pending', 'Pengajuan lembur terkirim!<br>Tunggu approve dari Bos ya!');
+                    resetLemburFoto();
+                } else {
+                    showToast(res.error || 'Gagal mengajukan lembur', 'error');
+                }
+            } catch (e) {
+                showToast('Gagal ajukan lembur: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
         }
-        function retakeLemburPhoto() {
-            document.getElementById('lemburPreview').style.display = 'none';
-            document.getElementById('lemburVideo').style.display = 'none';
-            document.getElementById('lemburCaptureBtn').style.display = 'none';
-            document.getElementById('lemburRetakeBtn').style.display = 'none';
-            document.getElementById('lemburCameraOverlay').style.display = 'flex';
-            lemburPhotoData = null;
+
+        function toggleLemburKeterangan() {
+            const ketType = document.getElementById('lemburKeteranganType').value;
+            const manualGroup = document.getElementById('lemburKeteranganManualGroup');
+            if (manualGroup) {
+                manualGroup.classList.toggle('hidden', ketType !== 'Lainnya');
+            }
+        }
+
+        async function handleLemburFotoSelect(input) {
+            const label = document.getElementById('lemburFotoLabel');
+            const previewContainer = document.getElementById('lemburFotoPreviewContainer');
+            const previewImg = document.getElementById('lemburFotoPreview');
+            
+            if (!label) return;
+            
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                label.textContent = file.name;
+                label.parentElement.style.borderColor = 'var(--primary)';
+                label.parentElement.style.color = 'var(--primary)';
+                
+                try {
+                    // Kompresi otomatis gambar ke kualitas 60% dan lebar maks 800px
+                    const compressed = await compressImage(file, 0.6, 800);
+                    state.lemburPhotoData = compressed.base64;
+                    
+                    if (previewImg) previewImg.src = compressed.base64;
+                    if (previewContainer) previewContainer.style.display = 'block';
+                } catch (e) {
+                    console.error('Gagal kompresi foto lembur:', e);
+                    showToast('Gagal memproses gambar', 'error');
+                }
+            } else {
+                resetLemburFoto();
+            }
+        }
+
+        function resetLemburFoto(e) {
+            if (e) e.stopPropagation();
+            const fileInput = document.getElementById('lemburFotoInput');
+            const label = document.getElementById('lemburFotoLabel');
+            const previewContainer = document.getElementById('lemburFotoPreviewContainer');
+            const previewImg = document.getElementById('lemburFotoPreview');
+            
+            state.lemburPhotoData = null;
+            if (fileInput) fileInput.value = '';
+            if (label) {
+                label.textContent = 'Ambil Foto Bukti (Kamera)';
+                label.parentElement.style.borderColor = '#CBD5E1';
+                label.parentElement.style.color = '#64748B';
+            }
+            if (previewContainer) previewContainer.style.display = 'none';
+            if (previewImg) previewImg.src = '';
         }
 
         // ==================== IZIN ====================
@@ -1015,6 +1055,16 @@
                     fileInput.value = '';
                     updateFileName(fileInput);
                 }
+            }
+            if (id === 'modalLembur') {
+                resetLemburFoto();
+                const typeSelect = document.getElementById('lemburKeteranganType');
+                if (typeSelect) {
+                    typeSelect.value = 'Stock Opname';
+                    toggleLemburKeterangan();
+                }
+                const manualText = document.getElementById('lemburKeteranganManual');
+                if (manualText) manualText.value = '';
             }
         }
 
