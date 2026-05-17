@@ -2325,7 +2325,106 @@
             if (autocomplete) autocomplete.style.display = 'none';
         };
 
-        function formatMentions(text) {
+        window.selectChatMention = function(fullName) {
+            const input = document.getElementById('chatInput');
+            if (!input) return;
+            const text = input.value;
+            const caretPos = input.selectionStart;
+            
+            const textBeforeCaret = text.substring(0, caretPos);
+            const textAfterCaret = text.substring(caretPos);
+            
+            const cleanName = fullName.replace(/\s+/g, '');
+            const newTextBefore = textBeforeCaret.replace(/@([a-zA-Z0-9_]*)$/, `@${cleanName} `);
+            
+            input.value = newTextBefore + textAfterCaret;
+            input.focus();
+            
+            const newCaretPos = newTextBefore.length;
+            input.setSelectionRange(newCaretPos, newCaretPos);
+            
+            const autocomplete = document.getElementById('chatMentionAutocomplete');
+            if (autocomplete) autocomplete.style.display = 'none';
+        };
+
+        // REPLY TO MESSAGE GLOBALS & HELPERS
+        let chatLongPressTimer = null;
+        let isLongPressTriggered = false;
+        
+        window.startChatLongPress = function(event, id) {
+            window.cancelChatLongPress();
+            isLongPressTriggered = false;
+            
+            chatLongPressTimer = setTimeout(() => {
+                isLongPressTriggered = true;
+                if (navigator.vibrate) navigator.vibrate(50);
+                window.setChatReply(id);
+            }, 600);
+        };
+        
+        window.cancelChatLongPress = function() {
+            if (chatLongPressTimer) {
+                clearTimeout(chatLongPressTimer);
+                chatLongPressTimer = null;
+            }
+        };
+        
+        window.setChatReply = function(id) {
+            const m = chatMessages.find(msg => (msg.idPesan === id || msg.tempId === id));
+            if (!m) return;
+            
+            state.replyingTo = {
+                idPesan: m.idPesan || m.tempId,
+                senderName: m.nama,
+                messageText: m.pesan || ''
+            };
+            
+            const senderElement = document.getElementById('chatReplySender');
+            const textElement = document.getElementById('chatReplyText');
+            const previewElement = document.getElementById('chatReplyPreview');
+            
+            if (senderElement) senderElement.textContent = m.nama;
+            
+            let displayVal = m.pesan || '';
+            const replyRegex = /^\{\{REPLY:.*?\}\}/;
+            displayVal = displayVal.replace(replyRegex, '');
+            if (m.tipe === 'image') displayVal = '[Foto]';
+            else if (m.tipe === 'file') displayVal = '[Dokumen]';
+            
+            if (textElement) textElement.textContent = displayVal;
+            if (previewElement) previewElement.style.display = 'flex';
+            
+            const input = document.getElementById('chatInput');
+            if (input) input.focus();
+        };
+        
+        window.clearChatReply = function() {
+            state.replyingTo = null;
+            const previewElement = document.getElementById('chatReplyPreview');
+            if (previewElement) previewElement.style.display = 'none';
+        };
+        
+        window.scrollToChatMessage = function(idPesan) {
+            const targetElement = document.getElementById('chat-msg-' + idPesan);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Flash highlight effect to WOW the user!
+                targetElement.style.transition = 'all 0.3s ease';
+                const originalBg = targetElement.style.background;
+                const originalBoxShadow = targetElement.style.boxShadow;
+                
+                targetElement.style.background = '#fef08a'; // Flash highlight yellow
+                targetElement.style.boxShadow = '0 0 15px rgba(254,240,138,0.8)';
+                
+                setTimeout(() => {
+                    targetElement.style.background = originalBg;
+                    targetElement.style.boxShadow = originalBoxShadow;
+                }, 1000);
+            }
+        };
+
+        function formatMentions(text, isMe = false) {
             if (!text) return '';
             let escaped = escapeHtml(text);
             
@@ -2364,6 +2463,10 @@
                 if (isMeTagged) {
                     return `<span class="chat-mention tagged-me" style="background: #fef3c7; color: #d97706; padding: 2px 6px; border-radius: 6px; font-weight: 900; border: 1px solid #fcd34d; font-size: 13.5px; display: inline-block; box-shadow: 0 2px 5px rgba(217,119,6,0.08);">@${username}</span>`;
                 }
+                
+                if (isMe) {
+                    return `<span class="chat-mention" style="background: rgba(255, 255, 255, 0.25); color: #ffffff; padding: 2px 6px; border-radius: 6px; font-weight: 900; font-size: 13.5px; display: inline-block; border: 1px solid rgba(255, 255, 255, 0.35); box-shadow: 0 2px 4px rgba(0,0,0,0.05);">@${username}</span>`;
+                }
                 return `<span class="chat-mention" style="background: rgba(59,130,246,0.15); color: #1d4ed8; padding: 2px 6px; border-radius: 6px; font-weight: 800; font-size: 13.5px; display: inline-block;">@${username}</span>`;
             });
         }
@@ -2378,12 +2481,51 @@
             
             container.innerHTML = chatMessages.map(m => {
                 const isMe = m.idKaryawan === state.user.id;
-                let content = '';
                 
+                // Parse reply prefix if exists
+                let actualPesan = m.pesan || '';
+                let replyBoxHtml = '';
+                
+                const replyMatch = actualPesan.match(/^\{\{REPLY:(.*?)\|(.*?)\|(.*?)\}\}/);
+                if (replyMatch) {
+                    const replyId = replyMatch[1];
+                    const replySender = replyMatch[2];
+                    let replyTextRaw = replyMatch[3];
+                    
+                    // Strip reply prefix from the rendered message body
+                    actualPesan = actualPesan.substring(replyMatch[0].length);
+                    
+                    // Format the replied text
+                    let displayReplyText = replyTextRaw;
+                    if (displayReplyText.startsWith('[Foto]')) displayReplyText = '📷 Foto';
+                    else if (displayReplyText.startsWith('[Dokumen]')) displayReplyText = '📄 Dokumen';
+                    
+                    const replyQuoteStyle = isMe 
+                        ? 'background: rgba(255, 255, 255, 0.15); border-left: 4px solid #ffffff; padding: 6px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 11.5px; color: rgba(255,255,255,0.9); cursor: pointer; text-align: left; max-width: 100%; transition: background 0.2s;'
+                        : 'background: #f1f5f9; border-left: 4px solid #3b82f6; padding: 6px 12px; border-radius: 8px; margin-bottom: 8px; font-size: 11.5px; color: #475569; cursor: pointer; text-align: left; max-width: 100%; transition: background 0.2s;';
+                    
+                    replyBoxHtml = `
+                    <div onclick="scrollToChatMessage('${replyId}')" style="${replyQuoteStyle}" onmouseover="this.style.background='${isMe ? 'rgba(255,255,255,0.22)' : '#e2e8f0'}'" onmouseout="this.style.background='${isMe ? 'rgba(255,255,255,0.15)' : '#f1f5f9'}'">
+                        <div style="font-weight: 800; font-size: 10px; color: ${isMe ? '#ffffff' : '#3b82f6'}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">
+                            ${replySender}
+                        </div>
+                        <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px;">
+                            ${escapeHtml(displayReplyText)}
+                        </div>
+                    </div>`;
+                }
+
+                let content = '';
                 if (m.tipe === 'image' && m.fileUrl) {
-                    content = `<div style="position:relative; border-radius:12px; overflow:hidden; max-width:260px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 2px;"><img src="${resolveFotoUrl(m.fileUrl)}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="window.open('${m.fileUrl}','_blank')" alt="Foto"></div>`;
+                    content = `
+                    ${replyBoxHtml}
+                    <div style="position:relative; border-radius:12px; overflow:hidden; max-width:260px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 2px;">
+                        <img src="${resolveFotoUrl(m.fileUrl)}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="window.open('${m.fileUrl}','_blank')" alt="Foto">
+                    </div>`;
                 } else if (m.tipe === 'file' && m.fileUrl) {
-                    content = `<a href="${m.fileUrl}" target="_blank" style="color: inherit; text-decoration: none; display: block; margin-top: 2px;">
+                    content = `
+                    ${replyBoxHtml}
+                    <a href="${m.fileUrl}" target="_blank" style="color: inherit; text-decoration: none; display: block; margin-top: 2px;">
                         <div style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: ${isMe ? 'rgba(255, 255, 255, 0.15)' : '#f1f5f9'}; border-radius: 12px; font-size: 13px; font-weight: 700; border: 1px solid ${isMe ? 'rgba(255,255,255,0.2)' : '#e2e8f0'};">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0; color: ${isMe ? 'white' : '#3b82f6'};">
                                 <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
@@ -2393,7 +2535,11 @@
                         </div>
                     </a>`;
                 } else {
-                    content = `<div style="font-size: 14.5px; font-weight: 600; line-height: 1.5; word-break: break-word;">${formatMentions(m.pesan || '')}</div>`;
+                    content = `
+                    ${replyBoxHtml}
+                    <div style="font-size: 14.5px; font-weight: 600; line-height: 1.5; word-break: break-word;">
+                        ${formatMentions(actualPesan, isMe)}
+                    </div>`;
                 }
 
                 // Status indicator for own messages
@@ -2409,12 +2555,23 @@
                 }
 
                 const timeStr = formatChatTime(m.waktu);
+                const bubbleId = m.idPesan || m.tempId;
+
+                // LONG PRESS EVENT ATTRIBUTES
+                const gestureAttrs = `
+                    onmousedown="startChatLongPress(event, '${bubbleId}')"
+                    onmouseup="cancelChatLongPress()"
+                    onmouseleave="cancelChatLongPress()"
+                    ontouchstart="startChatLongPress(event, '${bubbleId}')"
+                    ontouchend="cancelChatLongPress()"
+                    ondblclick="setChatReply('${bubbleId}')"
+                `;
 
                 if (isMe) {
                     // SENDER BUBBLE (SAYA)
                     return `
-                    <div style="align-self: flex-end; max-width: 78%; display: flex; flex-direction: column; align-items: flex-end;">
-                        <div style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 10px 16px; border-radius: 20px 20px 4px 20px; box-shadow: 0 4px 12px rgba(37,99,235,0.18); ${m.status === 'failed' ? 'border: 2px solid #ef4444;' : ''}">
+                    <div id="chat-msg-${bubbleId}" style="align-self: flex-end; max-width: 78%; display: flex; flex-direction: column; align-items: flex-end; transition: all 0.3s ease; border-radius: 20px 20px 4px 20px;">
+                        <div ${gestureAttrs} style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 10px 16px; border-radius: 20px 20px 4px 20px; box-shadow: 0 4px 12px rgba(37,99,235,0.18); ${m.status === 'failed' ? 'border: 2px solid #ef4444;' : ''}; cursor: pointer; user-select: none; -webkit-user-select: none;">
                             ${content}
                             <div style="font-size: 10px; margin-top: 5px; opacity: 0.8; text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 4px; font-weight: 700;">
                                 <span>${timeStr}</span>
@@ -2440,11 +2597,11 @@
                     
                     // Highlight if tagged
                     const isTagged = isCurrentUserTagged(m.pesan);
-                    let bubbleStyle = 'background: white; color: #0f172a; padding: 10px 16px; border-radius: 4px 20px 20px 20px; box-shadow: 0 4px 12px rgba(15,23,42,0.04); border: 1px solid #f1f5f9;';
+                    let bubbleStyle = 'background: white; color: #0f172a; padding: 10px 16px; border-radius: 4px 20px 20px 20px; box-shadow: 0 4px 12px rgba(15,23,42,0.04); border: 1px solid #f1f5f9; cursor: pointer; user-select: none; -webkit-user-select: none;';
                     let alertBadge = '';
                     
                     if (isTagged) {
-                        bubbleStyle = 'background: #fffbeb; color: #0f172a; padding: 10px 16px; border-radius: 4px 20px 20px 20px; box-shadow: 0 4px 14px rgba(217,119,6,0.08); border: 1px solid #fcd34d; border-left: 4px solid #d97706;';
+                        bubbleStyle = 'background: #fffbeb; color: #0f172a; padding: 10px 16px; border-radius: 4px 20px 20px 20px; box-shadow: 0 4px 14px rgba(217,119,6,0.08); border: 1px solid #fcd34d; border-left: 4px solid #d97706; cursor: pointer; user-select: none; -webkit-user-select: none;';
                         alertBadge = `
                         <div style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: #d97706; font-weight: 800; margin-bottom: 5px; background: #fef3c7; width: fit-content; padding: 2px 8px; border-radius: 12px; border: 0.5px solid #fcd34d; flex-shrink:0;">
                             <span>🔔 Disebut</span>
@@ -2452,11 +2609,11 @@
                     }
 
                     return `
-                    <div style="align-self: flex-start; max-width: 78%; display: flex; gap: 10px; align-items: flex-start;">
+                    <div id="chat-msg-${bubbleId}" style="align-self: flex-start; max-width: 78%; display: flex; gap: 10px; align-items: flex-start; transition: all 0.3s ease; border-radius: 4px 20px 20px 20px;">
                         <!-- Avatar Badge -->
                         ${avatarBadge}
                         <div style="display: flex; flex-direction: column;">
-                            <div style="${bubbleStyle}">
+                            <div ${gestureAttrs} style="${bubbleStyle}">
                                 ${alertBadge}
                                 <div style="font-size: 11px; font-weight: 800; color: ${avatarColor}; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">${escapeHtml(m.nama || 'Rekan')}</div>
                                 ${content}
@@ -2603,12 +2760,24 @@
 
         async function sendChat() {
             const input = document.getElementById('chatInput');
-            const pesan = input.value.trim();
+            let pesan = input.value.trim();
             if (!pesan && !chatAttachment) return;
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
 
             // Generate temp ID for tracking
             const tempId = 'temp_' + Date.now();
+
+            // Prepend reply prefix if active
+            let replyTextPlaceholder = pesan;
+            if (state.replyingTo) {
+                // If it is a file/photo message, we want the placeholder to be descriptive
+                let snippet = state.replyingTo.messageText;
+                const replyRegex = /^\{\{REPLY:.*?\}\}/;
+                snippet = snippet.replace(replyRegex, '');
+                
+                const replyPrefix = `{{REPLY:${state.replyingTo.idPesan}|${state.replyingTo.senderName}|${snippet}}}`;
+                pesan = replyPrefix + pesan;
+            }
 
             // Build payload
             const payload = { idKaryawan: state.user.id, nama: state.user.name, pesan: pesan || '', tempId: tempId };
@@ -2634,6 +2803,7 @@
             renderChat(true);
             input.value = '';
             clearChatAttachment();
+            window.clearChatReply();
 
             try {
                 const res = await apiCall('sendChatMessage', payload);
