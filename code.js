@@ -1612,6 +1612,9 @@ function getMyApprovals(data) {
   const izin = getSheetData(SHEET_NAMES.IZIN_CUTI).filter(i => 
     i.ID_Karyawan === idKaryawan && i.Status !== 'Pending'
   );
+  const tukarShift = getSheetData(SHEET_NAMES.TUKER_SHIFT).filter(t => 
+    t.ID_Karyawan === idKaryawan && t.Status !== 'Pending'
+  );
   
   const result = [
     ...lembur.map(l => ({ 
@@ -1629,6 +1632,14 @@ function getMyApprovals(data) {
       tanggal: i.Tanggal_Mulai, 
       nama: i.Nama,
       approvedAt: i.Approved_At 
+    })),
+    ...tukarShift.map(t => ({ 
+      tipe: 'tuker_shift', 
+      id: t.ID_Tuker, 
+      status: t.Status, 
+      tanggal: t.Tanggal, 
+      nama: t.Nama,
+      approvedAt: t.Approved_At 
     }))
   ].sort((a, b) => new Date(b.approvedAt || 0) - new Date(a.approvedAt || 0));
   

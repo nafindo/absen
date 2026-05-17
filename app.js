@@ -1393,10 +1393,20 @@
             }
             
             list.innerHTML = unreadNotifs.map(n => {
+                let tipeLabel = 'Izin/Cuti';
+                let textLabel = `Pengajuan tanggal ${n.tanggal} telah <strong>${n.status === 'Approved' ? 'disetujui' : n.status === 'Rejected' ? 'ditolak' : 'diproses'}</strong>`;
+                
+                if (n.tipe === 'lembur') {
+                    tipeLabel = 'Lembur';
+                } else if (n.tipe === 'tuker_shift') {
+                    tipeLabel = 'Tukar Shift ⇆';
+                    textLabel = `Permintaan tukar shift tanggal ${formatDateIndo(n.tanggal)} telah <strong>${n.status === 'Approved' ? 'disetujui' : 'ditolak'}</strong>`;
+                }
+                
                 return `
     <div class="notif-item ${n.status === 'Approved' ? 'approved' : n.status === 'Rejected' ? 'rejected' : ''} unread-glowing" onclick="showNotifDetail('${n.id}', '${n.tipe}', '${n.status}', '${n.tanggal}', '${n.approvedAt || ''}')">
-      <div class="notif-item-title">${n.tipe === 'lembur' ? 'Lembur' : 'Izin/Cuti'} <span class="unread-dot">●</span></div>
-      <div class="notif-item-text">Pengajuan tanggal ${n.tanggal} telah <strong>${n.status === 'Approved' ? 'disetujui' : n.status === 'Rejected' ? 'ditolak' : 'diproses'}</strong></div>
+      <div class="notif-item-title">${tipeLabel} <span class="unread-dot">●</span></div>
+      <div class="notif-item-text">${textLabel}</div>
       <div class="notif-item-date">${n.approvedAt || n.tanggal}</div>
     </div>
   `;
@@ -1426,6 +1436,18 @@
                     title = 'Lembur Sedang Diproses ⏳';
                     detail = `Pengajuan lembur Anda pada tanggal <b>${tanggal}</b> sedang menunggu persetujuan.<br><br>` +
                              `Pico sedang memantau persetujuan dari Bos untukmu. Sabar menunggu ya! 🐧🔍`;
+                }
+            } else if (tipe === 'tuker_shift') {
+                if (status === 'Approved') {
+                    tipePico = 'sukses';
+                    title = 'Tukar Shift Disetujui! ⇆🎉';
+                    detail = `Permintaan tukar shift Anda pada tanggal <b>${formatDateIndo(tanggal)}</b> telah disetujui oleh rekan kerja Anda!<br><br>` +
+                             `PICO ikut senang! Jadwal kerja Anda berdua telah berhasil disesuaikan di database. Jangan lupa datang tepat waktu sesuai shift baru ya! 🐧💚`;
+                } else if (status === 'Rejected') {
+                    tipePico = 'error';
+                    title = 'Tukar Shift Ditolak ❌';
+                    detail = `Permintaan tukar shift Anda pada tanggal <b>${formatDateIndo(tanggal)}</b> ditolak oleh rekan kerja Anda.<br><br>` +
+                             `Jangan patah semangat ya! Mungkin rekan kerja Anda sedang ada keperluan mendesak di hari tersebut. Tetap kompak bekerja sama! 🙏🐧`;
                 }
             } else {
                 // Izin / Cuti
