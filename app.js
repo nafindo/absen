@@ -1521,8 +1521,7 @@
             if (id === 'modalChat') { 
                 loadChatMessages(); 
                 startChatPolling(); 
-                const badge = document.getElementById('badgeChat');
-                if (badge) badge.classList.add('hidden');
+                updateChatBadgeState(false);
             }
             if (id === 'modalTukerShift') populateTukerShiftModal();
             if (id === 'modalTugas') renderTugasList();
@@ -1551,6 +1550,23 @@
                 }
                 const manualText = document.getElementById('lemburKeteranganManual');
                 if (manualText) manualText.value = '';
+            }
+        }
+        
+        function updateChatBadgeState(show) {
+            const badge = document.getElementById('badgeChat');
+            const badgeBottom = document.getElementById('badgeChatBottom');
+            if (show) {
+                if (badge) {
+                    badge.textContent = '';
+                    badge.classList.remove('hidden');
+                }
+                if (badgeBottom) {
+                    badgeBottom.classList.remove('hidden');
+                }
+            } else {
+                if (badge) badge.classList.add('hidden');
+                if (badgeBottom) badgeBottom.classList.add('hidden');
             }
         }
 
@@ -1894,27 +1910,19 @@
                     if (hasNewMsg && latestNewMsg) {
                         playSound('pop');
                         if (!isModalOpen) {
-                            const badge = document.getElementById('badgeChat');
-                            if (badge) {
-                                badge.textContent = '';
-                                badge.classList.remove('hidden');
-                            }
+                            updateChatBadgeState(true);
                             showToast(`Pesan baru dari ${latestNewMsg.nama}: ${latestNewMsg.pesan.substring(0, 30)}${latestNewMsg.pesan.length > 30 ? '...' : ''}`, 'info');
                         }
                     }
 
                     // Update status badge notifikasi merah
-                    const badge = document.getElementById('badgeChat');
-                    if (badge) {
-                        if (isModalOpen) {
-                            badge.classList.add('hidden');
-                        } else {
-                            // Hitung apakah ada pesan dari orang lain di data server
-                            const hasOthersMsg = res.data.some(m => m.idKaryawan !== state.user.id);
-                            if (hasOthersMsg && oldIds.size > 0 && hasNewMsg) {
-                                badge.textContent = '';
-                                badge.classList.remove('hidden');
-                            }
+                    if (isModalOpen) {
+                        updateChatBadgeState(false);
+                    } else {
+                        // Hitung apakah ada pesan dari orang lain di data server
+                        const hasOthersMsg = res.data.some(m => m.idKaryawan !== state.user.id);
+                        if (hasOthersMsg && oldIds.size > 0 && hasNewMsg) {
+                            updateChatBadgeState(true);
                         }
                     }
                 } else {
@@ -2005,11 +2013,7 @@
             } else {
                 // If modal closed, show red dot badge & display visual toast
                 if (data.idKaryawan !== state.user.id) {
-                    const badge = document.getElementById('badgeChat');
-                    if (badge) {
-                        badge.textContent = '';
-                        badge.classList.remove('hidden');
-                    }
+                    updateChatBadgeState(true);
                     
                     showToast(`Pesan baru dari ${data.nama}: ${data.pesan.substring(0, 35)}${data.pesan.length > 35 ? '...' : ''}`, 'info');
                     playSound('pop');
