@@ -2797,7 +2797,7 @@
                     content = `
                     ${replyBoxHtml}
                     <div style="position:relative; border-radius:12px; overflow:hidden; max-width:260px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 2px;">
-                        <img src="${resolveFotoUrl(m.fileUrl)}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="window.open(getPublicViewUrl('${m.fileUrl}', 'image'),'_blank')" alt="Foto">
+                        <img src="${resolveFotoUrl(m.fileUrl)}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="viewPhoto('${resolveFotoUrl(m.fileUrl)}')" alt="Foto">
                     </div>
                     ${captionHtml}`;
                 } else if (m.tipe === 'file' && m.fileUrl) {
