@@ -2320,3 +2320,219 @@
         #webpushr-bell, .webpushr-bell, .webpushr-opt-in, #webpushr-opt-in {
             display: none !important;
         }
+
+        /* ===== RAPORT CARD SYSTEM ===== */
+        .raport-cards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .raport-card {
+            background: var(--surface);
+            border-radius: 18px;
+            padding: 16px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.02);
+            transition: all 0.25s ease;
+        }
+
+        .raport-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+        }
+
+        .raport-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dashed #E8ECF1;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
+        }
+
+        .raport-card-date {
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .raport-card-badge {
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-ontime {
+            background: rgba(46, 125, 50, 0.1);
+            color: #2E7D32;
+        }
+
+        .badge-telat {
+            background: rgba(198, 40, 40, 0.1);
+            color: #C62828;
+        }
+
+        .raport-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .raport-meta-item {
+            background: #F1F5F9;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 11px;
+        }
+
+        .raport-meta-item.store {
+            background: rgba(26, 115, 232, 0.08);
+            color: #1a73e8;
+        }
+
+        .raport-photos-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            background: #F8FAFC;
+            padding: 12px;
+            border-radius: 14px;
+            margin-bottom: 12px;
+            border: 1px solid #F1F5F9;
+        }
+
+        .photo-column {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .photo-circle-wrapper {
+            position: relative;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid white;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+            background: #E2E8F0;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .photo-circle-wrapper:active {
+            transform: scale(0.95);
+        }
+
+        .photo-circle-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .photo-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #94A3B8;
+            background: #E2E8F0;
+        }
+
+        .photo-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .photo-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            font-weight: 800;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+        }
+
+        .photo-time {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text);
+            margin-top: 1px;
+        }
+
+        .raport-durasi-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px dashed #E8ECF1;
+            padding-top: 10px;
+            font-size: 12px;
+        }
+
+        .durasi-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .durasi-value {
+            font-weight: 800;
+            color: var(--text);
+        }
+
+        .badge-lembur-tag {
+            background: #E8F5E9;
+            color: #2E7D32;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            display: inline-block;
+        }
+
+        /* ===== LIGHTBOX MODAL ===== */
+        .lightbox-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 5000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            cursor: zoom-out;
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        .lightbox-modal.active {
+            display: flex;
+        }
+
+        .lightbox-modal img {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 14px;
+            box-shadow: 0 12px 50px rgba(0, 0, 0, 0.6);
+            transform: scale(0.95);
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .lightbox-modal.active img {
+            transform: scale(1);
+        }

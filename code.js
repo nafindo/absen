@@ -1339,17 +1339,37 @@ function formatRaport(absensi, mode, bln, thn, idKaryawan) {
   }
   
   // Detail harian
-  const detailHarian = absensi.filter(a => a.Tipe === 'Masuk').map(a => ({
-    tanggal: formatDate(new Date(a.Timestamp)),
-    toko: a.Nama_Toko,
-    shift: a.Nama_Shift,
-    jamMasuk: a.Jam_Masuk,
-    jamPulang: a.Jam_Pulang,
-    status: a.Status_Masuk,
-    menitTelat: a.Menit_Telat,
-    fotoMasuk: a.Foto_URL,
-    fotoPulang: a.Foto_Pulang_URL || ''
-  }));
+  const detailHarian = absensi.filter(a => a.Tipe === 'Masuk').map(a => {
+    const tglStr = formatDate(new Date(a.Timestamp));
+    let durasiLembur = '';
+    if (empId) {
+      const lemburList = getSheetData(SHEET_NAMES.LEMBUR).filter(l => 
+        String(l.ID_Karyawan) === String(empId) && 
+        l.Status === 'Approved'
+      );
+      const lemburHariIni = lemburList.find(l => {
+        if (!l.Tanggal) return false;
+        return formatDate(parseDateSafe(l.Tanggal)) === tglStr;
+      });
+      if (lemburHariIni) {
+        durasiLembur = lemburHariIni.Durasi_Jam || '';
+      }
+    }
+    
+    return {
+      tanggal: tglStr,
+      toko: a.Nama_Toko,
+      shift: a.Nama_Shift,
+      jamMasuk: a.Jam_Masuk,
+      jamPulang: a.Jam_Pulang || '-',
+      status: a.Status_Masuk,
+      menitTelat: a.Menit_Telat || 0,
+      jamKerja: a.Jam_Kerja || '-',
+      fotoMasuk: a.Foto_URL,
+      fotoPulang: a.Foto_Pulang_URL || '',
+      durasiLembur: durasiLembur
+    };
+  });
   
   return {
     success: true,

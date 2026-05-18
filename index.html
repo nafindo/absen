@@ -865,17 +865,7 @@
                     </div>
                 </div>
                 <div style="font-size:16px;font-weight:800;margin-bottom:12px;">Riwayat Harian</div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Tanggal</th>
-                            <th>Toko</th>
-                            <th>Shift</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="raportTbody"></tbody>
-                </table>
+                <div id="raportTbody" class="raport-cards-container"></div>
             </div>
         </div>
     </div>
@@ -1157,6 +1147,11 @@
     <audio id="soundSuccess" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
     <audio id="soundError" src="https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3"></audio>
     <audio id="soundNotif" src="https://assets.mixkit.co/active_storage/sfx/2866/2866-preview.mp3"></audio>
+    <!-- Lightbox Preview Modal -->
+    <div id="lightboxModal" class="lightbox-modal" onclick="closeLightbox()">
+        <img id="lightboxImg" src="" alt="Preview">
+    </div>
+
     <audio id="soundChatSent" src="https://assets.mixkit.co/active_storage/sfx/2357/2357-preview.mp3"></audio>
     <audio id="soundTagAlert" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3"></audio>
 

@@ -1356,6 +1356,22 @@
         }
 
         // ==================== RAPORT ====================
+        window.viewPhoto = function(url) {
+            const lightbox = document.getElementById('lightboxModal');
+            const img = document.getElementById('lightboxImg');
+            if (lightbox && img) {
+                img.src = url;
+                lightbox.classList.add('active');
+            }
+        };
+
+        window.closeLightbox = function() {
+            const lightbox = document.getElementById('lightboxModal');
+            if (lightbox) {
+                lightbox.classList.remove('active');
+            }
+        };
+
         async function renderRaport() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             try {
@@ -1365,12 +1381,64 @@
                     document.getElementById('raportHadir').textContent = res.totalHadir;
                     document.getElementById('raportTelat').textContent = res.totalTelat;
                     const tbody = document.getElementById('raportTbody');
-                    tbody.innerHTML = (res.detailHarian || []).map(d => `
-        <tr>
-          <td>${d.tanggal}</td><td>${d.toko}</td><td>${d.shift}</td>
-          <td>${d.status === 'Ontime' ? '<span class="badge badge-green">Ontime</span>' : '<span class="badge badge-red">Telat ' + (d.menitTelat || 0) + 'm</span>'}</td>
-        </tr>
-      `).join('');
+                    tbody.innerHTML = (res.detailHarian || []).map(d => {
+                        const hasLembur = d.durasiLembur && d.durasiLembur !== '' && d.durasiLembur !== '-';
+                        const lemburBadge = hasLembur ? `<span class="badge-lembur-tag">🔥 Lembur</span>` : '';
+                        
+                        const fotoMasukHtml = d.fotoMasuk 
+                            ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${d.fotoMasuk}')"><img src="${d.fotoMasuk}" alt="Check In"></div>`
+                            : `<div class="photo-circle-wrapper"><div class="photo-placeholder">👤</div></div>`;
+                            
+                        const fotoPulangHtml = d.fotoPulang && d.fotoPulang !== '-' && d.fotoPulang !== ''
+                            ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${d.fotoPulang}')"><img src="${d.fotoPulang}" alt="Check Out"></div>`
+                            : `<div class="photo-circle-wrapper"><div class="photo-placeholder">👤</div></div>`;
+                            
+                        return `
+                            <div class="raport-card animate-fade-in">
+                                <div class="raport-card-header">
+                                    <div class="raport-card-date">${d.tanggal}</div>
+                                    <div class="flex items-center gap-2">
+                                        ${lemburBadge}
+                                        ${d.status === 'Ontime' 
+                                            ? '<span class="raport-card-badge badge-ontime">✅ Ontime</span>' 
+                                            : '<span class="raport-card-badge badge-telat">⏳ Telat ' + (d.menitTelat || 0) + 'm</span>'}
+                                    </div>
+                                </div>
+                                <div class="raport-card-meta">
+                                    <span class="raport-meta-item store">📍 ${d.toko || 'Toko Default'}</span>
+                                    <span class="raport-meta-item">⏱️ ${d.shift || 'Shift'}</span>
+                                </div>
+                                <div class="raport-photos-grid">
+                                    <div class="photo-column">
+                                        ${fotoMasukHtml}
+                                        <div class="photo-info">
+                                            <span class="photo-label">Check In</span>
+                                            <span class="photo-time">${d.jamMasuk || '-'}</span>
+                                        </div>
+                                    </div>
+                                    <div class="photo-column">
+                                        ${fotoPulangHtml}
+                                        <div class="photo-info">
+                                            <span class="photo-label">Check Out</span>
+                                            <span class="photo-time">${d.jamPulang || '-'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="raport-durasi-section">
+                                    <div class="durasi-item">
+                                        <span>Durasi Kerja:</span>
+                                        <span class="durasi-value">${d.jamKerja || '-'}</span>
+                                    </div>
+                                    ${hasLembur ? `
+                                    <div class="durasi-item">
+                                        <span>Durasi Lembur:</span>
+                                        <span class="durasi-value" style="color:#2E7D32;">${d.durasiLembur}</span>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
                 }
             } catch (e) { console.log('renderRaport error:', e); }
         }
