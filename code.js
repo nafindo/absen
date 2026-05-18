@@ -632,7 +632,7 @@ function absenPulang(data) {
   }
   const durasiJam = Math.floor(durasiMs / 3600000);
   const durasiMenit = Math.floor((durasiMs % 3600000) / 60000);
-  const durasiKerja = durasiJam + 'j ' + durasiMenit + 'm';
+  const durasiKerja = durasiJam + 'j ' + String(durasiMenit).padStart(2, '0') + 'm';
   
   // Update record masuk dengan jam pulang
   const sheet = getSheet(SHEET_NAMES.ABSENSI);
@@ -1342,7 +1342,11 @@ function formatRaport(absensi, mode, bln, thn, idKaryawan) {
   const detailHarian = absensi.filter(a => a.Tipe === 'Masuk').map(a => {
     const tglStr = formatDate(new Date(a.Timestamp));
     let durasiLembur = '';
+    let isSwap = false;
+    let swapDetail = '';
+    
     if (empId) {
+      // 1. Cek Lembur
       const lemburList = getSheetData(SHEET_NAMES.LEMBUR).filter(l => 
         String(l.ID_Karyawan) === String(empId) && 
         l.Status === 'Approved'
@@ -1353,6 +1357,22 @@ function formatRaport(absensi, mode, bln, thn, idKaryawan) {
       });
       if (lemburHariIni) {
         durasiLembur = lemburHariIni.Durasi_Jam || '';
+      }
+      
+      // 2. Cek Tukar Shift
+      const swapList = getSheetData(SHEET_NAMES.TUKER_SHIFT).filter(t => 
+        (String(t.ID_Karyawan) === String(empId) || String(t.ID_Karyawan_Tujuan) === String(empId)) && 
+        t.Status === 'Approved'
+      );
+      const swapHariIni = swapList.find(t => {
+        if (!t.Tanggal) return false;
+        return formatDate(parseDateSafe(t.Tanggal)) === tglStr;
+      });
+      if (swapHariIni) {
+        isSwap = true;
+        swapDetail = String(swapHariIni.ID_Karyawan) === String(empId) 
+          ? `Tukar shift`
+          : `Tukar shift dengan ${swapHariIni.Nama}`;
       }
     }
     
@@ -1367,7 +1387,9 @@ function formatRaport(absensi, mode, bln, thn, idKaryawan) {
       jamKerja: a.Jam_Kerja || '-',
       fotoMasuk: a.Foto_URL,
       fotoPulang: a.Foto_Pulang_URL || '',
-      durasiLembur: durasiLembur
+      durasiLembur: durasiLembur,
+      isSwap: isSwap,
+      swapDetail: swapDetail
     };
   });
   
@@ -1641,7 +1663,7 @@ function calculateLemburDuration(idKaryawan, tanggal) {
       jamPulangReal: jamPulangRealStr || '',
       jamMasukShift: jamMasukShiftStr,
       jamPulangShift: jamPulangShiftStr,
-      durasiString: durasiJam + 'j ' + durasiMenit + 'm'
+      durasiString: durasiJam + 'j ' + String(durasiMenit).padStart(2, '0') + 'm'
     };
     
   } catch (e) {
@@ -1698,7 +1720,7 @@ function approveLembur(data) {
           }
           const durasiJam = Math.floor(durasiMs / 3600000);
           const durasiMenit = Math.floor((durasiMs % 3600000) / 60000);
-          sheet.getRange(i + 1, 9).setValue(durasiJam + 'j ' + durasiMenit + 'm');
+          sheet.getRange(i + 1, 9).setValue(durasiJam + 'j ' + String(durasiMenit).padStart(2, '0') + 'm');
         }
       }
       

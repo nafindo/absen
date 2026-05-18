@@ -1370,8 +1370,6 @@
             if (lightbox) {
                 lightbox.classList.remove('active');
             }
-        };
-
         async function renderRaport() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             try {
@@ -1385,12 +1383,17 @@
                         const hasLembur = d.durasiLembur && d.durasiLembur !== '' && d.durasiLembur !== '-';
                         const lemburBadge = hasLembur ? `<span class="badge-lembur-tag">🔥 Lembur</span>` : '';
                         
-                        const fotoMasukHtml = d.fotoMasuk 
-                            ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${d.fotoMasuk}')"><img src="${d.fotoMasuk}" alt="Check In"></div>`
+                        const swapBadge = d.isSwap ? `<span class="badge-swap-tag" title="${d.swapDetail || 'Tukar Shift'}">⇆ Tukar Shift</span>` : '';
+                        
+                        const resolvedFotoMasuk = resolveFotoUrl(d.fotoMasuk);
+                        const resolvedFotoPulang = resolveFotoUrl(d.fotoPulang);
+                        
+                        const fotoMasukHtml = resolvedFotoMasuk 
+                            ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedFotoMasuk}')"><img src="${resolvedFotoMasuk}" alt="Check In"></div>`
                             : `<div class="photo-circle-wrapper"><div class="photo-placeholder">👤</div></div>`;
                             
-                        const fotoPulangHtml = d.fotoPulang && d.fotoPulang !== '-' && d.fotoPulang !== ''
-                            ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${d.fotoPulang}')"><img src="${d.fotoPulang}" alt="Check Out"></div>`
+                        const fotoPulangHtml = resolvedFotoPulang
+                            ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedFotoPulang}')"><img src="${resolvedFotoPulang}" alt="Check Out"></div>`
                             : `<div class="photo-circle-wrapper"><div class="photo-placeholder">👤</div></div>`;
                             
                         return `
@@ -1398,6 +1401,7 @@
                                 <div class="raport-card-header">
                                     <div class="raport-card-date">${d.tanggal}</div>
                                     <div class="flex items-center gap-2">
+                                        ${swapBadge}
                                         ${lemburBadge}
                                         ${d.status === 'Ontime' 
                                             ? '<span class="raport-card-badge badge-ontime">✅ Ontime</span>' 
