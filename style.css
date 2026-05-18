@@ -604,47 +604,47 @@
         }
 
         .status-masuk-capsule {
-            background: rgba(34, 197, 94, 0.12);
+            background: rgba(34, 197, 94, 0.15);
             color: #16a34a;
             padding: 4px 10px;
             border-radius: 20px;
             font-size: 11px;
             font-weight: 800;
-            border: 1px solid rgba(34, 197, 94, 0.25);
+            border: 1px solid rgba(34, 197, 94, 0.35);
             transition: all 0.25s ease;
             display: inline-flex;
             align-items: center;
         }
         .status-masuk-capsule.ok {
-            background: #22c55e !important;
+            background: #15803d !important;
             color: white !important;
-            border-color: #22c55e !important;
-            box-shadow: 0 4px 10px rgba(34, 197, 94, 0.35);
+            border-color: #15803d !important;
+            box-shadow: 0 4px 10px rgba(21, 128, 61, 0.35);
         }
         .status-masuk-capsule.pending {
-            opacity: 0.8;
+            opacity: 1;
         }
         
         .status-pulang-capsule {
-            background: rgba(239, 68, 68, 0.12);
+            background: rgba(239, 68, 68, 0.15);
             color: #dc2626;
             padding: 4px 10px;
             border-radius: 20px;
             font-size: 11px;
             font-weight: 800;
-            border: 1px solid rgba(239, 68, 68, 0.25);
+            border: 1px solid rgba(239, 68, 68, 0.35);
             transition: all 0.25s ease;
             display: inline-flex;
             align-items: center;
         }
         .status-pulang-capsule.ok {
-            background: #ef4444 !important;
+            background: #b91c1c !important;
             color: white !important;
-            border-color: #ef4444 !important;
-            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.35);
+            border-color: #b91c1c !important;
+            box-shadow: 0 4px 10px rgba(185, 28, 28, 0.35);
         }
         .status-pulang-capsule.pending {
-            opacity: 0.8;
+            opacity: 1;
         }
 
         /* Stat Grid */

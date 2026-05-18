@@ -74,14 +74,8 @@
                     <img id="headerAvatarImg" src="" style="display:none;" alt="">
                 </div>
                 <div class="header-info">
-                    <div style="display: flex; align-items: baseline; gap: 8px;">
-                        <h3 id="headerName">Budi Santoso</h3>
-                        <span id="headerDateStr" style="font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.85);">16 Mei 2026</span>
-                    </div>
-                    <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 2px;">
-                        <p id="headerRole" style="margin:0;">Staff - Toko A</p>
-                        <span id="headerTimeStr" style="font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.7);">--:--:--</span>
-                    </div>
+                    <h3 id="headerName">Budi Santoso</h3>
+                    <p id="headerRole">Staff - Toko A</p>
                 </div>
             </div>
             <div style="display:flex;align-items:center;gap:4px;">
@@ -126,8 +120,8 @@
                 <div style="display: flex; align-items: center; gap: 12px; text-align: left;">
                     <div style="background: rgba(255, 255, 255, 0.2); border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; animation: pulseNotif 2s infinite;">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                         </svg>
                     </div>
                     <div>
@@ -139,10 +133,13 @@
             </div>
 
             <!-- Shift Info Card -->
-            <div class="card shift-card" style="margin-top: 12px; display: flex; align-items: stretch; gap: 14px; padding: 16px;">
+            <div class="card shift-card" style="margin-top: 12px; display: flex; align-items: stretch; gap: 14px; padding: 16px; position: relative;">
+                <!-- Real-Time Floating Clock in First Card -->
+                <div id="cardTimeStr" style="position: absolute; top: 12px; right: 14px; font-size: 10px; font-weight: 700; color: var(--text-secondary); font-family: monospace;">--:--:--</div>
+                
                 <div style="flex-shrink:0; display:flex; align-items: center;">
                     <img id="fotoTokoCard" src="" alt="Toko"
-                        style="height: 100%; min-height: 70px; width: auto; max-width: 90px; border-radius:12px; object-fit:cover; background:#E8ECF1; display:none; border:2px solid var(--primary-light);">
+                        style="width: 76px; height: 76px; border-radius:12px; object-fit:cover; background:#E8ECF1; display:none; border:2px solid var(--primary-light);">
                 </div>
                 <div class="shift-detail" style="display: flex; flex-direction: column; justify-content: center; flex: 1; padding: 2px 0;">
                     <h4 id="namaTokoCard" style="font-size: 15px; font-weight: 800; color: var(--primary); margin-bottom: 4px; line-height: 1.2;">-</h4>

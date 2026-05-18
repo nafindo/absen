@@ -723,18 +723,16 @@
                 const now = new Date();
                 const opt = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
                 const dateStr = now.toLocaleDateString('id-ID', opt);
-                const headerDate = document.getElementById('headerDateStr');
-                if (headerDate) headerDate.textContent = dateStr;
                 
                 const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
-                const headerTime = document.getElementById('headerTimeStr');
-                if (headerTime) headerTime.textContent = timeStr;
+                const cardTime = document.getElementById('cardTimeStr');
+                if (cardTime) cardTime.textContent = timeStr;
                 
                 const bulanOpt = { month: 'long', year: 'numeric' };
                 const bulanLabel = document.getElementById('statBulanLabel');
                 const dataBulanLabel = document.getElementById('dataBulanLabel');
                 const bulanStr = now.toLocaleDateString('id-ID', bulanOpt);
-                if (bulanLabel) bulanLabel.textContent = bulanStr;
+                if (bulanLabel) bulanLabel.textContent = dateStr; // Taruh Hari Tanggal Lengkap di sini!
                 if (dataBulanLabel) dataBulanLabel.textContent = bulanStr;
             };
             run();
