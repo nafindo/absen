@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Pinguin Absen</string>
+    <string name="title_activity_main">Pinguin Absen</string>
+    <string name="package_name">com.pinguincell.absen</string>
+    <string name="custom_url_scheme">com.pinguincell.absen</string>
+</resources>
