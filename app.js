@@ -148,6 +148,10 @@
             // Initialize real-time Pusher WebSockets
             initPusher();
             initChatScrollListener();
+            
+            // ⚡ Muat cache lokal dan sinkronisasi server (1 kali saja saat buka aplikasi)
+            loadCachedChatMessages();
+            loadChatMessages();
 
             // Cek localStorage login
             const saved = loadLogin();
@@ -2516,38 +2520,20 @@
         }
 
         function startChatPolling() {
-            if (chatPollTimeout) clearTimeout(chatPollTimeout);
-            
-            async function pollNext() {
-                if (document.hidden) {
-                    // Jika halaman PWA di-minimize / tidak aktif, cek lagi dalam 15 detik tanpa hit API
-                    chatPollTimeout = setTimeout(pollNext, 15000);
-                    return;
-                }
-                
-                try {
-                    await loadChatMessages();
-                } catch (e) {
-                    console.warn('[POLL] Soft polling check error:', e);
-                }
-                
-                // Tentukan kecepatan polling berikutnya secara dinamis
-                const modal = document.getElementById('modalChat');
-                const isModalOpen = modal && modal.classList.contains('active');
-                
-                // Jika sedang buka obrolan: Polling super cepat (3 detik) sebagai backup real-time.
-                // Jika sedang ditutup: Polling santai (15 detik) untuk menghemat kuota Google Sheets & baterai.
-                const nextInterval = isModalOpen ? 3000 : 15000;
-                
-                chatPollTimeout = setTimeout(pollNext, nextInterval);
+            // POLLING TELAH DIMATIKAN TOTAL UNTUK MENCEGAH GOOGLE BAN/LIMIT!
+            // Sistem sekarang menggunakan murni Pusher WebSockets untuk real-time 
+            // ditambah Local Cache (Memori HP) untuk mempercepat loading tanpa membebani server.
+            if (chatPollTimeout) {
+                clearTimeout(chatPollTimeout);
+                chatPollTimeout = null;
             }
-            
-            // Jalankan polling pertama setelah delay 1.5 detik sejak login/load
-            chatPollTimeout = setTimeout(pollNext, 1500);
         }
 
         function stopChatPolling() {
-            // Polling latar belakang tetap dibiarkan aktif agar notifikasi terus masuk.
+            if (chatPollTimeout) {
+                clearTimeout(chatPollTimeout);
+                chatPollTimeout = null;
+            }
         }
 
         function getHashCodeColor(str) {
