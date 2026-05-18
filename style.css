@@ -1702,10 +1702,10 @@
         }
 
         .pico-modal-img {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            object-fit: cover;
+            width: auto;
+            max-width: 160px;
+            height: 160px;
+            object-fit: contain;
             margin: 0 auto 14px;
             display: block;
         }

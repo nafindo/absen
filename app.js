@@ -2082,13 +2082,70 @@
         // ==================== PICO ====================
         function tampilPicoModal(tipe, pesan, callback = null) {
             const modal = document.getElementById('pico-modal');
-            const img = document.getElementById('pico-modal-img');
-            const text = document.getElementById('pico-modal-text');
-            const btn = document.getElementById('pico-modal-btn');
-            img.src = pathGambar + (picoImages[tipe] || picoImages.error);
-            text.innerHTML = pesan;
-            btn.style.backgroundColor = picoBtnColors[tipe] || '#0D8ABC';
-            btn.onclick = () => { closePicoModal(); if (callback) callback(); };
+            const imgElement = document.getElementById('pico-modal-img');
+            const textElement = document.getElementById('pico-modal-text');
+            const btnElement = document.getElementById('pico-modal-btn');
+            
+            // Daftarkan path file gambar Anda di sini (sesuaikan dengan path hosting / folder Anda)
+            const pathGambar = "https://lh3.googleusercontent.com/d/"; // Biarkan kosong jika file berada di folder root yang sama
+            
+            let gambar = "13EQkf3fVMogqbquyalUbg90Aq-9OHGbS"; // Default
+            let warnaTombol = "#2ed573";   // Hijau default
+            let teksTombol = "Oke, Pico!";
+
+            // Set gambar & style berdasarkan tipe kejadian
+            switch (tipe) {
+                case 'sukses':
+                    gambar = "1Tnf4KogLXDeGaXjzi7nT-6D0XDsLQJtI";
+                    warnaTombol = "#2ed573"; // Hijau
+                    teksTombol = "Mantap, Pico!";
+                    break;
+                case 'gps_jauh':
+                    gambar = "1t3Ip_ioGD55TEWbkKPgtnYtDciidJuDZ";
+                    warnaTombol = "#e74c3c"; // Merah
+                    teksTombol = "Saya akan mendekat";
+                    break;
+                case 'wajah_gagal':
+                    gambar = "1znuTlrMgr6b_qpWdrTwdW5FnPsbsd3cE";
+                    warnaTombol = "#f39c12"; // Oranye
+                    teksTombol = "Coba Foto Lagi 📸";
+                    break;
+                case 'lembur_pending':
+                    gambar = "1q5q5rsFG0ZrhaGJyEulwU8MJjXAtFyKc";
+                    warnaTombol = "#3498db"; // Biru
+                    teksTombol = "Siap, tunggu Bos!";
+                    break;
+                case 'izin_sakit':
+                    gambar = "1wf65GL6UGY_qDfnGEhSYHxvYL5pRXJwf";
+                    warnaTombol = "#9b59b6"; // Ungu
+                    teksTombol = "Semoga Cepat Sembuh";
+                    break;
+                case 'izin_telat':
+                    gambar = "115BmzgFQ2uJHXk8khNGAhdYD0tRVrh1h";
+                    warnaTombol = "#f1c40f"; // Kuning
+                    teksTombol = "Saya Mengerti";
+                    break;
+                case 'izin_pulang':
+                    gambar = "152ZtNSBruDX5KQOpo7fMv7SDws0u1VlF";
+                    warnaTombol = "#e67e22"; // Oranye gelap
+                    teksTombol = "Hati-hati di jalan";
+                    break;
+                case 'izin_cuti':
+                    gambar = "1Tnxa9YDmJD0N0evyv7RGg9wRERDBm3zJ";
+                    warnaTombol = "#1abc9c"; // Toska
+                    teksTombol = "Selamat berlibur";
+                    break;
+                case 'error':
+                    gambar = "1Q5WxPZ2uulbNdZsggdCQ2HZhyJiFoJKV";
+                    warnaTombol = "#c0392b"; // Merah Tua
+                    teksTombol = "Aduh, maaf Pico";
+                    break;
+            }
+            imgElement.src = pathGambar + gambar;
+            textElement.innerHTML = pesan;
+            btnElement.style.backgroundColor = warnaTombol;
+            btnElement.textContent = teksTombol;
+            btnElement.onclick = () => { closePicoModal(); if (callback) callback(); };
             modal.classList.add('active');
             playSound(tipe === 'sukses' ? 'success' : 'error');
         }
