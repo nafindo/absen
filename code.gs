@@ -1440,7 +1440,8 @@ function formatRaport(absensi, mode, bln, thn, idKaryawan) {
       tanggalMulai: tglMulaiStr,
       tanggalSelesai: tglSelesaiStr,
       tipe: i.Nama_Jenis_Izin || 'Izin',
-      alasan: i.Alasan || ''
+      alasan: i.Alasan || '',
+      lampiranUrl: i.Lampiran_URL || ''
     };
   }) : [];
 

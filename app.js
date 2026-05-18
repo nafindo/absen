@@ -1537,15 +1537,27 @@
                                 leaveBadgeIcon = '✈️';
                             }
                             
+                            const resolvedLampiran = leave.lampiranUrl ? resolveFotoUrl(leave.lampiranUrl) : '';
+                            
                             return `
                                 <div class="raport-card raport-card-izin ${leaveClass} animate-fade-in">
                                     <div class="raport-card-header">
                                         <div class="raport-card-date">${displayDateLabel}</div>
                                         <span class="raport-card-badge badge-izin-status">${leaveBadgeIcon} ${leave.tipe}</span>
                                     </div>
-                                    <div class="raport-izin-reason-section">
-                                        <div class="izin-reason-title">Keperluan / Keterangan</div>
-                                        <div class="izin-reason-value">"${leave.alasan || 'Disetujui Admin'}"</div>
+                                    <div class="raport-izin-body" style="display: flex; gap: 12px; align-items: center; margin-top: 8px;">
+                                        <div class="raport-izin-reason-section" style="flex: 1; margin-top: 0;">
+                                            <div class="izin-reason-title">Keperluan / Keterangan</div>
+                                            <div class="izin-reason-value">"${leave.alasan || 'Disetujui Admin'}"</div>
+                                        </div>
+                                        ${resolvedLampiran ? `
+                                        <div class="photo-column" style="flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                            <div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedLampiran}')" style="width: 50px; height: 50px; border-color: #cbd5e1; cursor: pointer; border-radius: 50%; overflow: hidden; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                                <img src="${resolvedLampiran}" alt="Lampiran" style="width: 100%; height: 100%; object-fit: cover;">
+                                            </div>
+                                            <span style="font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px;">Lampiran</span>
+                                        </div>
+                                        ` : ''}
                                     </div>
                                 </div>
                             `;
