@@ -428,8 +428,7 @@
             showCameraOverlay();
             checkMyApprovals();
             startChatPolling(); // Mulai polling chat latar belakang otomatis setelah sukses login!
-            showToast('Selamat datang, ' + name + '!', 'success');
-            playSound('success');
+            tampilPicoModal('sukses', '<b>Selamat datang, Kak ' + name + '!</b><br>PICO sangat senang melihatmu kembali hari ini! Semangat bekerja dan jaga kesehatan ya! 🥰🐧');
 
             btn.disabled = false;
             btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> Masuk`;
@@ -2080,11 +2079,12 @@
         }
 
         // ==================== PICO ====================
-        function tampilPicoModal(tipe, pesan, callback = null) {
+        function tampilPicoModal(tipe, pesan, callback = null, showCancel = false, cancelCallback = null) {
             const modal = document.getElementById('pico-modal');
             const imgElement = document.getElementById('pico-modal-img');
             const textElement = document.getElementById('pico-modal-text');
             const btnElement = document.getElementById('pico-modal-btn');
+            const btnSecondary = document.getElementById('pico-modal-btn-secondary');
             
             // Daftarkan path file gambar Anda di sini (sesuaikan dengan path hosting / folder Anda)
             const pathGambar = "https://lh3.googleusercontent.com/d/"; // Biarkan kosong jika file berada di folder root yang sama
@@ -2146,10 +2146,25 @@
             btnElement.style.backgroundColor = warnaTombol;
             btnElement.textContent = teksTombol;
             btnElement.onclick = () => { closePicoModal(); if (callback) callback(); };
+            
+            if (showCancel) {
+                btnSecondary.style.display = 'block';
+                btnSecondary.onclick = () => {
+                    closePicoModal();
+                    if (cancelCallback) cancelCallback();
+                };
+            } else {
+                btnSecondary.style.display = 'none';
+            }
+            
             modal.classList.add('active');
             playSound(tipe === 'sukses' ? 'success' : 'error');
         }
-        function closePicoModal() { document.getElementById('pico-modal').classList.remove('active'); }
+        function closePicoModal() { 
+            document.getElementById('pico-modal').classList.remove('active'); 
+            const btnSecondary = document.getElementById('pico-modal-btn-secondary');
+            if (btnSecondary) btnSecondary.style.display = 'none';
+        }
 
         let stepIndex = 0, typingEffect, isTyping = false, bubbleTimer = null;
         const tutorialSteps = [
@@ -4014,11 +4029,18 @@
 
         // ==================== LOGOUT ====================
         function logout() {
-            if (confirm('Yakin ingin logout?')) {
-                clearLogin(); stopCamera();
-                showToast('Logout berhasil', 'info');
-                setTimeout(() => location.reload(), 500);
-            }
+            tampilPicoModal(
+                'error', 
+                '<b>Yakin ingin keluar, Kak?</b><br>PICO akan sangat merindukan kehadiranmu di sini! 🥺💔', 
+                () => {
+                    clearLogin(); 
+                    stopCamera();
+                    tampilPicoModal('izin_pulang', '<b>Sampai jumpa lagi!</b><br>Hati-hati di jalan pulang ya, Kak! PICO selalu mendukungmu! 👋🐧', () => {
+                        location.reload();
+                    });
+                }, 
+                true
+            );
         }
 
         // ==================== TOUCH FIX ====================
