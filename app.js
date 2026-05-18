@@ -782,9 +782,9 @@
                         state.jamPulangShift = (res.shift && res.shift.Jam_Pulang) || '';
                         state.jamPulangReal = d.Jam_Pulang || d.jamPulang || '';
                         document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.Jam_Masuk || d.jamMasuk);
-                        document.getElementById('statusMasuk').className = 'ok';
+                        document.getElementById('statusMasuk').className = 'status-masuk-capsule ok';
                         document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(d.Jam_Pulang || d.jamPulang);
-                        document.getElementById('statusPulang').className = 'ok';
+                        document.getElementById('statusPulang').className = 'status-pulang-capsule ok';
                     } else if (res.status === 'sudah_masuk') {
                         const d = res.data || {};
                         state.absenTokoId = d.ID_Toko || d.idToko || '';
@@ -792,14 +792,14 @@
                         state.jamMasukShift = (res.shift && res.shift.Jam_Masuk) || '';
                         state.jamPulangShift = (res.shift && res.shift.Jam_Pulang) || '';
                         document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(d.Jam_Masuk || d.jamMasuk);
-                        document.getElementById('statusMasuk').className = 'ok';
+                        document.getElementById('statusMasuk').className = 'status-masuk-capsule ok';
                         document.getElementById('statusPulang').textContent = 'Pulang: --';
-                        document.getElementById('statusPulang').className = 'pending';
+                        document.getElementById('statusPulang').className = 'status-pulang-capsule pending';
                     } else {
                         document.getElementById('statusMasuk').textContent = 'Masuk: --';
-                        document.getElementById('statusMasuk').className = 'pending';
+                        document.getElementById('statusMasuk').className = 'status-masuk-capsule pending';
                         document.getElementById('statusPulang').textContent = 'Pulang: --';
-                        document.getElementById('statusPulang').className = 'pending';
+                        document.getElementById('statusPulang').className = 'status-pulang-capsule pending';
                     }
                 }
             } catch(e) { console.error('checkAbsenStatus error:', e); }
@@ -967,7 +967,7 @@
                     state.absenStatus = 'sudah_masuk'; updateButtonVisibility();
                     tampilPicoModal('sukses', `<b>Absen Masuk Berhasil!</b><br>Jam: ${formatTimeFromResponse(res.jamMasuk)}<br>Status: ${res.statusMasuk}`);
                     document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(res.jamMasuk);
-                    document.getElementById('statusMasuk').className = 'ok';
+                    document.getElementById('statusMasuk').className = 'status-masuk-capsule ok';
                     // Refresh status so button changes to Pulang
                     await checkAbsenStatus();
                     await updateMonthlyRecap();
@@ -1037,7 +1037,7 @@
                     state.absenStatus = 'sudah_pulang'; updateButtonVisibility();
                     tampilPicoModal('izin_pulang', `<b>Absen Pulang Berhasil!</b><br>Durasi: ${res.durasiKerja || '-'}<br>Jam: ${formatTimeFromResponse(res.jamPulang)}`);
                     document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(res.jamPulang);
-                    document.getElementById('statusPulang').className = 'ok';
+                    document.getElementById('statusPulang').className = 'status-pulang-capsule ok';
                     // Refresh status so buttons hide
                     await checkAbsenStatus();
                     await updateMonthlyRecap();
@@ -1695,6 +1695,16 @@
                 const modal = document.getElementById('modalPersetujuanTukerShift');
                 if (modal && modal.classList.contains('active')) return;
 
+                // Load karyawanList jika belum terisi agar bisa mendeteksi foto profil pengaju
+                if (!state.karyawanList || state.karyawanList.length === 0) {
+                    try {
+                        const kRes = await apiCall('getKaryawanList');
+                        if (kRes.success && Array.isArray(kRes.data)) {
+                            state.karyawanList = kRes.data.filter(k => k.Status === 'Aktif');
+                        }
+                    } catch(e) { console.error('Gagal memuat rekan untuk pencarian foto:', e); }
+                }
+
                 const res = await apiCall('getPendingTukerShift', { idKaryawan: state.user.id });
                 if (res.success && Array.isArray(res.data) && res.data.length > 0) {
                     const item = res.data[0]; // Ambil yang paling lama pending/pertama
@@ -1714,7 +1724,18 @@
                     const avatarText = document.getElementById('persetujuanAvatarText');
                     const avatarImg = document.getElementById('persetujuanAvatarImg');
                     
-                    const resolvedFoto = resolveFotoUrl(item.fotoSaya);
+                    // 1. Coba ambil foto dari item respon
+                    let resolvedFoto = resolveFotoUrl(item.fotoSaya);
+                    
+                    // 2. Jika kosong, cari berdasarkan nama pengaju di karyawanList secara real-time
+                    if (!resolvedFoto && state.karyawanList && state.karyawanList.length > 0) {
+                        const pengaju = state.karyawanList.find(k => k.Nama && item.namaSaya && k.Nama.trim().toLowerCase() === item.namaSaya.trim().toLowerCase());
+                        if (pengaju) {
+                            const rawFoto = pengaju.Foto_URL || pengaju.Foto_Profil || pengaju.fotoUrl || '';
+                            resolvedFoto = resolveFotoUrl(rawFoto);
+                        }
+                    }
+                    
                     if (resolvedFoto) {
                         avatarImg.src = resolvedFoto;
                         avatarImg.style.display = 'block';
@@ -4100,7 +4121,6 @@
                     const monthLabel = getMonthNameIndo(month) + ' ' + year;
                     
                     // 1. UPDATE BERANDA CARD
-                    if (document.getElementById('statBulanLabel')) document.getElementById('statBulanLabel').textContent = monthLabel;
                     if (document.getElementById('statHadir')) document.getElementById('statHadir').textContent = totalHadir;
                     if (document.getElementById('statAlpa')) document.getElementById('statAlpa').textContent = alpa;
                     if (document.getElementById('statTelat')) document.getElementById('statTelat').textContent = totalTelat;
