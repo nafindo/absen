@@ -773,7 +773,13 @@ function ajukanIzin(data) {
   
   // Jika tglSelesai tidak diisi, kita biarkan kosong/open-ended
   const finalTglSelesai = tglSelesai || '';
-  const jumlahHari = finalTglSelesai ? (Math.ceil((new Date(finalTglSelesai) - new Date(tglMulai)) / (1000 * 60 * 60 * 24)) + 1) : 1;
+  
+  const start = parseDateSafe(tglMulai);
+  const end = finalTglSelesai ? parseDateSafe(finalTglSelesai) : null;
+  let jumlahHari = 1;
+  if (start && end) {
+    jumlahHari = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+  }
   
   if (finalTglSelesai && jenisIzin.Maks_Hari_Sekali_Ajuan && jumlahHari > parseInt(jenisIzin.Maks_Hari_Sekali_Ajuan)) {
     return { success: false, error: 'Maksimal ' + jenisIzin.Maks_Hari_Sekali_Ajuan + ' hari per pengajuan' };
@@ -855,7 +861,12 @@ function autoCloseIzin(idKaryawan, checkInDateStr) {
           tglMulaiFormatted = formatDate(rowTglMulai);
         }
         
-        const countDays = Math.ceil((new Date(tglSelesaiKemarin) - new Date(tglMulaiFormatted)) / (1000 * 60 * 60 * 24)) + 1;
+        const start = parseDateSafe(tglMulaiFormatted);
+        const end = parseDateSafe(tglSelesaiKemarin);
+        let countDays = 1;
+        if (start && end) {
+          countDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+        }
         
         // Update Jumlah Hari (Kolom 8 = H)
         sheet.getRange(i + 1, 8).setValue(countDays > 0 ? countDays : 1);
@@ -866,9 +877,7 @@ function autoCloseIzin(idKaryawan, checkInDateStr) {
   } catch (e) {
     console.error('[AUTO-CLOSE] Gagal menutup izin:', e);
   }
-}
-
-function getSisaKuota(data) {
+}function getSisaKuota(data) {
   const { idKaryawan } = data;
   const jenisIzin = getSheetData(SHEET_NAMES.MASTER_JENIS_IZIN);
   const izinApproved = getSheetData(SHEET_NAMES.IZIN_CUTI).filter(i => 
@@ -885,18 +894,23 @@ function getSisaKuota(data) {
   
   // Hitung jumlah hari Cuti yang terpakai
   const usedCutiBulanIni = izinApproved
-    .filter(i => i.ID_Jenis_Izin === cutiMaster.ID_Jenis && new Date(i.Tanggal_Mulai).getMonth() + 1 === bulanIni && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni)
+    .filter(i => {
+      if (i.ID_Jenis_Izin !== cutiMaster.ID_Jenis) return false;
+      const tgl = parseDateSafe(i.Tanggal_Mulai);
+      return tgl && tgl.getMonth() + 1 === bulanIni && tgl.getFullYear() === tahunIni;
+    })
     .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
-    
+     
   // Hitung jumlah hari Izin (dan jenis lain yang memotong Cuti Bulanan) yang terpakai
   const usedPotongCutiBulanIni = izinApproved
     .filter(i => {
       const master = jenisIzin.find(j => j.ID_Jenis === i.ID_Jenis_Izin);
+      const tgl = parseDateSafe(i.Tanggal_Mulai);
       return master && (master.Potong_Cuti_Bulanan === 'Ya' || master.Potong_Cuti_Bulanan === 'Yes') &&
-             new Date(i.Tanggal_Mulai).getMonth() + 1 === bulanIni && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni;
+             tgl && tgl.getMonth() + 1 === bulanIni && tgl.getFullYear() === tahunIni;
     })
     .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
-    
+     
   const totalSharedUsedBulanIni = usedCutiBulanIni + usedPotongCutiBulanIni;
   
   const result = {};
@@ -910,13 +924,21 @@ function getSisaKuota(data) {
       // Menggunakan kuota masing-masing
       if (j.Kuota_Per_Tahun) {
         const terpakai = izinApproved
-          .filter(i => i.ID_Jenis_Izin === j.ID_Jenis && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni)
+          .filter(i => {
+            if (i.ID_Jenis_Izin !== j.ID_Jenis) return false;
+            const tgl = parseDateSafe(i.Tanggal_Mulai);
+            return tgl && tgl.getFullYear() === tahunIni;
+          })
           .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
         sisa = Math.max(0, parseInt(j.Kuota_Per_Tahun) - terpakai);
       }
       if (j.Kuota_Per_Bulan) {
         const terpakai = izinApproved
-          .filter(i => i.ID_Jenis_Izin === j.ID_Jenis && new Date(i.Tanggal_Mulai).getMonth() + 1 === bulanIni && new Date(i.Tanggal_Mulai).getFullYear() === tahunIni)
+          .filter(i => {
+            if (i.ID_Jenis_Izin !== j.ID_Jenis) return false;
+            const tgl = parseDateSafe(i.Tanggal_Mulai);
+            return tgl && tgl.getMonth() + 1 === bulanIni && tgl.getFullYear() === tahunIni;
+          })
           .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
         sisa = Math.max(0, parseInt(j.Kuota_Per_Bulan) - terpakai);
       }
@@ -2659,7 +2681,7 @@ function getIzinHistory(data) {
       tglMulai: i.Tanggal_Mulai,
       tglSelesai: i.Tanggal_Selesai,
       alasan: i.Alasan,
-      tanggalPengajuan: formatDateTime(new Date(i.Timestamp || new Date())),
+      tanggalPengajuan: i.Timestamp ? formatDateTime(parseDateSafe(i.Timestamp)) : (i.Tanggal_Mulai || ''),
       approvedAt: i.Approved_At || ''
     }))
   };
@@ -2679,7 +2701,7 @@ function getLemburHistory(data) {
       status: l.Status,
       tanggal: l.Tanggal,
       alasan: l.Alasan,
-      tanggalPengajuan: formatDateTime(new Date(l.Timestamp || new Date())),
+      tanggalPengajuan: l.Timestamp ? formatDateTime(parseDateSafe(l.Timestamp)) : (l.Tanggal || ''),
       approvedAt: l.Approved_At || ''
     }))
   };
