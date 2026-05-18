@@ -2325,22 +2325,29 @@
         .raport-cards-container {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 14px;
             margin-top: 12px;
+            background: #f1f5f9; /* Soft cool gray background well */
+            padding: 14px;       /* Padding so the white cards float beautifully */
+            border-radius: 20px; /* Modern rounded container */
+            border: 1px solid #cbd5e1; /* Clear distinct border around the list container */
+            max-height: 60vh;
+            overflow-y: auto;
         }
 
         .raport-card {
-            background: var(--surface);
-            border-radius: 18px;
+            background: #ffffff !important; /* Forces pure white card background for absolute high contrast */
+            border-radius: 16px;
             padding: 16px;
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.02);
-            transition: all 0.25s ease;
+            border: 1px solid #cbd5e1; /* Clearer, distinct border around each day's card */
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04); /* Cool shadow for elevation */
+            transition: all 0.2s ease;
         }
 
         .raport-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+            border-color: #94a3b8; /* Darker border on hover to show interaction */
         }
 
         .raport-card-header {
