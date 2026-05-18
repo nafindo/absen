@@ -1313,9 +1313,10 @@ function formatRaport(absensi, mode, bln, thn, idKaryawan) {
   let totalSakit = 0;
   let totalIzin = 0;
   let totalCuti = 0;
+  let izinCutiList = [];
 
   if (empId) {
-    const izinCutiList = getSheetData(SHEET_NAMES.IZIN_CUTI).filter(i => 
+    izinCutiList = getSheetData(SHEET_NAMES.IZIN_CUTI).filter(i => 
       String(i.ID_Karyawan) === String(empId) && 
       i.Status === 'Approved'
     );
