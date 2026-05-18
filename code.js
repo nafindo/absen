@@ -86,9 +86,11 @@ function doPost(e) {
       
       // === LEMBUR ===
       case 'ajukanLembur': return jsonResponse(ajukanLembur(data));
+      case 'getLemburHistory': return jsonResponse(getLemburHistory(data));
       
       // === IZIN ===
       case 'ajukanIzin': return jsonResponse(ajukanIzin(data));
+      case 'getIzinHistory': return jsonResponse(getIzinHistory(data));
       case 'getSisaKuota': return jsonResponse(getSisaKuota(data));
       case 'getJenisIzinAktif': return jsonResponse(getJenisIzinAktif(data));
       
@@ -574,6 +576,21 @@ function absenMasuk(data) {
     console.error('Gagal menjalankan auto-close izin:', e);
   }
   
+  // Broadcast real-time notification to admins
+  try {
+    triggerPusher('pinguin-chat', 'absen-alert', {
+      idAbsensi: idAbsensi,
+      idKaryawan: idKaryawan,
+      nama: nama,
+      tipe: 'Masuk',
+      waktu: formatTime(now),
+      status: statusMasuk,
+      pesan: nama + ' telah absen MASUK (' + statusMasuk + ') di ' + namaToko
+    });
+  } catch (e) {
+    Logger.log("Pusher broadcast failed in absenMasuk: " + e.toString());
+  }
+  
   return {
     success: true,
     idAbsensi: idAbsensi,
@@ -669,7 +686,20 @@ function absenPulang(data) {
     '', // Face_Detected
     fotoUrl // Foto_Pulang_URL
   ]);
-  
+  // Broadcast real-time notification to admins
+  try {
+    triggerPusher('pinguin-chat', 'absen-alert', {
+      idKaryawan: idKaryawan,
+      nama: nama,
+      tipe: 'Pulang',
+      waktu: formatTime(now),
+      status: 'Ontime',
+      pesan: nama + ' telah absen PULANG. Durasi kerja: ' + durasiKerja
+    });
+  } catch (e) {
+    Logger.log("Pusher broadcast failed in absenPulang: " + e.toString());
+  }
+
   return {
     success: true,
     jamPulang: formatTime(now),
@@ -760,6 +790,20 @@ function ajukanLembur(data) {
     ''
   ]);
   
+  // Broadcast real-time notification to admins
+  try {
+    triggerPusher('pinguin-chat', 'lembur-alert', {
+      idLembur: idLembur,
+      idKaryawan: idKaryawan,
+      nama: nama,
+      tanggal: today,
+      status: 'Pending',
+      pesan: nama + ' mengajukan LEMBUR mulai jam ' + jamMulai
+    });
+  } catch (e) {
+    Logger.log("Pusher broadcast failed in ajukanLembur: " + e.toString());
+  }
+
   return { success: true, idLembur: idLembur, message: 'Pengajuan lembur berhasil dikirim' };
 }
 
@@ -828,7 +872,20 @@ function ajukanIzin(data) {
     '',
     ''
   ]);
-  
+  // Broadcast real-time notification to admins
+  try {
+    triggerPusher('pinguin-chat', 'izin-alert', {
+      idIzin: idIzin,
+      idKaryawan: idKaryawan,
+      nama: nama,
+      jenisIzin: namaJenis,
+      status: 'Pending',
+      pesan: nama + ' mengajukan izin: ' + namaJenis + ' (Mulai: ' + tglMulai + ')'
+    });
+  } catch (e) {
+    Logger.log("Pusher broadcast failed in ajukanIzin: " + e.toString());
+  }
+
   return { success: true, idIzin: idIzin, message: 'Pengajuan izin berhasil dikirim' };
 }
 
@@ -2747,11 +2804,11 @@ function getIzinHistory(data) {
       id: i.ID,
       jenis: i.Nama_Jenis,
       status: i.Status,
-      tglMulai: i.Tanggal_Mulai,
-      tglSelesai: i.Tanggal_Selesai,
+      tglMulai: i.Tanggal_Mulai ? formatDate(parseDateSafe(i.Tanggal_Mulai)) : '',
+      tglSelesai: i.Tanggal_Selesai ? formatDate(parseDateSafe(i.Tanggal_Selesai)) : '',
       alasan: i.Alasan,
-      tanggalPengajuan: i.Timestamp ? formatDateTime(parseDateSafe(i.Timestamp)) : (i.Tanggal_Mulai || ''),
-      approvedAt: i.Approved_At || ''
+      tanggalPengajuan: i.Timestamp ? formatDateTime(parseDateSafe(i.Timestamp)) : (i.Tanggal_Mulai ? formatDate(parseDateSafe(i.Tanggal_Mulai)) : ''),
+      approvedAt: i.Approved_At ? formatDateTime(parseDateSafe(i.Approved_At)) : ''
     }))
   };
 }
@@ -2768,10 +2825,10 @@ function getLemburHistory(data) {
       id: l.ID,
       toko: l.Nama_Toko,
       status: l.Status,
-      tanggal: l.Tanggal,
+      tanggal: l.Tanggal ? formatDate(parseDateSafe(l.Tanggal)) : '',
       alasan: l.Alasan,
-      tanggalPengajuan: l.Timestamp ? formatDateTime(parseDateSafe(l.Timestamp)) : (l.Tanggal || ''),
-      approvedAt: l.Approved_At || ''
+      tanggalPengajuan: l.Timestamp ? formatDateTime(parseDateSafe(l.Timestamp)) : (l.Tanggal ? formatDate(parseDateSafe(l.Tanggal)) : ''),
+      approvedAt: l.Approved_At ? formatDateTime(parseDateSafe(l.Approved_At)) : ''
     }))
   };
 }

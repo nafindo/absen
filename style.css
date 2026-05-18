@@ -40,13 +40,49 @@
             position: fixed;
             inset: 0;
             z-index: 9999;
-            background: linear-gradient(180deg, #0D8ABC 0%, #0A6B8E 60%, #065473 100%);
+            background: linear-gradient(135deg, rgba(13, 138, 188, 0.4) 0%, rgba(6, 84, 115, 0.75) 100%), url('pinguin-bg.png') no-repeat center center;
+            background-size: cover;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 24px;
             transition: opacity 0.4s ease, transform 0.4s ease;
+            overflow: hidden;
+        }
+
+        /* ===== SNOW EFFECT ===== */
+        .snow-container {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .snowflake {
+            position: absolute;
+            top: -10px;
+            color: white;
+            font-size: 1.2em;
+            user-select: none;
+            pointer-events: none;
+            animation: fall linear infinite;
+        }
+        @keyframes fall {
+            0% {
+                transform: translateY(-10px) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.9;
+            }
+            90% {
+                opacity: 0.9;
+            }
+            100% {
+                transform: translateY(105vh) rotate(360deg);
+                opacity: 0;
+            }
         }
 
         .login-screen.hidden {
@@ -67,6 +103,8 @@
             margin-bottom: 20px;
             border: 2px solid rgba(255, 255, 255, 0.25);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            position: relative;
+            z-index: 2;
         }
 
         .login-logo-wrap svg {
@@ -82,6 +120,8 @@
             letter-spacing: -0.5px;
             margin-bottom: 8px;
             text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            position: relative;
+            z-index: 2;
         }
 
         .login-app-sub {
@@ -90,6 +130,8 @@
             font-weight: 500;
             margin-bottom: 40px;
             text-align: center;
+            position: relative;
+            z-index: 2;
         }
 
         .login-card {
@@ -97,6 +139,8 @@
             border-radius: 24px;
             padding: 28px 24px;
             width: 100%;
+            position: relative;
+            z-index: 2;
             max-width: 380px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
@@ -553,26 +597,54 @@
 
         .shift-detail .status-line {
             display: flex;
-            gap: 16px;
+            gap: 8px;
             margin-top: 8px;
             font-size: 13px;
             font-weight: 600;
         }
 
-        .status-line .ok {
-            color: var(--success);
+        .status-masuk-capsule {
+            background: rgba(34, 197, 94, 0.12);
+            color: #16a34a;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            transition: all 0.25s ease;
+            display: inline-flex;
+            align-items: center;
         }
-
-        #statusMasuk.ok {
-            color: var(--success);
+        .status-masuk-capsule.ok {
+            background: #22c55e !important;
+            color: white !important;
+            border-color: #22c55e !important;
+            box-shadow: 0 4px 10px rgba(34, 197, 94, 0.35);
         }
-
-        #statusPulang.ok {
-            color: #F97316; /* Jingga/Orange Kontras untuk Pulang */
+        .status-masuk-capsule.pending {
+            opacity: 0.8;
         }
-
-        .status-line .pending {
-            color: var(--text-secondary);
+        
+        .status-pulang-capsule {
+            background: rgba(239, 68, 68, 0.12);
+            color: #dc2626;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            transition: all 0.25s ease;
+            display: inline-flex;
+            align-items: center;
+        }
+        .status-pulang-capsule.ok {
+            background: #ef4444 !important;
+            color: white !important;
+            border-color: #ef4444 !important;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.35);
+        }
+        .status-pulang-capsule.pending {
+            opacity: 0.8;
         }
 
         /* Stat Grid */

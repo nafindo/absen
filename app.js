@@ -140,6 +140,10 @@
 
         // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', async () => {
+            // Trigger Snow effects
+            createSnowEffect('splashScreen');
+            createSnowEffect('loginScreen');
+
             updateDate();
             initGPS();
             const today = new Date().toISOString().split('T')[0];
@@ -288,14 +292,57 @@
             document.getElementById('appContent').style.display = 'block';
         }
 
+        const appStartTime = Date.now();
+
         function hideSplashScreen() {
             const splash = document.getElementById('splashScreen');
             if (splash) {
-                splash.style.opacity = '0';
-                splash.style.visibility = 'hidden';
+                const elapsed = Date.now() - appStartTime;
+                const minDuration = 1000; // minimum duration 1 second
+                const remaining = minDuration - elapsed;
+                
                 setTimeout(() => {
-                    try { splash.remove(); } catch(e) {}
-                }, 400);
+                    splash.style.opacity = '0';
+                    splash.style.visibility = 'hidden';
+                    setTimeout(() => {
+                        try { splash.remove(); } catch(e) {}
+                    }, 400);
+                }, Math.max(0, remaining));
+            }
+        }
+
+        // ==================== SNOW EFFECT ====================
+        function createSnowEffect(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            // Create snow-container wrapper
+            const snowContainer = document.createElement('div');
+            snowContainer.className = 'snow-container';
+            container.appendChild(snowContainer);
+            
+            const snowflakeChars = ['❄', '❅', '❆', '•', '✧'];
+            const maxSnowflakes = 45;
+            
+            for (let i = 0; i < maxSnowflakes; i++) {
+                const flake = document.createElement('div');
+                flake.className = 'snowflake';
+                flake.textContent = snowflakeChars[Math.floor(Math.random() * snowflakeChars.length)];
+                
+                // Randomize positions, scale, delays, and speeds
+                const left = Math.random() * 100;
+                const size = 0.5 + Math.random() * 1.5;
+                const delay = Math.random() * 8;
+                const duration = 5 + Math.random() * 10;
+                const opacity = 0.3 + Math.random() * 0.7;
+                
+                flake.style.left = `${left}%`;
+                flake.style.fontSize = `${size}em`;
+                flake.style.animationDelay = `${delay}s`;
+                flake.style.animationDuration = `${duration}s`;
+                flake.style.opacity = opacity;
+                
+                snowContainer.appendChild(flake);
             }
         }
 
@@ -670,16 +717,30 @@
             }
         }
 
+        let dateIntervalId = null;
         function updateDate() {
-            const now = new Date();
-            const opt = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-            document.getElementById('shiftTanggal').textContent = now.toLocaleDateString('id-ID', opt);
-            const bulanOpt = { month: 'long', year: 'numeric' };
-            const bulanLabel = document.getElementById('statBulanLabel');
-            const dataBulanLabel = document.getElementById('dataBulanLabel');
-            const bulanStr = now.toLocaleDateString('id-ID', bulanOpt);
-            if (bulanLabel) bulanLabel.textContent = bulanStr;
-            if (dataBulanLabel) dataBulanLabel.textContent = bulanStr;
+            const run = () => {
+                const now = new Date();
+                const opt = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+                const dateStr = now.toLocaleDateString('id-ID', opt);
+                const headerDate = document.getElementById('headerDateStr');
+                if (headerDate) headerDate.textContent = dateStr;
+                
+                const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
+                const headerTime = document.getElementById('headerTimeStr');
+                if (headerTime) headerTime.textContent = timeStr;
+                
+                const bulanOpt = { month: 'long', year: 'numeric' };
+                const bulanLabel = document.getElementById('statBulanLabel');
+                const dataBulanLabel = document.getElementById('dataBulanLabel');
+                const bulanStr = now.toLocaleDateString('id-ID', bulanOpt);
+                if (bulanLabel) bulanLabel.textContent = bulanStr;
+                if (dataBulanLabel) dataBulanLabel.textContent = bulanStr;
+            };
+            run();
+            if (!dateIntervalId) {
+                dateIntervalId = setInterval(run, 1000);
+            }
         }
 
         // ==================== TOKO CARD INFO ====================

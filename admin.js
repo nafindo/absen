@@ -2559,4 +2559,43 @@ document.addEventListener('DOMContentLoaded', () => {
   if(lapTahun) lapTahun.value = tahunIni;
   
   showPage('dashboard');
+  
+  // ==================== PUSHER REAL-TIME NOTIFICATIONS ====================
+  try {
+    if (typeof Pusher !== 'undefined') {
+      const pusher = new Pusher('e912ab0d6c703b0d5c07', { cluster: 'ap1' });
+      const channel = pusher.subscribe('pinguin-chat');
+
+      channel.bind('absen-alert', function(data) {
+          showToast('📍 ' + (data.pesan || 'Ada absen baru'), 'info');
+          playSound('notif');
+          if (currentPage === 'dashboard') loadDashboard();
+          if (currentPage === 'absensi') loadAbsensiFull();
+      });
+
+      channel.bind('izin-alert', function(data) {
+          showToast('📋 ' + (data.pesan || 'Pengajuan izin baru'), 'info');
+          playSound('notif');
+          if (currentPage === 'dashboard') loadDashboard();
+          if (currentPage === 'notifikasi') loadNotifPage();
+      });
+
+      channel.bind('lembur-alert', function(data) {
+          showToast('🔥 ' + (data.pesan || 'Pengajuan lembur baru'), 'info');
+          playSound('notif');
+          if (currentPage === 'dashboard') loadDashboard();
+          if (currentPage === 'notifikasi') loadNotifPage();
+      });
+
+      channel.bind('swap-shift-alert', function(data) {
+          showToast('🔄 ' + (data.pesan || 'Pengajuan tukar shift'), 'info');
+          playSound('notif');
+          if (currentPage === 'dashboard') loadDashboard();
+      });
+      
+      console.log('Pusher admin notifications connected!');
+    }
+  } catch(e) {
+    console.error("Pusher init error in admin: ", e);
+  }
 });
