@@ -147,6 +147,7 @@
 
             // Initialize real-time Pusher WebSockets
             initPusher();
+            initChatScrollListener();
 
             // Cek localStorage login
             const saved = loadLogin();
@@ -1865,7 +1866,6 @@
 
                 loadChatMessages(); 
                 startChatPolling(); 
-                updateChatBadgeState(false);
                 document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
                 const labelAbsensi = document.getElementById('labelAbsensi');
                 if (labelAbsensi) labelAbsensi.style.color = 'var(--text-secondary)';
@@ -1892,12 +1892,6 @@
             document.getElementById(id).classList.remove('active');
             document.body.style.overflow = '';
             if (id === 'modalChat') {
-                if (chatMessages && chatMessages.length > 0) {
-                    const lastMsg = chatMessages[chatMessages.length - 1];
-                    if (lastMsg && lastMsg.idPesan) {
-                        localStorage.setItem('chatLastReadId', lastMsg.idPesan);
-                    }
-                }
                 stopChatPolling();
                 const navChat = document.getElementById('navChat');
                 if (navChat) navChat.classList.remove('active');
@@ -2251,6 +2245,55 @@
 
         let chatPollTimeout = null;
 
+        // Scientific WhatsApp-style read tracking & red dot badge management
+        function checkUnreadChatState() {
+            if (!chatMessages || chatMessages.length === 0) {
+                updateChatBadgeState(false);
+                return;
+            }
+            const lastReadId = localStorage.getItem('chatLastReadId') || '';
+            if (!lastReadId) {
+                const hasOthersMsg = chatMessages.some(m => String(m.idKaryawan) !== String(state.user.id));
+                updateChatBadgeState(hasOthersMsg);
+                return;
+            }
+            const lastReadIndex = chatMessages.findIndex(m => m.idPesan === lastReadId);
+            if (lastReadIndex === -1) {
+                // Assume unread if latest message from others is not the lastReadId
+                const latestMsg = chatMessages[chatMessages.length - 1];
+                const isLatestFromOthers = latestMsg && String(latestMsg.idKaryawan) !== String(state.user.id);
+                updateChatBadgeState(isLatestFromOthers);
+                return;
+            }
+            const hasNewOthersMsg = chatMessages.slice(lastReadIndex + 1).some(m => String(m.idKaryawan) !== String(state.user.id));
+            updateChatBadgeState(hasNewOthersMsg);
+        }
+
+        function initChatScrollListener() {
+            const container = document.getElementById('chatMessages');
+            if (!container) return;
+            
+            container.addEventListener('scroll', () => {
+                const modal = document.getElementById('modalChat');
+                const isModalOpen = modal && modal.classList.contains('active');
+                if (!isModalOpen) return;
+                
+                // If they scroll near the bottom (within 60px of the bottom scroll limit),
+                // we consider that they have read/scrolled past all messages!
+                const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 60;
+                if (isAtBottom && chatMessages.length > 0) {
+                    const lastMsg = chatMessages[chatMessages.length - 1];
+                    if (lastMsg && lastMsg.idPesan) {
+                        const prevLastReadId = localStorage.getItem('chatLastReadId') || '';
+                        if (prevLastReadId !== lastMsg.idPesan) {
+                            localStorage.setItem('chatLastReadId', lastMsg.idPesan);
+                            checkUnreadChatState(); // Instantly hide the red dot badge!
+                        }
+                    }
+                }
+            });
+        }
+
         // HIGH COMPRESSION CACHE SYSTEM FOR CHAT (Array-of-Arrays minimizes storage by ~75%)
         function saveChatMessagesToCache(messages) {
             if (!messages || !Array.isArray(messages)) return;
@@ -2294,6 +2337,7 @@
                         }));
                     }
                 }
+                checkUnreadChatState();
             } catch(e) {
                 console.error('[CHAT] Cache load error:', e);
             }
@@ -2323,6 +2367,17 @@
                     const modal = document.getElementById('modalChat');
                     const isModalOpen = modal && modal.classList.contains('active');
                     
+                    if (isModalOpen) {
+                        const container = document.getElementById('chatMessages');
+                        const isAtBottom = container ? (container.scrollHeight - container.scrollTop - container.clientHeight < 60) : false;
+                        if (isAtBottom && chatMessages.length > 0) {
+                            const lastMsg = chatMessages[chatMessages.length - 1];
+                            if (lastMsg && lastMsg.idPesan) {
+                                localStorage.setItem('chatLastReadId', lastMsg.idPesan);
+                            }
+                        }
+                    }
+                    
                     renderChat();
 
                     // Deteksi jika ada pesan baru dari orang lain untuk diputar suaranya & diberi notifikasi
@@ -2338,21 +2393,11 @@
                     if (hasNewMsg && latestNewMsg) {
                         playSound('pop');
                         if (!isModalOpen) {
-                            updateChatBadgeState(true);
                             showToast(`Pesan baru dari ${latestNewMsg.nama}: ${latestNewMsg.pesan.substring(0, 30)}${latestNewMsg.pesan.length > 30 ? '...' : ''}`, 'info');
                         }
                     }
 
-                    // Update status badge notifikasi merah
-                    if (isModalOpen) {
-                        updateChatBadgeState(false);
-                    } else {
-                        // Hitung apakah ada pesan dari orang lain di data server
-                        const hasOthersMsg = res.data.some(m => String(m.idKaryawan) !== String(state.user.id));
-                        if (hasOthersMsg && oldIds.size > 0 && hasNewMsg) {
-                            updateChatBadgeState(true);
-                        }
-                    }
+                    checkUnreadChatState();
                 } else {
                     renderChatEmpty();
                 }
@@ -2427,13 +2472,22 @@
             };
             
             chatMessages.push(newMsg);
-            renderChat();
             
             const modal = document.getElementById('modalChat');
-            if (modal && modal.classList.contains('active')) {
-                // Scroll to bottom
+            const isModalOpen = modal && modal.classList.contains('active');
+            
+            if (isModalOpen) {
                 const container = document.getElementById('chatMessages');
-                if (container) container.scrollTop = container.scrollHeight;
+                const isAtBottom = container ? (container.scrollHeight - container.scrollTop - container.clientHeight < 60) : false;
+                
+                renderChat();
+                
+                if (isAtBottom && container) {
+                    container.scrollTop = container.scrollHeight;
+                    if (newMsg.idPesan) {
+                        localStorage.setItem('chatLastReadId', newMsg.idPesan);
+                    }
+                }
                 
                 // Play notification sound for incoming chat
                 if (String(data.idKaryawan) !== String(state.user.id)) {
@@ -2444,10 +2498,9 @@
                     }
                 }
             } else {
-                // If modal closed, show red dot badge & display visual toast
+                renderChat();
+                // If modal closed, play sound and display visual toast
                 if (String(data.idKaryawan) !== String(state.user.id)) {
-                    updateChatBadgeState(true);
-                    
                     const isTagged = isCurrentUserTagged(data.pesan);
                     if (isTagged) {
                         showToast(`🔔 Kamu ditag oleh ${data.nama}: "${data.pesan.substring(0, 35)}${data.pesan.length > 35 ? '...' : ''}"`, 'warning');
@@ -2458,6 +2511,8 @@
                     }
                 }
             }
+            
+            checkUnreadChatState();
         }
 
         function startChatPolling() {
