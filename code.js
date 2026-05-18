@@ -1391,8 +1391,30 @@ function formatRaport(absensi, mode, bln, thn, idKaryawan) {
       isSwap: isSwap,
       swapDetail: swapDetail
     };
-  });
-  
+  const izinCutiMapped = empId ? izinCutiList.map(i => {
+    let tglMulaiStr = '';
+    let tglSelesaiStr = '';
+    try {
+      tglMulaiStr = i.Tanggal_Mulai instanceof Date 
+        ? formatDate(i.Tanggal_Mulai) 
+        : formatDate(parseDateSafe(i.Tanggal_Mulai));
+    } catch (e) {}
+    try {
+      tglSelesaiStr = i.Tanggal_Selesai instanceof Date 
+        ? formatDate(i.Tanggal_Selesai) 
+        : formatDate(parseDateSafe(i.Tanggal_Selesai));
+    } catch (e) {}
+    if (!tglSelesaiStr || tglSelesaiStr === '-' || tglSelesaiStr === '—') {
+      tglSelesaiStr = tglMulaiStr;
+    }
+    return {
+      tanggalMulai: tglMulaiStr,
+      tanggalSelesai: tglSelesaiStr,
+      tipe: i.Nama_Jenis_Izin || 'Izin',
+      alasan: i.Alasan || ''
+    };
+  }) : [];
+
   return {
     success: true,
     mode: mode,
@@ -1406,7 +1428,8 @@ function formatRaport(absensi, mode, bln, thn, idKaryawan) {
     totalSakit: totalSakit,
     totalIzin: totalIzin,
     totalCuti: totalCuti,
-    detailHarian: detailHarian
+    detailHarian: detailHarian,
+    izinCuti: izinCutiMapped
   };
 }
 
