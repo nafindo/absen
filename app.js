@@ -1858,6 +1858,11 @@
             document.body.style.overflow = 'hidden';
             if (id === 'modalJadwal') renderJadwal();
             if (id === 'modalChat') { 
+                loadCachedChatMessages();
+                state.chatLastReadId = localStorage.getItem('chatLastReadId') || '';
+                state.hasShownNewMessagesDivider = false;
+                renderChat(true);
+
                 loadChatMessages(); 
                 startChatPolling(); 
                 updateChatBadgeState(false);
@@ -1887,6 +1892,12 @@
             document.getElementById(id).classList.remove('active');
             document.body.style.overflow = '';
             if (id === 'modalChat') {
+                if (chatMessages && chatMessages.length > 0) {
+                    const lastMsg = chatMessages[chatMessages.length - 1];
+                    if (lastMsg && lastMsg.idPesan) {
+                        localStorage.setItem('chatLastReadId', lastMsg.idPesan);
+                    }
+                }
                 stopChatPolling();
                 const navChat = document.getElementById('navChat');
                 if (navChat) navChat.classList.remove('active');
@@ -2240,6 +2251,54 @@
 
         let chatPollTimeout = null;
 
+        // HIGH COMPRESSION CACHE SYSTEM FOR CHAT (Array-of-Arrays minimizes storage by ~75%)
+        function saveChatMessagesToCache(messages) {
+            if (!messages || !Array.isArray(messages)) return;
+            const listToCache = messages.slice(-150); // Keep last 150 messages
+            const compressed = listToCache.map(m => [
+                m.idPesan || '',       // 0
+                m.idKaryawan || '',    // 1
+                m.nama || '',          // 2
+                m.waktu || '',         // 3
+                m.pesan || '',         // 4
+                m.tipe || 'text',      // 5
+                m.fileUrl || '',       // 6
+                m.namaFile || '',      // 7
+                m.status || '',        // 8
+                m.tempId || ''         // 9
+            ]);
+            try {
+                localStorage.setItem('chatMessagesCache_v2', JSON.stringify(compressed));
+            } catch(e) {
+                console.error('[CHAT] Cache save error:', e);
+            }
+        }
+
+        function loadCachedChatMessages() {
+            try {
+                const cachedStr = localStorage.getItem('chatMessagesCache_v2');
+                if (cachedStr) {
+                    const compressed = JSON.parse(cachedStr);
+                    if (Array.isArray(compressed)) {
+                        chatMessages = compressed.map(arr => ({
+                            idPesan: arr[0],
+                            idKaryawan: arr[1],
+                            nama: arr[2],
+                            waktu: arr[3],
+                            pesan: arr[4],
+                            tipe: arr[5],
+                            fileUrl: arr[6],
+                            namaFile: arr[7],
+                            status: arr[8] || 'sent',
+                            tempId: arr[9]
+                        }));
+                    }
+                }
+            } catch(e) {
+                console.error('[CHAT] Cache load error:', e);
+            }
+        }
+
         async function loadChatMessages() {
             if (!state.user || !state.user.id) return;
             try {
@@ -2258,6 +2317,8 @@
                         const tb = safeParseDate(b.waktu) || new Date(0);
                         return ta - tb;
                     });
+                    
+                    saveChatMessagesToCache(chatMessages);
                     
                     const modal = document.getElementById('modalChat');
                     const isModalOpen = modal && modal.classList.contains('active');
@@ -2747,7 +2808,9 @@
             const previousScrollHeight = container.scrollHeight;
             const isAtBottom = previousScrollHeight - previousScrollTop - container.clientHeight < 80;
             
-            container.innerHTML = chatMessages.map(m => {
+            let renderedDivider = false;
+            
+            container.innerHTML = chatMessages.map((m, index) => {
                 const isMe = String(m.idKaryawan) === String(state.user.id);
                 
                 // Parse reply prefix if exists
@@ -2846,9 +2909,11 @@
                     ondblclick="setChatReply('${bubbleId}')"
                 `;
 
+                // === BUILD MESSAGE BUBBLE ===
+                let bubbleHtml = '';
                 if (isMe) {
                     // SENDER BUBBLE (SAYA)
-                    return `
+                    bubbleHtml = `
                     <div id="chat-msg-${bubbleId}" style="align-self: flex-end; max-width: 78%; display: flex; flex-direction: column; align-items: flex-end; transition: all 0.3s ease; border-radius: 20px 20px 4px 20px;">
                         <div ${gestureAttrs} style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 10px 16px; border-radius: 20px 20px 4px 20px; box-shadow: 0 4px 12px rgba(37,99,235,0.18); ${m.status === 'failed' ? 'border: 2px solid #ef4444;' : ''}; cursor: pointer; user-select: none; -webkit-user-select: none;">
                             ${content}
@@ -2887,7 +2952,7 @@
                         </div>`;
                     }
 
-                    return `
+                    bubbleHtml = `
                     <div id="chat-msg-${bubbleId}" style="align-self: flex-start; max-width: 78%; display: flex; gap: 10px; align-items: flex-start; transition: all 0.3s ease; border-radius: 4px 20px 20px 20px;">
                         <!-- Avatar Badge -->
                         ${avatarBadge}
@@ -2903,7 +2968,28 @@
                         </div>
                     </div>`;
                 }
+
+                // === WhatsApp-style read marker divider (🚨 PESAN BARU) ===
+                let dividerHtml = '';
+                if (state.chatLastReadId && m.idPesan && !isMe && !state.hasShownNewMessagesDivider && !renderedDivider) {
+                    const lastReadIndex = chatMessages.findIndex(x => x.idPesan === state.chatLastReadId);
+                    if (lastReadIndex !== -1 && index > lastReadIndex) {
+                        renderedDivider = true;
+                        dividerHtml = `
+                        <div class="chat-new-messages-divider animate-fade-in" style="display: flex; align-items: center; justify-content: center; margin: 16px 0; width: 100%; grid-column: span 2; grid-row: auto;">
+                            <div style="flex: 1; height: 1.5px; background: #fca5a5;"></div>
+                            <span style="font-size: 10px; font-weight: 800; color: #ef4444; text-transform: uppercase; letter-spacing: 0.8px; padding: 4px 12px; background: #fee2e2; border-radius: 20px; border: 1px solid #fca5a5; margin: 0 10px; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.08);">🚨 PESAN BARU</span>
+                            <div style="flex: 1; height: 1.5px; background: #fca5a5;"></div>
+                        </div>`;
+                    }
+                }
+
+                return dividerHtml + bubbleHtml;
             }).join('');
+            
+            if (renderedDivider) {
+                state.hasShownNewMessagesDivider = true;
+            }
             
             if (forceScrollToBottom || isAtBottom) {
                 container.scrollTop = container.scrollHeight;
