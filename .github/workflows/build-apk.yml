@@ -33,6 +33,11 @@ jobs:
         run: |
           python compile.py
 
+      - name: Fix gradlew line endings
+        run: |
+          sed -i 's/\r$//' android/gradlew
+          chmod +x android/gradlew
+
       - name: Sync Capacitor Android
         run: |
           npx cap sync
@@ -40,7 +45,6 @@ jobs:
       - name: Build Android APK
         run: |
           cd android
-          chmod +x gradlew
           ./gradlew assembleDebug
 
       - name: Upload APK Artifact
