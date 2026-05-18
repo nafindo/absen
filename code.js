@@ -2383,7 +2383,8 @@ function getTukerShiftHistory(data) {
   if (!idKaryawan) return { success: false, error: 'ID Karyawan wajib diisi' };
 
   const tuker = getSheetData(SHEET_NAMES.TUKER_SHIFT).filter(t => 
-    t.ID_Karyawan === idKaryawan || t.ID_Karyawan_Tujuan === idKaryawan
+    String(t.ID_Karyawan).trim() === String(idKaryawan).trim() || 
+    String(t.ID_Karyawan_Tujuan).trim() === String(idKaryawan).trim()
   );
 
   return {
@@ -2614,7 +2615,7 @@ function getIzinHistory(data) {
   const { idKaryawan } = data;
   if (!idKaryawan) return { success: false, error: 'ID Karyawan wajib diisi' };
 
-  const izin = getSheetData(SHEET_NAMES.IZIN_CUTI).filter(i => i.ID_Karyawan === idKaryawan);
+  const izin = getSheetData(SHEET_NAMES.IZIN_CUTI).filter(i => String(i.ID_Karyawan).trim() === String(idKaryawan).trim());
 
   return {
     success: true,
@@ -2635,7 +2636,7 @@ function getLemburHistory(data) {
   const { idKaryawan } = data;
   if (!idKaryawan) return { success: false, error: 'ID Karyawan wajib diisi' };
 
-  const lembur = getSheetData(SHEET_NAMES.LEMBUR).filter(l => l.ID_Karyawan === idKaryawan);
+  const lembur = getSheetData(SHEET_NAMES.LEMBUR).filter(l => String(l.ID_Karyawan).trim() === String(idKaryawan).trim());
 
   return {
     success: true,
