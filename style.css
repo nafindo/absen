@@ -2319,189 +2319,84 @@
         /* Hide Webpushr built-in floating bell widget to keep the PWA clean and premium */
         #webpushr-bell, .webpushr-bell, .webpushr-opt-in, #webpushr-opt-in {
             display: none !important;
-        }        /* ===== RAPORT CARD SYSTEM ===== */
+        }
+
+        /* ===== RAPORT CARD SYSTEM ===== */
         .raport-cards-container {
             display: flex;
             flex-direction: column;
             gap: 16px;
             margin-top: 12px;
-            background: #f8fafc;
-            padding: 16px;
-            border-radius: 24px;
-            border: 1px solid #e2e8f0;
-            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.02);
-            max-height: 62vh;
-            overflow-y: auto;
         }
 
         .raport-card {
-            background: #ffffff;
-            border-radius: 20px;
-            padding: 18px;
-            border: 1px solid rgba(226, 232, 240, 0.9);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
+            background: var(--surface);
+            border-radius: 18px;
+            padding: 16px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.02);
+            transition: all 0.25s ease;
         }
 
         .raport-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
-            border-color: #cbd5e1;
-        }
-
-        /* Modifiers for leave/libur/alpa states */
-        .raport-card.raport-card-izin {
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.04);
-        }
-        .raport-card.raport-card-izin.type-sakit {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            border-color: #bfdbfe;
-        }
-        .raport-card.raport-card-izin.type-cuti {
-            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-            border-color: #a7f3d0;
-        }
-        .raport-card.raport-card-izin.type-izin {
-            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-            border-color: #fed7aa;
-        }
-
-        .raport-card.raport-card-libur {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            border-color: #e2e8f0;
-            box-shadow: none;
-            opacity: 0.85;
-        }
-
-        .raport-card.raport-card-alpa {
-            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-            border-color: #fca5a5;
-            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.04);
-        }
-
-        .raport-card.raport-card-belum-absen {
-            background: linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);
-            border-color: #fde047;
-            box-shadow: 0 4px 15px rgba(234, 179, 8, 0.03);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
         }
 
         .raport-card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px dashed rgba(226, 232, 240, 0.9);
-            padding-bottom: 12px;
-            margin-bottom: 14px;
+            border-bottom: 1px dashed #E8ECF1;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
         }
 
         .raport-card-date {
-            font-size: 14.5px;
+            font-size: 14px;
             font-weight: 800;
-            color: #0f172a;
+            color: var(--text);
         }
 
         .raport-card-badge {
-            font-size: 10.5px;
+            font-size: 11px;
             font-weight: 800;
-            padding: 5px 12px;
-            border-radius: 100px;
+            padding: 4px 10px;
+            border-radius: 20px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+            letter-spacing: 0.3px;
         }
 
         .badge-ontime {
-            background: #e8f5e9;
-            color: #2e7d32;
-            border: 1px solid #c8e6c9;
+            background: rgba(46, 125, 50, 0.1);
+            color: #2E7D32;
         }
 
         .badge-telat {
-            background: #ffebee;
-            color: #c62828;
-            border: 1px solid #ffcdd2;
-        }
-
-        .badge-izin-status {
-            background: #2563eb;
-            color: white;
-        }
-        .type-sakit .badge-izin-status {
-            background: #3b82f6;
-        }
-        .type-cuti .badge-izin-status {
-            background: #10b981;
-        }
-        .type-izin .badge-izin-status {
-            background: #f97316;
-        }
-
-        .badge-libur-status {
-            background: #64748b;
-            color: white;
-        }
-
-        .badge-alpa-status {
-            background: #ef4444;
-            color: white;
-            animation: pulse-border 2s infinite;
-        }
-
-        .badge-belum-status {
-            background: #eab308;
-            color: #854d0e;
-            border: 1px solid #fef08a;
-        }
-
-        .raport-izin-reason-section {
-            background: rgba(255, 255, 255, 0.7);
-            border-radius: 14px;
-            padding: 12px 14px;
-            margin-top: 10px;
-            border: 1px solid rgba(226, 232, 240, 0.6);
-        }
-
-        .izin-reason-title {
-            font-size: 9.5px;
-            font-weight: 800;
-            text-transform: uppercase;
-            color: #64748b;
-            letter-spacing: 0.5px;
-        }
-
-        .izin-reason-value {
-            font-size: 13.5px;
-            font-weight: 700;
-            color: #1e293b;
-            font-style: italic;
-            margin-top: 3px;
-            line-height: 1.4;
+            background: rgba(198, 40, 40, 0.1);
+            color: #C62828;
         }
 
         .raport-card-meta {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
             font-size: 12px;
-            color: #64748b;
+            color: var(--text-secondary);
         }
 
         .raport-meta-item {
-            background: #f1f5f9;
+            background: #F1F5F9;
             padding: 4px 10px;
             border-radius: 8px;
             font-weight: 700;
             font-size: 11px;
-            border: 1px solid #e2e8f0;
         }
 
         .raport-meta-item.store {
-            background: rgba(37, 99, 235, 0.06);
-            color: #2563eb;
-            border-color: rgba(37, 99, 235, 0.1);
+            background: rgba(26, 115, 232, 0.08);
+            color: #1a73e8;
         }
 
         .raport-photos-grid {
