@@ -1509,8 +1509,9 @@
                     const avatarText = document.getElementById('persetujuanAvatarText');
                     const avatarImg = document.getElementById('persetujuanAvatarImg');
                     
-                    if (item.fotoSaya) {
-                        avatarImg.src = item.fotoSaya;
+                    const resolvedFoto = resolveFotoUrl(item.fotoSaya);
+                    if (resolvedFoto) {
+                        avatarImg.src = resolvedFoto;
                         avatarImg.style.display = 'block';
                         avatarText.style.display = 'none';
                     } else {
