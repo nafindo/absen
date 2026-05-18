@@ -43,6 +43,37 @@
         function clearLogin() {
             localStorage.removeItem(LS_KEY);
         }
+        function parseDateSafe(dateVal) {
+            if (!dateVal) return null;
+            if (dateVal instanceof Date) {
+                return isNaN(dateVal.getTime()) ? null : dateVal;
+            }
+            
+            const str = String(dateVal).trim();
+            if (!str || str === '-' || str === '—') return null;
+            
+            let d = new Date(str);
+            if (!isNaN(d.getTime())) return d;
+            
+            const parts = str.split(/[\/\-\.]/);
+            if (parts.length === 3) {
+                if (parts[0].length === 4) {
+                    const year = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10) - 1;
+                    const day = parseInt(parts[2], 10);
+                    d = new Date(year, month, day);
+                    if (!isNaN(d.getTime())) return d;
+                } else {
+                    const day = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10) - 1;
+                    const year = parseInt(parts[2], 10);
+                    d = new Date(year, month, day);
+                    if (!isNaN(d.getTime())) return d;
+                }
+            }
+            return null;
+        }
+
         function resolveFotoUrl(url) {
             if (!url || !url.trim()) return '';
             
@@ -3552,13 +3583,13 @@
                             
                             izinRes.data.forEach(i => {
                                 if ((i.status || '').toLowerCase() === 'approved' && i.tglMulai) {
-                                    const tgl = new Date(i.tglMulai);
-                                    if (tgl.getMonth() + 1 === currentMonth && tgl.getFullYear() === currentYear) {
+                                    const tgl = parseDateSafe(i.tglMulai);
+                                    if (tgl && tgl.getMonth() + 1 === currentMonth && tgl.getFullYear() === currentYear) {
                                         const jenis = String(i.jenis || '').toLowerCase();
-                                        const start = new Date(i.tglMulai);
-                                        const end = i.tglSelesai ? new Date(i.tglSelesai) : start;
+                                        const start = parseDateSafe(i.tglMulai);
+                                        const end = i.tglSelesai ? parseDateSafe(i.tglSelesai) : start;
                                         let diffDays = 1;
-                                        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                                        if (start && end) {
                                             diffDays = Math.max(1, Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1);
                                         }
                                         
@@ -3586,8 +3617,8 @@
                             let localLembur = 0;
                             lemburRes.data.forEach(l => {
                                 if ((l.status || '').toLowerCase() === 'approved' && l.tanggal) {
-                                    const tgl = new Date(l.tanggal);
-                                    if (tgl.getMonth() + 1 === currentMonth && tgl.getFullYear() === currentYear) {
+                                    const tgl = parseDateSafe(l.tanggal);
+                                    if (tgl && tgl.getMonth() + 1 === currentMonth && tgl.getFullYear() === currentYear) {
                                         localLembur++;
                                     }
                                 }

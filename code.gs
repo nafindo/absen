@@ -359,6 +359,37 @@ function formatDate(date) {
   return Utilities.formatDate(date, 'Asia/Jakarta', 'yyyy-MM-dd');
 }
 
+function parseDateSafe(dateVal) {
+  if (!dateVal) return null;
+  if (dateVal instanceof Date) {
+    return isNaN(dateVal.getTime()) ? null : dateVal;
+  }
+  
+  const str = String(dateVal).trim();
+  if (!str || str === '-' || str === '—') return null;
+  
+  let d = new Date(str);
+  if (!isNaN(d.getTime())) return d;
+  
+  const parts = str.split(/[\/\-\.]/);
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) return d;
+    } else {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  return null;
+}
+
 function formatDateTime(date) {
   return Utilities.formatDate(date, 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
 }
@@ -1169,22 +1200,49 @@ function getRaportMingguan(data) {
   return formatRaport(absensi, 'mingguan');
 }
 
+function getRaportHarian(data) {
+  const { idKaryawan, tanggal } = data;
+  const tgl = tanggal || formatDate(new Date());
+  
+  const absensi = getSheetData(SHEET_NAMES.ABSENSI).filter(a => 
+    a.ID_Karyawan === idKaryawan && 
+    formatDate(new Date(a.Timestamp)) === tgl
+  );
+  
+  return formatRaport(absensi, 'harian');
+}
+
+function getRaportMingguan(data) {
+  const { idKaryawan, tanggalMulai } = data;
+  const mulai = tanggalMulai ? new Date(tanggalMulai) : new Date();
+  const akhir = new Date(mulai);
+  akhir.setDate(mulai.getDate() + 6);
+  
+  const absensi = getSheetData(SHEET_NAMES.ABSENSI).filter(a => {
+    const tgl = new Date(a.Timestamp);
+    return a.ID_Karyawan === idKaryawan && tgl >= mulai && tgl <= akhir;
+  });
+  
+  return formatRaport(absensi, 'mingguan');
+}
+
 function getRaportBulanan(data) {
   const { idKaryawan, bulan, tahun } = data;
   const bln = bulan || new Date().getMonth() + 1;
   const thn = tahun || new Date().getFullYear();
   
   const absensi = getSheetData(SHEET_NAMES.ABSENSI).filter(a => {
-    const tgl = new Date(a.Timestamp);
-    return a.ID_Karyawan === idKaryawan && 
+    const tgl = parseDateSafe(a.Timestamp);
+    return tgl &&
+           String(a.ID_Karyawan) === String(idKaryawan) && 
            tgl.getMonth() + 1 === parseInt(bln) && 
            tgl.getFullYear() === parseInt(thn);
   });
   
-  return formatRaport(absensi, 'bulanan');
+  return formatRaport(absensi, 'bulanan', parseInt(bln), parseInt(thn), idKaryawan);
 }
 
-function formatRaport(absensi, mode) {
+function formatRaport(absensi, mode, bln, thn, idKaryawan) {
   const totalHadir = absensi.filter(a => a.Tipe === 'Masuk').length;
   const totalTelat = absensi.filter(a => a.Status_Masuk === 'Telat').length;
   const totalMenitTelat = absensi.reduce((sum, a) => sum + (parseInt(a.Menit_Telat) || 0), 0);
@@ -1200,18 +1258,89 @@ function formatRaport(absensi, mode) {
     }
   });
   
-  // Hitung lembur
-  const lembur = getSheetData(SHEET_NAMES.LEMBUR).filter(l => 
-    l.ID_Karyawan === absensi[0]?.ID_Karyawan && 
-    l.Status === 'Approved'
-  );
-  const totalJamLembur = lembur.reduce((sum, l) => {
-    if (l.Durasi_Jam) {
-      const match = l.Durasi_Jam.match(/(\d+)j\s*(\d*)m?/);
-      if (match) return sum + parseInt(match[1]) + (parseInt(match[2]) || 0) / 60;
+  // Determine relevant employee ID and time bounds
+  const empId = idKaryawan || absensi[0]?.ID_Karyawan;
+  const now = new Date();
+  const targetBln = bln || (absensi[0] ? new Date(absensi[0].Timestamp).getMonth() + 1 : now.getMonth() + 1);
+  const targetThn = thn || (absensi[0] ? new Date(absensi[0].Timestamp).getFullYear() : now.getFullYear());
+
+  // Helper untuk hitung menit dari "HH:mm" atau "HH:mm:ss"
+  const timeToMinutes = (timeStr) => {
+    if (!timeStr) return null;
+    const parts = String(timeStr).split(':');
+    if (parts.length < 2) return null;
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+  };
+
+  // Hitung Pulang Cepat
+  const shifts = getSheetData(SHEET_NAMES.SHIFT_TOKO) || [];
+  let totalPulangCepat = 0;
+  absensi.filter(a => a.Tipe === 'Masuk' && a.Jam_Pulang).forEach(a => {
+    const shift = shifts.find(s => String(s.ID_Shift) === String(a.ID_Shift));
+    if (shift && shift.Jam_Pulang) {
+      const realMin = timeToMinutes(a.Jam_Pulang);
+      const shiftMin = timeToMinutes(shift.Jam_Pulang);
+      if (realMin !== null && shiftMin !== null && realMin < shiftMin) {
+        totalPulangCepat++;
+      }
     }
-    return sum;
-  }, 0);
+  });
+  
+  // Hitung lembur untuk bulan dan tahun berjalan
+  let totalLembur = 0;
+  let totalJamLembur = 0;
+  
+  if (empId) {
+    const lemburList = getSheetData(SHEET_NAMES.LEMBUR).filter(l => 
+      String(l.ID_Karyawan) === String(empId) && 
+      l.Status === 'Approved'
+    );
+    
+    // Filter lembur berdasarkan bulan/tahun
+    const lemburBulanIni = lemburList.filter(l => {
+      if (!l.Tanggal) return false;
+      const tgl = parseDateSafe(l.Tanggal);
+      return tgl && tgl.getMonth() + 1 === targetBln && tgl.getFullYear() === targetThn;
+    });
+
+    totalLembur = lemburBulanIni.length;
+    totalJamLembur = lemburBulanIni.reduce((sum, l) => {
+      if (l.Durasi_Jam) {
+        const match = l.Durasi_Jam.match(/(\d+)j\s*(\d*)m?/);
+        if (match) return sum + parseInt(match[1]) + (parseInt(match[2]) || 0) / 60;
+      }
+      return sum;
+    }, 0);
+  }
+  
+  // Hitung Izin, Sakit, Cuti dari SHEET_NAMES.IZIN_CUTI
+  let totalSakit = 0;
+  let totalIzin = 0;
+  let totalCuti = 0;
+
+  if (empId) {
+    const izinCutiList = getSheetData(SHEET_NAMES.IZIN_CUTI).filter(i => 
+      String(i.ID_Karyawan) === String(empId) && 
+      i.Status === 'Approved'
+    );
+
+    izinCutiList.forEach(i => {
+      if (!i.Tanggal_Mulai) return;
+      const tgl = parseDateSafe(i.Tanggal_Mulai);
+      if (tgl && tgl.getMonth() + 1 === targetBln && tgl.getFullYear() === targetThn) {
+        const namaJenis = String(i.Nama_Jenis).toLowerCase();
+        const jmlHari = parseInt(i.Jumlah_Hari) || 1;
+        
+        if (namaJenis.indexOf('sakit') !== -1) {
+          totalSakit += jmlHari;
+        } else if (namaJenis.indexOf('cuti') !== -1) {
+          totalCuti += jmlHari;
+        } else {
+          totalIzin += jmlHari;
+        }
+      }
+    });
+  }
   
   // Detail harian
   const detailHarian = absensi.filter(a => a.Tipe === 'Masuk').map(a => ({
@@ -1234,6 +1363,11 @@ function formatRaport(absensi, mode) {
     totalMenitTelat: totalMenitTelat,
     totalJamKerja: Math.round(totalJamKerja * 10) / 10,
     totalJamLembur: Math.round(totalJamLembur * 10) / 10,
+    totalLembur: totalLembur,
+    totalPulangCepat: totalPulangCepat,
+    totalSakit: totalSakit,
+    totalIzin: totalIzin,
+    totalCuti: totalCuti,
     detailHarian: detailHarian
   };
 }

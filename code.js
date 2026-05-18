@@ -359,6 +359,37 @@ function formatDate(date) {
   return Utilities.formatDate(date, 'Asia/Jakarta', 'yyyy-MM-dd');
 }
 
+function parseDateSafe(dateVal) {
+  if (!dateVal) return null;
+  if (dateVal instanceof Date) {
+    return isNaN(dateVal.getTime()) ? null : dateVal;
+  }
+  
+  const str = String(dateVal).trim();
+  if (!str || str === '-' || str === '—') return null;
+  
+  let d = new Date(str);
+  if (!isNaN(d.getTime())) return d;
+  
+  const parts = str.split(/[\/\-\.]/);
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) return d;
+    } else {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  return null;
+}
+
 function formatDateTime(date) {
   return Utilities.formatDate(date, 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
 }
@@ -1175,8 +1206,9 @@ function getRaportBulanan(data) {
   const thn = tahun || new Date().getFullYear();
   
   const absensi = getSheetData(SHEET_NAMES.ABSENSI).filter(a => {
-    const tgl = new Date(a.Timestamp);
-    return String(a.ID_Karyawan) === String(idKaryawan) && 
+    const tgl = parseDateSafe(a.Timestamp);
+    return tgl &&
+           String(a.ID_Karyawan) === String(idKaryawan) && 
            tgl.getMonth() + 1 === parseInt(bln) && 
            tgl.getFullYear() === parseInt(thn);
   });
@@ -1241,8 +1273,8 @@ function formatRaport(absensi, mode, bln, thn, idKaryawan) {
     // Filter lembur berdasarkan bulan/tahun
     const lemburBulanIni = lemburList.filter(l => {
       if (!l.Tanggal) return false;
-      const tgl = new Date(l.Tanggal);
-      return tgl.getMonth() + 1 === targetBln && tgl.getFullYear() === targetThn;
+      const tgl = parseDateSafe(l.Tanggal);
+      return tgl && tgl.getMonth() + 1 === targetBln && tgl.getFullYear() === targetThn;
     });
 
     totalLembur = lemburBulanIni.length;
@@ -1268,8 +1300,8 @@ function formatRaport(absensi, mode, bln, thn, idKaryawan) {
 
     izinCutiList.forEach(i => {
       if (!i.Tanggal_Mulai) return;
-      const tgl = new Date(i.Tanggal_Mulai);
-      if (tgl.getMonth() + 1 === targetBln && tgl.getFullYear() === targetThn) {
+      const tgl = parseDateSafe(i.Tanggal_Mulai);
+      if (tgl && tgl.getMonth() + 1 === targetBln && tgl.getFullYear() === targetThn) {
         const namaJenis = String(i.Nama_Jenis).toLowerCase();
         const jmlHari = parseInt(i.Jumlah_Hari) || 1;
         
