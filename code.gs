@@ -1417,6 +1417,8 @@ function formatRaport(absensi, mode, bln, thn, idKaryawan) {
       isSwap: isSwap,
       swapDetail: swapDetail
     };
+  });
+
   const izinCutiMapped = empId ? izinCutiList.map(i => {
     let tglMulaiStr = '';
     let tglSelesaiStr = '';
