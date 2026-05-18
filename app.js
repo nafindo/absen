@@ -1370,6 +1370,8 @@
             if (lightbox) {
                 lightbox.classList.remove('active');
             }
+        };
+
         async function renderRaport() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             try {
