@@ -1374,73 +1374,176 @@
 
         async function renderRaport() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+            
+            function formatIndonesianDateLabel(dateObj) {
+                const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                const dayName = days[dateObj.getDay()];
+                const dateNum = dateObj.getDate();
+                const monthName = months[dateObj.getMonth()];
+                const year = dateObj.getFullYear();
+                return `${dayName}, ${dateNum} ${monthName} ${year}`;
+            }
+
             try {
                 const now = new Date();
-                const res = await apiCall('getRaportBulanan', { idKaryawan: state.user.id, bulan: now.getMonth() + 1, tahun: now.getFullYear() });
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth();
+                const todayDate = now.getDate();
+                
+                const res = await apiCall('getRaportBulanan', { idKaryawan: state.user.id, bulan: currentMonth + 1, tahun: currentYear });
                 if (res.success) {
                     document.getElementById('raportHadir').textContent = res.totalHadir;
                     document.getElementById('raportTelat').textContent = res.totalTelat;
+                    
+                    // Generate chronological list of dates from day 1 to today
+                    const datesList = [];
+                    for (let d = 1; d <= todayDate; d++) {
+                        const dateObj = new Date(currentYear, currentMonth, d);
+                        const yyyy = dateObj.getFullYear();
+                        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                        const dd = String(dateObj.getDate()).padStart(2, '0');
+                        const dateStr = `${yyyy}-${mm}-${dd}`;
+                        datesList.push({
+                            dateStr: dateStr,
+                            dateObj: dateObj
+                        });
+                    }
+                    // Sort descending (latest/newest dates first)
+                    datesList.sort((a, b) => b.dateObj - a.dateObj);
+                    
                     const tbody = document.getElementById('raportTbody');
-                    tbody.innerHTML = (res.detailHarian || []).map(d => {
-                        const hasLembur = d.durasiLembur && d.durasiLembur !== '' && d.durasiLembur !== '-';
-                        const lemburBadge = hasLembur ? `<span class="badge-lembur-tag">🔥 Lembur</span>` : '';
+                    tbody.innerHTML = datesList.map(item => {
+                        const dateStr = item.dateStr;
+                        const dateObj = item.dateObj;
+                        const dateLabel = formatIndonesianDateLabel(dateObj);
                         
-                        const swapBadge = d.isSwap ? `<span class="badge-swap-tag" title="${d.swapDetail || 'Tukar Shift'}">⇆ Tukar Shift</span>` : '';
-                        
-                        const resolvedFotoMasuk = resolveFotoUrl(d.fotoMasuk);
-                        const resolvedFotoPulang = resolveFotoUrl(d.fotoPulang);
-                        
-                        const fotoMasukHtml = resolvedFotoMasuk 
-                            ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedFotoMasuk}')"><img src="${resolvedFotoMasuk}" alt="Check In"></div>`
-                            : `<div class="photo-circle-wrapper"><div class="photo-placeholder">👤</div></div>`;
+                        // 1. Check if attended (check-in data exists)
+                        const d = (res.detailHarian || []).find(x => x.tanggal === dateStr);
+                        if (d) {
+                            const hasLembur = d.durasiLembur && d.durasiLembur !== '' && d.durasiLembur !== '-';
+                            const lemburBadge = hasLembur ? `<span class="badge-lembur-tag">🔥 Lembur</span>` : '';
+                            const swapBadge = d.isSwap ? `<span class="badge-swap-tag" title="${d.swapDetail || 'Tukar Shift'}">⇆ Tukar Shift</span>` : '';
                             
-                        const fotoPulangHtml = resolvedFotoPulang
-                            ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedFotoPulang}')"><img src="${resolvedFotoPulang}" alt="Check Out"></div>`
-                            : `<div class="photo-circle-wrapper"><div class="photo-placeholder">👤</div></div>`;
+                            const resolvedFotoMasuk = resolveFotoUrl(d.fotoMasuk);
+                            const resolvedFotoPulang = resolveFotoUrl(d.fotoPulang);
                             
+                            const fotoMasukHtml = resolvedFotoMasuk 
+                                ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedFotoMasuk}')"><img src="${resolvedFotoMasuk}" alt="Check In"></div>`
+                                : `<div class="photo-circle-wrapper"><div class="photo-placeholder">👤</div></div>`;
+                                
+                            const fotoPulangHtml = resolvedFotoPulang
+                                ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedFotoPulang}')"><img src="${resolvedFotoPulang}" alt="Check Out"></div>`
+                                : `<div class="photo-circle-wrapper"><div class="photo-placeholder">👤</div></div>`;
+                                
+                            return `
+                                <div class="raport-card animate-fade-in">
+                                    <div class="raport-card-header">
+                                        <div class="raport-card-date">${dateLabel}</div>
+                                        <div class="flex items-center gap-2">
+                                            ${swapBadge}
+                                            ${lemburBadge}
+                                            ${d.status === 'Ontime' 
+                                                ? '<span class="raport-card-badge badge-ontime">✅ Ontime</span>' 
+                                                : '<span class="raport-card-badge badge-telat">⏳ Telat ' + (d.menitTelat || 0) + 'm</span>'}
+                                        </div>
+                                    </div>
+                                    <div class="raport-card-meta">
+                                        <span class="raport-meta-item store">📍 ${d.toko || 'Toko Default'}</span>
+                                        <span class="raport-meta-item">⏱️ ${d.shift || 'Shift'}</span>
+                                    </div>
+                                    <div class="raport-photos-grid">
+                                        <div class="photo-column">
+                                            ${fotoMasukHtml}
+                                            <div class="photo-info">
+                                                <span class="photo-label">Check In</span>
+                                                <span class="photo-time">${d.jamMasuk || '-'}</span>
+                                            </div>
+                                        </div>
+                                        <div class="photo-column">
+                                            ${fotoPulangHtml}
+                                            <div class="photo-info">
+                                                <span class="photo-label">Check Out</span>
+                                                <span class="photo-time">${d.jamPulang || '-'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="raport-durasi-section">
+                                        <div class="durasi-item">
+                                            <span>Durasi Kerja:</span>
+                                            <span class="durasi-value">${d.jamKerja || '-'}</span>
+                                        </div>
+                                        ${hasLembur ? `
+                                        <div class="durasi-item">
+                                            <span>Durasi Lembur:</span>
+                                            <span class="durasi-value" style="color:#2E7D32;">${d.durasiLembur}</span>
+                                        </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        // 2. Check if Sunday (Libur Toko)
+                        const isSunday = dateObj.getDay() === 0;
+                        if (isSunday) {
+                            return `
+                                <div class="raport-card raport-card-libur animate-fade-in">
+                                    <div class="raport-card-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                                        <div class="raport-card-date" style="color: #64748b;">${dateLabel}</div>
+                                        <span class="raport-card-badge badge-libur-status">😴 Libur Toko</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        // 3. Check if approved Izin / Sakit / Cuti
+                        const leave = (res.izinCuti || []).find(i => dateStr >= i.tanggalMulai && dateStr <= i.tanggalSelesai);
+                        if (leave) {
+                            const leaveType = String(leave.tipe).toLowerCase();
+                            let leaveClass = 'type-izin';
+                            let leaveBadgeIcon = '📝';
+                            if (leaveType.includes('sakit')) {
+                                leaveClass = 'type-sakit';
+                                leaveBadgeIcon = '🤒';
+                            } else if (leaveType.includes('cuti')) {
+                                leaveClass = 'type-cuti';
+                                leaveBadgeIcon = '✈️';
+                            }
+                            
+                            return `
+                                <div class="raport-card raport-card-izin ${leaveClass} animate-fade-in">
+                                    <div class="raport-card-header">
+                                        <div class="raport-card-date">${dateLabel}</div>
+                                        <span class="raport-card-badge badge-izin-status">${leaveBadgeIcon} ${leave.tipe}</span>
+                                    </div>
+                                    <div class="raport-izin-reason-section">
+                                        <div class="izin-reason-title">Keperluan / Keterangan</div>
+                                        <div class="izin-reason-value">"${leave.alasan || 'Disetujui Admin'}"</div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        // 4. Check if today but haven't clocked in yet
+                        const isToday = dateObj.getDate() === now.getDate() && dateObj.getMonth() === now.getMonth() && dateObj.getFullYear() === now.getFullYear();
+                        if (isToday) {
+                            return `
+                                <div class="raport-card raport-card-belum-absen animate-fade-in">
+                                    <div class="raport-card-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                                        <div class="raport-card-date" style="color: #854d0e;">${dateLabel}</div>
+                                        <span class="raport-card-badge badge-belum-status">⏳ Belum Absen</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        // 5. Otherwise, marked as Alpa (Absent without reason)
                         return `
-                            <div class="raport-card animate-fade-in">
-                                <div class="raport-card-header">
-                                    <div class="raport-card-date">${d.tanggal}</div>
-                                    <div class="flex items-center gap-2">
-                                        ${swapBadge}
-                                        ${lemburBadge}
-                                        ${d.status === 'Ontime' 
-                                            ? '<span class="raport-card-badge badge-ontime">✅ Ontime</span>' 
-                                            : '<span class="raport-card-badge badge-telat">⏳ Telat ' + (d.menitTelat || 0) + 'm</span>'}
-                                    </div>
-                                </div>
-                                <div class="raport-card-meta">
-                                    <span class="raport-meta-item store">📍 ${d.toko || 'Toko Default'}</span>
-                                    <span class="raport-meta-item">⏱️ ${d.shift || 'Shift'}</span>
-                                </div>
-                                <div class="raport-photos-grid">
-                                    <div class="photo-column">
-                                        ${fotoMasukHtml}
-                                        <div class="photo-info">
-                                            <span class="photo-label">Check In</span>
-                                            <span class="photo-time">${d.jamMasuk || '-'}</span>
-                                        </div>
-                                    </div>
-                                    <div class="photo-column">
-                                        ${fotoPulangHtml}
-                                        <div class="photo-info">
-                                            <span class="photo-label">Check Out</span>
-                                            <span class="photo-time">${d.jamPulang || '-'}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="raport-durasi-section">
-                                    <div class="durasi-item">
-                                        <span>Durasi Kerja:</span>
-                                        <span class="durasi-value">${d.jamKerja || '-'}</span>
-                                    </div>
-                                    ${hasLembur ? `
-                                    <div class="durasi-item">
-                                        <span>Durasi Lembur:</span>
-                                        <span class="durasi-value" style="color:#2E7D32;">${d.durasiLembur}</span>
-                                    </div>
-                                    ` : ''}
+                            <div class="raport-card raport-card-alpa animate-fade-in">
+                                <div class="raport-card-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                                    <div class="raport-card-date" style="color: #c53030;">${dateLabel}</div>
+                                    <span class="raport-card-badge badge-alpa-status">🚨 Alpa</span>
                                 </div>
                             </div>
                         `;
