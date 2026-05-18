@@ -4035,7 +4035,7 @@
                 () => {
                     clearLogin(); 
                     stopCamera();
-                    tampilPicoModal('izin_pulang', '<b>Sampai jumpa lagi!</b><br>Hati-hati di jalan pulang ya, Kak! PICO selalu mendukungmu! 👋🐧', () => {
+                    tampilPicoModal('sukses', '<b>Logout Berhasil!</b><br>Kamu telah aman keluar dari aplikasi. Sampai jumpa lagi, Kak! PICO selalu menunggumu kembali! 👋🐧', () => {
                         location.reload();
                     });
                 }, 
