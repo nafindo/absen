@@ -293,7 +293,7 @@ function uploadFotoToko(data) {
 }
 function getDefaultHeaders(sheetName) {
   const headers = {
-    'MASTER_KARYAWAN': ['ID_Karyawan','Nama','PIN','Jabatan','Tanggal_Masuk','Status','No_HP','Email','Toko_Default','Shift_Default','Foto_URL'],
+    'MASTER_KARYAWAN': ['ID_Karyawan','Nama','PIN','Jabatan','Tanggal_Masuk','Status','No_HP','Email','Toko_Default','Shift_Default','Foto_Profil'],
     'MASTER_TOKO': ['ID_Toko','Nama_Toko','Alamat','Lat','Long','Radius_M','Jam_Buka','Jam_Tutup','Foto_Toko_URL','Status'],
     'SHIFT_TOKO': ['ID_Shift','ID_Toko','Nama_Toko','Nama_Shift','Jam_Masuk','Jam_Pulang','Toleransi_Masuk_Menit','Status'],
     'JADWAL_KARYAWAN': ['ID_Jadwal','ID_Karyawan','Nama','ID_Toko','Nama_Toko','ID_Shift','Nama_Shift','Hari_Berjalan','Tanggal_Mulai','Tanggal_Selesai','Status'],
@@ -633,9 +633,10 @@ function absenPulang(data) {
     recordMasuk.Foto_URL,
     lat || '',
     lng || '',
-    '',
-    '',
-    fotoUrl
+    '', // Jarak_M
+    '', // Status_GPS
+    '', // Face_Detected
+    fotoUrl // Foto_Pulang_URL
   ]);
   
   return {
@@ -1794,10 +1795,10 @@ function ensureKaryawanFotoColumn() {
   const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   
-  // Jika belum ada kolom Foto_URL, tambahkan
-  if (!headers.includes('Foto_URL')) {
+  // Jika belum ada kolom Foto_Profil atau Foto_URL, tambahkan Foto_Profil
+  if (!headers.includes('Foto_Profil') && !headers.includes('Foto_URL')) {
     const nextCol = headers.length + 1;
-    sheet.getRange(1, nextCol).setValue('Foto_URL');
+    sheet.getRange(1, nextCol).setValue('Foto_Profil');
     sheet.getRange(1, nextCol).setFontWeight('bold').setBackground('#4285F4').setFontColor('white');
   }
   return 'OK';
@@ -2351,7 +2352,7 @@ function getPendingTukerShift(data) {
       id: t.ID_Tuker,
       idKaryawanSaya: t.ID_Karyawan,
       namaSaya: t.Nama,
-      fotoSaya: requester ? (requester.Foto_URL || '') : '',
+      fotoSaya: requester ? (requester.Foto_Profil || requester.Foto_URL || '') : '',
       jabatanSaya: requester ? (requester.Jabatan || 'Karyawan') : 'Karyawan',
       idTokoSaya: t.ID_Toko_Saya,
       namaTokoSaya: tokoSaya ? tokoSaya.Nama_Toko : 'Toko A',
