@@ -433,10 +433,12 @@
                 checkMyApprovals();
                 startChatPolling(); // Mulai polling chat latar belakang otomatis untuk mendeteksi pesan masuk!
             } else {
-                // Jika belum login, tampilkan splash screen sampai daftar karyawan selesai dimuat
+                // Jika belum login, jalankan pemuatan secara asinkron (Non-blocking!)
                 testBackendConnection();
-                await loadKaryawanDropdown();
-                hideSplashScreen();
+                loadKaryawanDropdown().then(() => {
+                    console.log('[STARTUP] loadKaryawanDropdown selesai');
+                });
+                hideSplashScreen(); // Langsung hilangkan splash screen secara instan!
             }
             
             // Mention Autocomplete Listeners
@@ -675,18 +677,54 @@
 
         // ==================== KARYAWAN DROPDOWN ====================
         async function loadKaryawanDropdown() {
+            const populateDropdown = (list) => {
+                const sel = document.getElementById('loginSelect');
+                if (!sel) return;
+                state.karyawanList = list.filter(k => k.Status === 'Aktif');
+                sel.innerHTML = '<option value="">Pilih Nama...</option>';
+                state.karyawanList.forEach(k => {
+                    const fotoUrl = k.Foto_URL || k.Foto_Profil || k.fotoUrl || '';
+                    sel.innerHTML += `<option value="${k.ID_Karyawan}" data-toko="${k.Toko_Default || ''}" data-shift="${k.Shift_Default || ''}" data-role="${k.Jabatan || 'Staff'}" data-foto="${fotoUrl}">${k.Nama}</option>`;
+                });
+            };
+
+            // 1. Ambil data dari IndexedDB lokal terlebih dahulu (Instan & Offline-First!)
+            try {
+                if (window.localDB) {
+                    const localData = await new Promise((resolve) => {
+                        const tx = localDB.transaction('MASTER_KARYAWAN', 'readonly');
+                        const store = tx.objectStore('MASTER_KARYAWAN');
+                        const req = store.getAll();
+                        req.onsuccess = () => resolve(req.result || []);
+                        req.onerror = () => resolve([]);
+                    });
+                    if (localData && localData.length > 0) {
+                        console.log('[DROPDOWN] Menggunakan cache lokal:', localData.length, 'karyawan');
+                        populateDropdown(localData);
+                    }
+                }
+            } catch (e) {
+                console.warn('[DROPDOWN] Gagal memuat dari IndexedDB lokal:', e);
+            }
+
+            // 2. Tarik data teranyar dari server secara asinkron (Non-blocking!)
             try {
                 const res = await apiCall('getKaryawanList');
                 if (res.success && Array.isArray(res.data)) {
-                    state.karyawanList = res.data.filter(k => k.Status === 'Aktif');
-                    const sel = document.getElementById('loginSelect');
-                    sel.innerHTML = '<option value="">Pilih Nama...</option>';
-                    state.karyawanList.forEach(k => {
-                        const fotoUrl = k.Foto_URL || k.Foto_Profil || k.fotoUrl || '';
-                        sel.innerHTML += `<option value="${k.ID_Karyawan}" data-toko="${k.Toko_Default || ''}" data-shift="${k.Shift_Default || ''}" data-role="${k.Jabatan || 'Staff'}" data-foto="${fotoUrl}">${k.Nama}</option>`;
-                    });
+                    populateDropdown(res.data);
+                    
+                    // Simpan data terbaru ke IndexedDB lokal untuk kunjungan berikutnya
+                    if (window.localDB) {
+                        const tx = localDB.transaction('MASTER_KARYAWAN', 'readwrite');
+                        const store = tx.objectStore('MASTER_KARYAWAN');
+                        store.clear(); // Bersihkan data lama
+                        res.data.forEach(k => store.put(k));
+                        console.log('[DROPDOWN] Sukses meng-cache data karyawan baru ke IndexedDB!');
+                    }
                 }
-            } catch (e) { console.log('loadKaryawanDropdown error:', e); }
+            } catch (e) {
+                console.log('[DROPDOWN] Gagal sinkronisasi data dari server:', e);
+            }
         }
 
         // ==================== TAB SWITCHING ====================

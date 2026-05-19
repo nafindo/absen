@@ -43,3 +43,17 @@ def compile_file(html_path, css_path, js_path, output_path):
 
 compile_file('index.html', 'style.css', 'app.js', 'recom/index.html')
 compile_file('admin.html', 'admin.css', 'admin.js', 'recom/admin.html')
+
+# 3. Salin aset statis ke folder recom agar dikemas oleh Capacitor ke dalam APK
+import shutil
+print("Menyalin berkas aset gambar dan konfigurasi ke folder recom...")
+for file in os.listdir('.'):
+    if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.svg', '.json', '.js', '.css', '.html')):
+        # Jangan salin file skrip Python atau file kredensial rahasia
+        if file in ['compile.py', 'extract.py', 'package.json', 'package-lock.json', 'capacitor.config.json', 'google-services.json']:
+            continue
+        if 'pinguinabsen-firebase-adminsdk' in file:
+            continue
+        if os.path.isfile(file):
+            shutil.copy(file, os.path.join('recom', file))
+            print(f"Berhasil menyalin: {file} ke recom/")
