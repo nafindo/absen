@@ -4748,6 +4748,9 @@
             // 2. Daftarkan Listener TERLEBIH DAHULU (Wajib sebelum memanggil register!)
             PushNotifications.addListener('registration', (token) => {
                 console.log('[PUSH] Token registrasi FCM didapat:', token.value);
+                // Beri sinyal ke user bahwa HP sukses kontak Firebase
+                showToast('FCM Token berhasil didapat!', 'success');
+                
                 if (state.user && state.user.id) {
                     apiCall('registerFCMToken', {
                         idKaryawan: state.user.id,
@@ -4755,15 +4758,22 @@
                     }).then(res => {
                         if (res.success) {
                             console.log("[PUSH] Token FCM sukses disimpan di Google Sheets!");
+                            showToast('Token FCM sukses disimpan di Google Sheets!', 'success');
+                        } else {
+                            showToast('Gagal simpan token: ' + (res.error || 'Unknown Error'), 'error');
                         }
                     }).catch(err => {
                         console.error("[PUSH] Gagal mengirim Token FCM ke server:", err);
+                        showToast('Koneksi gagal mengirim token: ' + err.message, 'error');
                     });
+                } else {
+                    showToast('Token didapat, tapi user belum terdeteksi login.', 'warning');
                 }
             });
             
             PushNotifications.addListener('registrationError', (error) => {
                 console.error('[PUSH] Registrasi FCM error:', error);
+                showToast('FCM Register Error: ' + (error.error || JSON.stringify(error)), 'error');
             });
             
             PushNotifications.addListener('pushNotificationReceived', (notification) => {
