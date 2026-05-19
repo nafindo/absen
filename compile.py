@@ -3,6 +3,11 @@ import re
 
 def compile_file(html_path, css_path, js_path, output_path):
     print(f"Compiling {html_path}...")
+    print(f"[DEBUG] Current Working Directory: {os.getcwd()}")
+    print(f"[DEBUG] HTML exists: {os.path.exists(html_path)}")
+    print(f"[DEBUG] CSS path: {css_path} (exists: {os.path.exists(css_path) if css_path else 'N/A'})")
+    print(f"[DEBUG] JS path: {js_path} (exists: {os.path.exists(js_path) if js_path else 'N/A'})")
+    
     if not os.path.exists(html_path):
         print(f"Error: {html_path} not found.")
         return False
@@ -17,10 +22,15 @@ def compile_file(html_path, css_path, js_path, output_path):
         
         # Replace <link rel="stylesheet" href="..."> with <style>...</style>
         css_tag_pattern = r'<link\s+rel="stylesheet"\s+href="[^"]*style\.css"[^>]*>'
-        html_content = re.sub(css_tag_pattern, lambda m: f'<style>\n{css_content}\n</style>', html_content, flags=re.IGNORECASE)
+        new_content, count = re.subn(css_tag_pattern, lambda m: f'<style>\n{css_content}\n</style>', html_content, flags=re.IGNORECASE)
+        print(f"[DEBUG] CSS style.css replacements made: {count}")
+        html_content = new_content
+        
         # Also handle admin.css for admin.html
         css_admin_tag_pattern = r'<link\s+rel="stylesheet"\s+href="[^"]*admin\.css"[^>]*>'
-        html_content = re.sub(css_admin_tag_pattern, lambda m: f'<style>\n{css_content}\n</style>', html_content, flags=re.IGNORECASE)
+        new_content, count = re.subn(css_admin_tag_pattern, lambda m: f'<style>\n{css_content}\n</style>', html_content, flags=re.IGNORECASE)
+        print(f"[DEBUG] CSS admin.css replacements made: {count}")
+        html_content = new_content
 
     # 2. Inline JS
     if js_path and os.path.exists(js_path):
@@ -29,10 +39,15 @@ def compile_file(html_path, css_path, js_path, output_path):
             
         # Replace <script src="...app.js"></script> or similar
         js_tag_pattern = r'<script\s+src="[^"]*app\.js"[^>]*>\s*</script>'
-        html_content = re.sub(js_tag_pattern, lambda m: f'<script>\n{js_content}\n</script>', html_content, flags=re.IGNORECASE)
+        new_content, count = re.subn(js_tag_pattern, lambda m: f'<script>\n{js_content}\n</script>', html_content, flags=re.IGNORECASE)
+        print(f"[DEBUG] JS app.js replacements made: {count}")
+        html_content = new_content
+        
         # Also handle admin.js for admin.html
         js_admin_tag_pattern = r'<script\s+src="[^"]*admin\.js"[^>]*>\s*</script>'
-        html_content = re.sub(js_admin_tag_pattern, lambda m: f'<script>\n{js_content}\n</script>', html_content, flags=re.IGNORECASE)
+        new_content, count = re.subn(js_admin_tag_pattern, lambda m: f'<script>\n{js_content}\n</script>', html_content, flags=re.IGNORECASE)
+        print(f"[DEBUG] JS admin.js replacements made: {count}")
+        html_content = new_content
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w', encoding='utf-8') as f:
