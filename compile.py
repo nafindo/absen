@@ -57,3 +57,53 @@ for file in os.listdir('.'):
         if os.path.isfile(file):
             shutil.copy(file, os.path.join('recom', file))
             print(f"Berhasil menyalin: {file} ke recom/")
+
+# 4. Otomatisasi Pembuatan Icon Aplikasi Android dari logo.png jika ada
+logo_path = 'logo.png'
+if os.path.exists(logo_path):
+    print("\nMendeteksi logo.png. Mempersiapkan pembuatan icon Android...")
+    try:
+        try:
+            from PIL import Image
+        except ImportError:
+            print("Pillow tidak terdeteksi. Mencoba menginstal Pillow secara otomatis...")
+            os.system("pip install Pillow")
+            from PIL import Image
+
+        configs = {
+            "mipmap-mdpi": (48, 108),
+            "mipmap-hdpi": (72, 162),
+            "mipmap-xhdpi": (96, 216),
+            "mipmap-xxhdpi": (144, 324),
+            "mipmap-xxxhdpi": (192, 432)
+        }
+        res_dir = "android/app/src/main/res"
+
+        for folder, (std_sz, fg_sz) in configs.items():
+            target_folder = os.path.join(res_dir, folder)
+            if not os.path.exists(target_folder):
+                os.makedirs(target_folder)
+            
+            img = Image.open(logo_path)
+            
+            # Standard Icon
+            std_img = img.resize((std_sz, std_sz), Image.Resampling.LANCZOS)
+            std_img.save(os.path.join(target_folder, "ic_launcher.png"), "PNG")
+            std_img.save(os.path.join(target_folder, "ic_launcher_round.png"), "PNG")
+
+            # Adaptive Foreground Icon (Center logo at ~65% size)
+            fg_logo_sz = int(fg_sz * 0.65)
+            logo_resized = img.resize((fg_logo_sz, fg_logo_sz), Image.Resampling.LANCZOS)
+            fg_canvas = Image.new("RGBA", (fg_sz, fg_sz), (0, 0, 0, 0))
+            offset = (fg_sz - fg_logo_sz) // 2
+            fg_canvas.paste(logo_resized, (offset, offset), logo_resized if logo_resized.mode == "RGBA" else None)
+            fg_canvas.save(os.path.join(target_folder, "ic_launcher_foreground.png"), "PNG")
+            
+            print(f"Icon Android berhasil dibuat untuk folder: {folder}")
+        print("🎉 Semua icon Android (ic_launcher) berhasil diperbarui menggunakan logo.png!")
+    except Exception as e:
+        print(f"⚠️ Gagal memperbarui icon secara otomatis: {e}")
+        print("Silakan jalankan manual: pip install Pillow")
+else:
+    print("\nlogo.png tidak ditemukan di root directory. Skip pembuatan icon.")
+
