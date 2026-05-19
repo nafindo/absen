@@ -24,6 +24,21 @@ if not "%JAVA_HOME%"=="" (
 )
 echo.
 
+:: Deteksi otomatis Android SDK & buat local.properties jika belum ada
+if not exist "android\local.properties" (
+    echo [INFO] Berkas android\local.properties tidak ditemukan. Mencoba mendeteksi Android SDK...
+    if exist "%LOCALAPPDATA%\Android\Sdk" (
+        echo [INFO] Android SDK terdeteksi! Membuat berkas local.properties otomatis...
+        echo # Location of the SDK. This is automatically generated. > android\local.properties
+        echo sdk.dir=C\:\\Users\\%USERNAME%\\AppData\\Local\\Android\\Sdk >> android\local.properties
+        echo [INFO] Berhasil membuat berkas android\local.properties secara otomatis!
+    ) else (
+        echo [WARNING] Tidak dapat mendeteksi Android SDK secara otomatis.
+        echo           Silakan buat berkas android\local.properties secara manual dan set sdk.dir.
+    )
+)
+echo.
+
 echo ============================================================
 echo  [PINGUIN ABSEN] Memulai Otomatisasi Deploy ^& Build APK
 echo ============================================================
