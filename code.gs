@@ -161,6 +161,10 @@ function doPost(e) {
       case 'sendChatMessage':
       case 'sendchatmessage': return jsonResponse(sendChatMessage(data));
       
+      // === DELTA SYNC ===
+      case 'getDeltas': return jsonResponse(getDeltas(data));
+      case 'upgradeDatabase': return jsonResponse(upgradeSheetsForDeltaSync());
+      
       default:
         return jsonResponse({ success: false, error: 'Action tidak dikenal: ' + action });
     }
@@ -331,8 +335,119 @@ function getSheetData(sheetName) {
 function appendRow(sheetName, rowData) {
   const sheet = getSheet(sheetName);
   if (!sheet) throw new Error('Sheet ' + sheetName + ' tidak ditemukan');
+  
+  const headers = sheet.getDataRange().getValues()[0];
+  
+  // Pastikan panjang array data sama dengan panjang header minus metadata
+  while (rowData.length < headers.length - 2) {
+    rowData.push('');
+  }
+  
+  const updatedIdx = headers.indexOf('updatedAt');
+  const deletedIdx = headers.indexOf('isDeleted');
+  
+  if (updatedIdx !== -1) rowData[updatedIdx] = Date.now();
+  if (deletedIdx !== -1) rowData[deletedIdx] = 'false';
+  
   sheet.appendRow(rowData);
   return sheet.getLastRow();
+}
+
+function touchRow(sheet, rowIndex) {
+  try {
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const updatedIdx = headers.indexOf('updatedAt');
+    const deletedIdx = headers.indexOf('isDeleted');
+    
+    if (updatedIdx !== -1) {
+      sheet.getRange(rowIndex, updatedIdx + 1).setValue(Date.now());
+    }
+    if (deletedIdx !== -1) {
+      const currentVal = sheet.getRange(rowIndex, deletedIdx + 1).getValue();
+      if (!currentVal) {
+        sheet.getRange(rowIndex, deletedIdx + 1).setValue('false');
+      }
+    }
+  } catch (e) {
+    console.error('Error in touchRow:', e);
+  }
+}
+
+function getDeltas(data) {
+  try {
+    const { lastSyncTime } = data;
+    const sinceTime = lastSyncTime ? Number(lastSyncTime) : 0;
+    
+    const deltas = {};
+    
+    for (const key in SHEET_NAMES) {
+      const sheetName = SHEET_NAMES[key];
+      const allRows = getSheetData(sheetName);
+      if (allRows.length === 0) continue;
+      
+      const changed = allRows.filter(row => {
+        const updated = row.updatedAt ? Number(row.updatedAt) : 0;
+        return updated > sinceTime;
+      });
+      
+      if (changed.length > 0) {
+        deltas[sheetName] = changed;
+      }
+    }
+    
+    return {
+      success: true,
+      serverTime: Date.now(),
+      deltas: deltas
+    };
+  } catch (e) {
+    logError('getDeltas', e, data);
+    return { success: false, error: e.toString() };
+  }
+}
+
+function upgradeSheetsForDeltaSync() {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const now = Date.now();
+    
+    for (const key in SHEET_NAMES) {
+      const sheetName = SHEET_NAMES[key];
+      const sheet = ss.getSheetByName(sheetName);
+      if (!sheet) continue;
+      
+      const lastCol = sheet.getLastColumn();
+      const lastRow = sheet.getLastRow();
+      if (lastCol === 0) continue;
+      
+      const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+      
+      let updatedIdx = headers.indexOf('updatedAt');
+      let deletedIdx = headers.indexOf('isDeleted');
+      
+      if (updatedIdx === -1) {
+        sheet.getRange(1, lastCol + 1).setValue('updatedAt').setFontWeight('bold');
+        updatedIdx = lastCol;
+        if (lastRow > 1) {
+          const fillValues = Array(lastRow - 1).fill([now]);
+          sheet.getRange(2, lastCol + 1, lastRow - 1, 1).setValues(fillValues);
+        }
+      }
+      
+      const currentLastCol = sheet.getLastColumn();
+      if (deletedIdx === -1) {
+        sheet.getRange(1, currentLastCol + 1).setValue('isDeleted').setFontWeight('bold');
+        if (lastRow > 1) {
+          const fillValues = Array(lastRow - 1).fill(['false']);
+          sheet.getRange(2, currentLastCol + 1, lastRow - 1, 1).setValues(fillValues);
+        }
+      }
+    }
+    return { success: true, message: 'Database upgraded successfully for Delta Sync!' };
+  } catch (e) {
+    console.error('Error upgrading sheets:', e);
+    return { success: false, error: e.toString() };
+  }
 }
 
 function logError(action, error, payload) {
@@ -659,6 +774,7 @@ function absenPulang(data) {
       sheet.getRange(i + 1, 10).setValue(formatTime(now)); // Jam_Pulang
       sheet.getRange(i + 1, 11).setValue(durasiKerja); // Jam_Kerja
       sheet.getRange(i + 1, 20).setValue(fotoUrl); // Foto_Pulang_URL
+      touchRow(sheet, i + 1); // Catat timestamp modifikasi
       break;
     }
   }

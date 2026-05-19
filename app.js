@@ -5,6 +5,8 @@
             tokoList: [], shiftList: [], karyawanList: [], notifList: [], notifShown: false,
             lemburStream: null, lemburPhotoData: null, audioUnlocked: false
         };
+        
+        let localDB = null; // Handler Basis Data IndexedDB Karyawan (Server Mini)
 
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDyDhOWjdbi1dO9HBbcSEZumOkBGlg2Z4UzJ-YqcirnX7u487kUUOYota52PV-5BlN/exec';
         const LS_KEY = 'absensi_user_v2';
@@ -72,6 +74,206 @@
                 }
             }
             return null;
+        }
+
+        }
+
+        // ==================== BASIS DATA LOKAL & DELTA SYNC ENGINE ====================
+        function initLocalDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open("PinguinAbsenDB", 1);
+                
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    const stores = [
+                        { name: "MASTER_KARYAWAN", key: "ID_Karyawan" },
+                        { name: "MASTER_TOKO", key: "ID_Toko" },
+                        { name: "SHIFT_TOKO", key: "ID_Shift" },
+                        { name: "JADWAL_KARYAWAN", key: "ID_Jadwal" },
+                        { name: "ABSENSI", key: "Timestamp" },
+                        { name: "LEMBUR", key: "ID" },
+                        { name: "IZIN_CUTI", key: "ID" },
+                        { name: "MASTER_JENIS_IZIN", key: "ID_Jenis" },
+                        { name: "SETTING_GLOBAL", key: "Parameter" },
+                        { name: "LOG_ERROR", key: "Timestamp" },
+                        { name: "CHAT", key: "ID_Pesan" },
+                        { name: "TUKER_SHIFT", key: "ID_Tuker" },
+                        { name: "TUGAS", key: "ID_Tugas" },
+                        { name: "BERITA", key: "ID_Berita" },
+                        { name: "OUTBOX_QUEUE", key: "id", auto: true }
+                    ];
+                    
+                    stores.forEach(store => {
+                        if (!db.objectStoreNames.contains(store.name)) {
+                            db.createObjectStore(store.name, { 
+                                keyPath: store.key, 
+                                autoIncrement: store.auto || false 
+                            });
+                        }
+                    });
+                };
+                
+                request.onsuccess = (e) => {
+                    localDB = e.target.result;
+                    console.log("[DB] IndexedDB PinguinAbsenDB Berhasil Diinisialisasi.");
+                    resolve(localDB);
+                };
+                
+                request.onerror = (e) => {
+                    console.error("[DB] Gagal membuka IndexedDB:", e.target.error);
+                    reject(e.target.error);
+                };
+            });
+        }
+
+        async function triggerDeltaSync() {
+            if (!state.user || !state.user.id || !localDB) return;
+            const lastSyncTime = localStorage.getItem("lastSyncTime") || "0";
+            
+            try {
+                const res = await apiCall('getDeltas', { lastSyncTime: lastSyncTime });
+                if (res.success && res.deltas) {
+                    const storeNames = Object.keys(res.deltas);
+                    if (storeNames.length === 0) return;
+                    
+                    const tx = localDB.transaction(storeNames, "readwrite");
+                    
+                    for (const sheetName in res.deltas) {
+                        const store = tx.objectStore(sheetName);
+                        const rows = res.deltas[sheetName];
+                        const keyPath = getPrimaryKey(sheetName);
+                        
+                        rows.forEach(row => {
+                            if (row.isDeleted === "true" || row.isDeleted === true) {
+                                store.delete(row[keyPath]);
+                            } else {
+                                store.put(row);
+                            }
+                        });
+                    }
+                    
+                    localStorage.setItem("lastSyncTime", res.serverTime);
+                    console.log(`[SYNC] Delta Sync Berhasil. Waktu Server: ${res.serverTime}`);
+                }
+            } catch (e) {
+                console.warn("[SYNC] Polling delta sync gagal di latar belakang:", e);
+            }
+        }
+
+        function getPrimaryKey(sheetName) {
+            const keys = {
+                MASTER_KARYAWAN: "ID_Karyawan", MASTER_TOKO: "ID_Toko", SHIFT_TOKO: "ID_Shift",
+                JADWAL_KARYAWAN: "ID_Jadwal", ABSENSI: "Timestamp", LEMBUR: "ID",
+                IZIN_CUTI: "ID", MASTER_JENIS_IZIN: "ID_Jenis", SETTING_GLOBAL: "Parameter",
+                LOG_ERROR: "Timestamp", CHAT: "ID_Pesan", TUKER_SHIFT: "ID_Tuker",
+                TUGAS: "ID_Tugas", BERITA: "ID_Berita"
+            };
+            return keys[sheetName] || "ID";
+        }
+
+        function kompresSelfie(base64Str, callback) {
+            if (!base64Str || !base64Str.startsWith('data:image')) {
+                return callback(base64Str);
+            }
+            const img = new Image();
+            img.src = base64Str;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 800; // Kompres ke resolusi HD ringan
+                let width = img.width, height = img.height;
+                
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                callback(canvas.toDataURL('image/jpeg', 0.7)); // Kompres JPEG kualitas 70%
+            };
+            img.onerror = () => callback(base64Str);
+        }
+
+        function enkripsiDekripsiFoto(dataString, pinKunci) {
+            let result = "";
+            const key = String(pinKunci);
+            for (let i = 0; i < dataString.length; i++) {
+                result += String.fromCharCode(dataString.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+            }
+            return btoa(result);
+        }
+
+        function addToOutbox(tipeAksi, dataPayload) {
+            return new Promise((resolve, reject) => {
+                if (!localDB) return reject(new Error("LocalDB tidak aktif"));
+                const tx = localDB.transaction("OUTBOX_QUEUE", "readwrite");
+                const store = tx.objectStore("OUTBOX_QUEUE");
+                
+                const item = {
+                    tipe: tipeAksi,
+                    payload: dataPayload,
+                    createdAt: Date.now(),
+                    status: "pending"
+                };
+                
+                const request = store.add(item);
+                request.onsuccess = () => {
+                    console.log(`[OUTBOX] Aksi ${tipeAksi} ditambahkan ke antrean HP.`);
+                    resolve(true);
+                };
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function processOutboxQueue() {
+            if (!navigator.onLine || !state.user || !localDB) return;
+            
+            const tx = localDB.transaction("OUTBOX_QUEUE", "readwrite");
+            const store = tx.objectStore("OUTBOX_QUEUE");
+            
+            const request = store.openCursor();
+            request.onsuccess = async (e) => {
+                const cursor = e.target.result;
+                if (!cursor) return; // Antrean kosong
+                
+                const item = cursor.value;
+                if (item.status === "uploading") return;
+                
+                item.status = "uploading";
+                cursor.update(item);
+                
+                try {
+                    console.log(`[OUTBOX] Memproses unggah latar belakang: ${item.tipe}`);
+                    
+                    // Dekripsi foto sebelum diunggah ke Google Drive
+                    let payloadToUpload = { ...item.payload };
+                    if (payloadToUpload.isEncrypted && payloadToUpload.fotoBase64) {
+                        try {
+                            const rawDecrypted = enkripsiDekripsiFoto(atob(payloadToUpload.fotoBase64), state.user.pin || '1234');
+                            payloadToUpload.fotoBase64 = rawDecrypted;
+                            delete payloadToUpload.isEncrypted; // Bersihkan metadata enkripsi
+                        } catch (decErr) {
+                            console.error("[OUTBOX] Gagal mendekripsi foto:", decErr);
+                        }
+                    }
+                    
+                    const res = await apiCall(item.tipe, payloadToUpload);
+                    
+                    if (res.success) {
+                        const deleteTx = localDB.transaction("OUTBOX_QUEUE", "readwrite");
+                        deleteTx.objectStore("OUTBOX_QUEUE").delete(item.id);
+                        console.log(`[OUTBOX] Aksi ID ${item.id} berhasil diunggah. Berkas lokal dihapus.`);
+                    } else {
+                        item.status = "failed";
+                        cursor.update(item);
+                    }
+                } catch (err) {
+                    console.warn(`[OUTBOX] Pengunggahan tertunda (koneksi buruk).`, err);
+                    item.status = "pending";
+                    cursor.update(item);
+                }
+            };
         }
 
         function resolveFotoUrl(url) {
@@ -158,6 +360,22 @@
             // Initialize real-time Pusher WebSockets
             initPusher();
             initChatScrollListener();
+            
+            // Inisialisasi Basis Data Replikasi IndexedDB & Delta Sync
+            initLocalDatabase().then(async () => {
+                try {
+                    await triggerDeltaSync();
+                } catch (e) {
+                    console.warn('[SYNC] Delta sync awal gagal:', e);
+                }
+                
+                // Polling Delta Sync diam-diam setiap 15 detik
+                setInterval(triggerDeltaSync, 15000);
+                // Scheduler pengunggahan antrean latar belakang setiap 10 detik
+                setInterval(processOutboxQueue, 10000);
+            }).catch(e => {
+                console.warn('[DB] Gagal inisialisasi basis data lokal IndexedDB:', e);
+            });
             
             // ⚡ Muat cache lokal dan sinkronisasi server (1 kali saja saat buka aplikasi)
             loadCachedChatMessages();
@@ -961,25 +1179,39 @@
             const btn = document.getElementById('btnMasuk');
             btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Memproses...';
 
-            try {
-                const res = await apiCall('absenMasuk', {
+            // Kompres & Enkripsi foto lokal, simpan ke Outbox (Instant 0-delay UI!)
+            kompresSelfie(state.photoData, async (compressedBase64) => {
+                const encryptedPhoto = enkripsiDekripsiFoto(compressedBase64, state.user.pin || '1234');
+                const now = new Date();
+                const localJam = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+                
+                const payload = {
                     idKaryawan: state.user.id, nama: state.user.name,
                     idToko: document.getElementById('selectToko').value, namaToko: toko ? toko.Nama_Toko : '',
                     idShift: document.getElementById('selectShift').value, namaShift: shiftName,
-                    fotoBase64: state.photoData, lat: state.gps.lat, lng: state.gps.lng
-                });
-                if (res.success) {
-                    state.absenStatus = 'sudah_masuk'; updateButtonVisibility();
-                    tampilPicoModal('sukses', `<b>Absen Masuk Berhasil!</b><br>Jam: ${formatTimeFromResponse(res.jamMasuk)}<br>Status: ${res.statusMasuk}`);
-                    document.getElementById('statusMasuk').textContent = 'Masuk: ' + formatTimeFromResponse(res.jamMasuk);
+                    fotoBase64: encryptedPhoto, lat: state.gps.lat, lng: state.gps.lng,
+                    isEncrypted: true
+                };
+                
+                try {
+                    await addToOutbox('absenMasuk', payload);
+                    
+                    state.absenStatus = 'sudah_masuk'; 
+                    updateButtonVisibility();
+                    
+                    tampilPicoModal('sukses', `<b>Absen Masuk Berhasil!</b><br>Jam: ${localJam}<br>Status: Ontime (Local)`);
+                    document.getElementById('statusMasuk').textContent = 'Masuk: ' + localJam;
                     document.getElementById('statusMasuk').className = 'status-masuk-capsule ok';
-                    // Refresh status so button changes to Pulang
-                    await checkAbsenStatus();
-                    await updateMonthlyRecap();
+                    
                     retakePhoto();
-                } else { tampilPicoModal('error', res.error || 'Gagal absen masuk'); }
-            } catch (e) { tampilPicoModal('error', 'Gagal: ' + e.message); }
-            finally { btn.disabled = false; btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> ABSEN MASUK`; }
+                    processOutboxQueue();
+                } catch (e) {
+                    tampilPicoModal('error', 'Gagal menyimpan absen lokal: ' + e.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> ABSEN MASUK`;
+                }
+            });
         }
 
         async function absenPulang() {
@@ -1033,23 +1265,38 @@
 
             const btn = document.getElementById('btnPulang');
             btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Memproses...';
-            try {
-                const res = await apiCall('absenPulang', {
+            
+            // Kompres & Enkripsi foto lokal, simpan ke Outbox (Instant clock-out!)
+            kompresSelfie(state.photoData, async (compressedBase64) => {
+                const encryptedPhoto = enkripsiDekripsiFoto(compressedBase64, state.user.pin || '1234');
+                const now = new Date();
+                const localJam = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+                
+                const payload = {
                     idKaryawan: state.user.id, nama: state.user.name,
-                    fotoBase64: state.photoData, lat: state.gps.lat, lng: state.gps.lng
-                });
-                if (res.success) {
-                    state.absenStatus = 'sudah_pulang'; updateButtonVisibility();
-                    tampilPicoModal('izin_pulang', `<b>Absen Pulang Berhasil!</b><br>Durasi: ${res.durasiKerja || '-'}<br>Jam: ${formatTimeFromResponse(res.jamPulang)}`);
-                    document.getElementById('statusPulang').textContent = 'Pulang: ' + formatTimeFromResponse(res.jamPulang);
+                    fotoBase64: encryptedPhoto, lat: state.gps.lat, lng: state.gps.lng,
+                    isEncrypted: true
+                };
+                
+                try {
+                    await addToOutbox('absenPulang', payload);
+                    
+                    state.absenStatus = 'sudah_pulang';
+                    updateButtonVisibility();
+                    
+                    tampilPicoModal('izin_pulang', `<b>Absen Pulang Berhasil!</b><br>Jam: ${localJam}`);
+                    document.getElementById('statusPulang').textContent = 'Pulang: ' + localJam;
                     document.getElementById('statusPulang').className = 'status-pulang-capsule ok';
-                    // Refresh status so buttons hide
-                    await checkAbsenStatus();
-                    await updateMonthlyRecap();
+                    
                     retakePhoto();
-                } else { tampilPicoModal('error', res.error || 'Gagal absen pulang'); }
-            } catch (e) { tampilPicoModal('error', 'Gagal: ' + e.message); }
-            finally { btn.disabled = false; btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> ABSEN PULANG`; }
+                    processOutboxQueue();
+                } catch (e) {
+                    tampilPicoModal('error', 'Gagal menyimpan absen lokal: ' + e.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> ABSEN PULANG`;
+                }
+            });
         }
 
         function toggleLemburMode() {
