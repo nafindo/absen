@@ -420,7 +420,6 @@
                     hideSplashScreen();
 
                     // Panggil API secara asinkron di background (Non-blocking!)
-                    testBackendConnection();
                     loadKaryawanDropdown();
                     
                     loadTokoData().then(async () => {
@@ -445,7 +444,6 @@
                     startChatPolling();
                 } else {
                     // Jika belum login, jalankan pemuatan secara asinkron (Non-blocking!)
-                    testBackendConnection();
                     loadKaryawanDropdown().then(() => {
                         console.log('[STARTUP] loadKaryawanDropdown selesai');
                     });
@@ -464,7 +462,6 @@
                     setupUserUI(saved.fotoUrl || '');
                 } else {
                     // Jalankan pemuatan tanpa IndexedDB
-                    testBackendConnection();
                     loadKaryawanDropdown().then(() => {
                         console.log('[STARTUP] loadKaryawanDropdown selesai (mode fallback tanpa IndexedDB)');
                     });
@@ -541,22 +538,6 @@
             // Polling notifikasi live setiap 30 detik untuk live updates tanpa refresh!
             setInterval(checkMyApprovals, 30000);
         });
-
-        async function testBackendConnection() {
-            try {
-                const res = await apiCall('testConnection');
-                if (res.success) {
-                    console.log('[CONN] ✅ Backend connected:', res.message, res.timestamp);
-                    showToast('Terhubung ke server', 'success');
-                } else {
-                    console.warn('[CONN] ⚠️ Backend error:', res.error);
-                    showToast('Server error: ' + res.error, 'error');
-                }
-            } catch (e) {
-                console.error('[CONN] ❌ Connection failed:', e.message);
-                showToast('Koneksi gagal: ' + e.message, 'error');
-            }
-        }
 
         function showApp() {
             document.getElementById('loginScreen').classList.add('hidden');
