@@ -4745,16 +4745,7 @@
                 console.warn("[PUSH] Gagal buat channel:", e);
             }
 
-            // 2. Minta izin push notifikasi native
-            PushNotifications.requestPermissions().then(result => {
-                if (result.receive === 'granted') {
-                    PushNotifications.register();
-                } else {
-                    console.warn("[PUSH] Izin push notifikasi native ditolak.");
-                }
-            });
-            
-            // 2. Registrasi sukses: dapatkan token FCM
+            // 2. Daftarkan Listener TERLEBIH DAHULU (Wajib sebelum memanggil register!)
             PushNotifications.addListener('registration', (token) => {
                 console.log('[PUSH] Token registrasi FCM didapat:', token.value);
                 if (state.user && state.user.id) {
@@ -4771,12 +4762,10 @@
                 }
             });
             
-            // 3. Registrasi error
             PushNotifications.addListener('registrationError', (error) => {
                 console.error('[PUSH] Registrasi FCM error:', error);
             });
             
-            // 4. Tangani notifikasi masuk saat aplikasi terbuka (foreground)
             PushNotifications.addListener('pushNotificationReceived', (notification) => {
                 console.log('[PUSH] Notifikasi diterima:', notification);
                 if (notification.title && notification.body) {
@@ -4785,11 +4774,19 @@
                 }
             });
             
-            // 5. Tangani aksi saat notifikasi diklik oleh user
             PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
                 console.log('[PUSH] Aksi notifikasi diklik:', notification);
                 if (notification.notification.title && notification.notification.title.includes('💬')) {
                     openModal('modalChat');
+                }
+            });
+
+            // 3. Minta izin & daftarkan ke Firebase
+            PushNotifications.requestPermissions().then(result => {
+                if (result.receive === 'granted') {
+                    PushNotifications.register();
+                } else {
+                    console.warn("[PUSH] Izin push notifikasi native ditolak.");
                 }
             });
         }

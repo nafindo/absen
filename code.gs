@@ -3107,7 +3107,14 @@ function initSpreadsheet() {
 
 // ==================== PUSH NOTIFICATION (WEBPUSHR INTEGRATION) ====================
 function sendPushNotification(idKaryawan, title, message, channelId = 'general') {
-  // 1. Kirim via Webpushr (Web/PWA)
+  // 1. PRIORITAS UTAMA: Kirim via Firebase Cloud Messaging (FCM) Native Push (APK) TANPA DELAY
+  try {
+    sendFCMPushNotification(idKaryawan, title, message, channelId);
+  } catch (e) {
+    Logger.log('FCM Push Error: ' + e.toString());
+  }
+
+  // 2. SEKUNDER: Kirim via Webpushr (Web/PWA)
   try {
     let webpushrKey = '4390bcc206161515a39ead22f9c1cf46';
     let webpushrAuthToken = '121398';
@@ -3137,14 +3144,12 @@ function sendPushNotification(idKaryawan, title, message, channelId = 'general')
       muteHttpExceptions: true
     };
     
+    // Jangan biarkan koneksi lambat Webpushr menghentikan/menunda performa sistem
     const response = UrlFetchApp.fetch('https://api.webpushr.com/v1/notification/send/sid', options);
     Logger.log('Webpushr Push Response for ' + idKaryawan + ': ' + response.getContentText());
   } catch (e) {
     Logger.log('Webpushr Push Error for ' + idKaryawan + ': ' + e.message);
   }
-  
-  // 2. Kirim via Firebase Cloud Messaging (FCM) Native Push (APK)
-  sendFCMPushNotification(idKaryawan, title, message, channelId);
 }
 
 // ==================== FIREBASE CLOUD MESSAGING (FCM) REGISTER & BROADCAST ====================
@@ -3279,7 +3284,6 @@ function sendFCMPushNotification(idKaryawan, title, message, channelId = 'genera
           notification: {
             channel_id: channelId, // Dinamis: "chat", "absen", "general", dll.
             sound: "default",
-            click_action: "FCM_PLUGIN_ACTIVITY",
             notification_priority: "PRIORITY_MAX",
             visibility: "PUBLIC" // Menampilkan notifikasi di layar kunci (lockscreen)
           }
@@ -3363,4 +3367,94 @@ function bytesToHex(bytes) {
     hex += byteHex;
   }
   return hex;
+}
+
+// ==================== ALAT UJI COBA (TESTING TOOL) ====================
+// Fungsi ini HANYA dijalankan secara manual dari Editor Apps Script untuk mengecek apakah
+// kredensial Firebase sudah benar dan pesan berhasil dikirim ke server Google.
+function testFCM() {
+  Logger.log("=== MEMULAI TES FIREBASE CLOUD MESSAGING (FCM) ===");
+  
+  // 1. Ambil Kredensial JSON dari SETTING_GLOBAL
+  let serviceAccountJsonStr = '';
+  try {
+    const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
+    const keyRow = settings.find(s => s.Parameter === 'FCM_SERVICE_ACCOUNT_JSON' || s.Kunci === 'FCM_SERVICE_ACCOUNT_JSON');
+    if (keyRow && keyRow.Value) {
+      serviceAccountJsonStr = keyRow.Value;
+    }
+  } catch(e) {}
+
+  if (!serviceAccountJsonStr || serviceAccountJsonStr.includes('TEMPELKAN_KONTEN_JSON')) {
+    Logger.log("❌ ERROR: FCM_SERVICE_ACCOUNT_JSON belum diisi di sheet SETTING_GLOBAL.");
+    return;
+  }
+  
+  Logger.log("✅ 1. Kredensial JSON Firebase ditemukan.");
+
+  // 2. Coba Otentikasi
+  const accessToken = getFCMAccessToken(serviceAccountJsonStr);
+  if (!accessToken) {
+    Logger.log("❌ ERROR: Otentikasi Google OAuth2 gagal. Pastikan teks JSON Anda disalin secara utuh.");
+    return;
+  }
+  
+  Logger.log("✅ 2. Kunci Akses (Access Token) berhasil digenerate.");
+
+  // 3. Ambil Satu Token Karyawan Acak untuk Dites
+  const masterKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+  const targetKaryawan = masterKaryawan.find(k => k.FCM_Token && k.FCM_Token.trim().length > 10);
+  
+  if (!targetKaryawan) {
+    Logger.log("❌ ERROR: Belum ada satu pun karyawan yang memiliki FCM_Token di MASTER_KARYAWAN.");
+    return;
+  }
+  
+  Logger.log("✅ 3. Ditemukan target perangkat uji coba: " + targetKaryawan.Nama);
+
+  // 4. Kirim Pesan Uji Coba (Ping!)
+  Logger.log("Mengirim pesan ke server Google Firebase...");
+  
+  const projectId = JSON.parse(serviceAccountJsonStr).project_id;
+  const payload = {
+    message: {
+      token: targetKaryawan.FCM_Token,
+      notification: {
+        title: "Test Koneksi Sukses! 🚀",
+        body: "Jika pesan ini muncul di HP saat aplikasi tertutup, berarti konfigurasi FCM 100% sempurna!"
+      },
+      android: {
+        priority: "HIGH",
+        notification: {
+          channel_id: "general",
+          sound: "default",
+          notification_priority: "PRIORITY_MAX",
+          visibility: "PUBLIC"
+        }
+      }
+    }
+  };
+  
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'Authorization': 'Bearer ' + accessToken },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+  
+  const response = UrlFetchApp.fetch('https://fcm.googleapis.com/v1/projects/' + projectId + '/messages:send', options);
+  const statusCode = response.getResponseCode();
+  const responseText = response.getContentText();
+  
+  if (statusCode === 200) {
+    Logger.log("✅ 4. SUKSES! Pesan diterima oleh Firebase dan diteruskan ke HP: " + targetKaryawan.Nama);
+    Logger.log("Respons Google: " + responseText);
+  } else {
+    Logger.log("❌ 4. GAGAL dikirim oleh Firebase.");
+    Logger.log("Kode Error: " + statusCode);
+    Logger.log("Pesan Error: " + responseText);
+  }
+  
+  Logger.log("=== TES SELESAI ===");
 }
