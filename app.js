@@ -4684,6 +4684,7 @@
             // 1. Cek apakah berjalan di Capacitor
             if (!window.Capacitor) {
                 console.log("[PUSH] Tidak berjalan di Capacitor native context, skip Native Push.");
+                showToast("Aplikasi mendeteksi mode Web Browser (Notifikasi native nonaktif)", "warning");
                 return;
             }
             
