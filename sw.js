@@ -2,13 +2,13 @@ importScripts('https://cdn.webpushr.com/sw-v2.js');
 
 const CACHE_NAME = 'absen-pwa-v5.5';
 const urlsToCache = [
-  '/absen/',
-  '/absen/index.html',
-  '/absen/style.css',
-  '/absen/app.js',
-  '/absen/manifest.json',
-  '/absen/logo.png',
-  '/absen/webpushr-sw.js'
+  './',
+  'index.html',
+  'style.css',
+  'app.js',
+  'manifest.json',
+  'logo.png',
+  'webpushr-sw.js'
 ];
 
 self.addEventListener('install', event => {

@@ -76,8 +76,6 @@
             return null;
         }
 
-        }
-
         // ==================== BASIS DATA LOKAL & DELTA SYNC ENGINE ====================
         function initLocalDatabase() {
             return new Promise((resolve, reject) => {
@@ -369,77 +367,86 @@
             updateDate();
             initGPS();
             const today = new Date().toISOString().split('T')[0];
-            document.getElementById('izinTglMulai').value = today;
+            const tglMulai = document.getElementById('izinTglMulai');
+            if (tglMulai) tglMulai.value = today;
 
             // Initialize real-time Pusher WebSockets
             initPusher();
             initChatScrollListener();
             
+            // Tentukan deteksi platform Web vs APK
+            state.isNativeAPK = !!window.Capacitor;
+            console.log('[PLATFORM] Running in Native APK:', state.isNativeAPK);
+            
             // Inisialisasi Basis Data Replikasi IndexedDB & Delta Sync
             initLocalDatabase().then(async () => {
+                // Jalankan Delta Sync & Outbox schedulers
                 try {
                     await triggerDeltaSync();
                 } catch (e) {
                     console.warn('[SYNC] Delta sync awal gagal:', e);
                 }
                 
-                // Polling Delta Sync diam-diam setiap 15 detik
                 setInterval(triggerDeltaSync, 15000);
-                // Scheduler pengunggahan antrean latar belakang setiap 10 detik
                 setInterval(processOutboxQueue, 10000);
+                
+                // ⚡ Muat data setelah Database DIJAMIN SIAP!
+                loadCachedChatMessages();
+                loadChatMessages();
+
+                // Cek localStorage login
+                const saved = loadLogin();
+                if (saved && saved.id) {
+                    // Auto login dari localStorage
+                    state.user = { id: saved.id, name: saved.name, role: saved.role, tokoDefault: saved.tokoDefault, shiftDefault: saved.shiftDefault };
+                    state.currentUser = state.user;
+                    unlockAudio();
+                    showApp();
+                    
+                    if (state.isNativeAPK) {
+                        try { registerWebpushrUser(saved.id); } catch(e) { }
+                        try { checkNotificationStatus(); } catch(e) { }
+                    }
+                    setupUserUI(saved.fotoUrl || '');
+                    
+                    hideSplashScreen();
+
+                    // Panggil API secara asinkron di background (Non-blocking!)
+                    testBackendConnection();
+                    loadKaryawanDropdown();
+                    
+                    loadTokoData().then(async () => {
+                        if (state.user.tokoDefault) {
+                            const selToko = document.getElementById('selectToko');
+                            if (selToko) {
+                                selToko.value = state.user.tokoDefault;
+                                await onTokoChange();
+                                const selShift = document.getElementById('selectShift');
+                                if (state.user.shiftDefault && selShift) {
+                                    selShift.value = state.user.shiftDefault;
+                                    updateShiftInfo();
+                                }
+                            }
+                        }
+                    });
+                    checkAbsenStatus();
+                    updateMonthlyRecap();
+                    stopCamera();
+                    showCameraOverlay();
+                    checkMyApprovals();
+                    startChatPolling();
+                } else {
+                    // Jika belum login, jalankan pemuatan secara asinkron (Non-blocking!)
+                    testBackendConnection();
+                    loadKaryawanDropdown().then(() => {
+                        console.log('[STARTUP] loadKaryawanDropdown selesai');
+                    });
+                    hideSplashScreen(); // Langsung hilangkan splash screen secara instan!
+                }
             }).catch(e => {
                 console.warn('[DB] Gagal inisialisasi basis data lokal IndexedDB:', e);
-            });
-            
-            // ⚡ Muat cache lokal dan sinkronisasi server (1 kali saja saat buka aplikasi)
-            loadCachedChatMessages();
-            loadChatMessages();
-
-            // Cek localStorage login
-            const saved = loadLogin();
-            if (saved && saved.id) {
-                // Auto login dari localStorage
-                state.user = { id: saved.id, name: saved.name, role: saved.role, tokoDefault: saved.tokoDefault, shiftDefault: saved.shiftDefault };
-                state.currentUser = state.user;
-                unlockAudio();
-                showApp();
-                
-                // Daftarkan ke Webpushr agar bisa menerima notifikasi push latar belakang
-                try { registerWebpushrUser(saved.id); } catch(e) { }
-                try { checkNotificationStatus(); } catch(e) { }
-                setupUserUI(saved.fotoUrl || '');
-                
-                // LANGSUNG HIDE SPLASH SCREEN (INSTANT LOAD!)
                 hideSplashScreen();
-
-                // Panggil API secara asinkron di background (Non-blocking!)
-                testBackendConnection();
-                loadKaryawanDropdown();
-                
-                loadTokoData().then(async () => {
-                    if (state.user.tokoDefault) {
-                        document.getElementById('selectToko').value = state.user.tokoDefault;
-                        await onTokoChange();
-                        if (state.user.shiftDefault) {
-                            document.getElementById('selectShift').value = state.user.shiftDefault;
-                            updateShiftInfo();
-                        }
-                    }
-                });
-                checkAbsenStatus();
-                updateMonthlyRecap();
-                stopCamera();
-                showCameraOverlay();
-                checkMyApprovals();
-                startChatPolling(); // Mulai polling chat latar belakang otomatis untuk mendeteksi pesan masuk!
-            } else {
-                // Jika belum login, jalankan pemuatan secara asinkron (Non-blocking!)
-                testBackendConnection();
-                loadKaryawanDropdown().then(() => {
-                    console.log('[STARTUP] loadKaryawanDropdown selesai');
-                });
-                hideSplashScreen(); // Langsung hilangkan splash screen secara instan!
-            }
+            });
             
             // Mention Autocomplete Listeners
             const chatInput = document.getElementById('chatInput');
@@ -608,21 +615,36 @@
         // ==================== LOGIN ====================
         async function doLogin() {
             const sel = document.getElementById('loginSelect');
-            const id = sel.value;
+            const manualIdInput = document.getElementById('loginManualId');
+            let id = sel ? sel.value : '';
+            let name = '';
+            let role = 'Staff';
+            let tokoId = '';
+            let shiftId = '';
+            let fotoUrl = '';
+
+            // Jika ada input manual dan diisi, gunakan itu
+            if (manualIdInput && manualIdInput.value.trim() !== '') {
+                id = manualIdInput.value.trim();
+                name = 'Debug User (' + id + ')';
+            }
+
             const errBox = document.getElementById('loginError');
             const btn = document.getElementById('btnLogin');
 
             if (!id) {
-                errBox.textContent = 'Pilih nama karyawan terlebih dahulu!';
+                errBox.textContent = 'Pilih nama atau ketik ID karyawan terlebih dahulu!';
                 errBox.classList.add('show'); return;
             }
 
-            const opt = sel.options[sel.selectedIndex];
-            const name = opt.text;
-            const role = opt.getAttribute('data-role') || 'Staff';
-            const tokoId = opt.getAttribute('data-toko') || '';
-            const shiftId = opt.getAttribute('data-shift') || '';
-            const fotoUrl = opt.getAttribute('data-foto') || '';
+            if (sel && sel.value && id === sel.value) {
+                const opt = sel.options[sel.selectedIndex];
+                name = opt.text;
+                role = opt.getAttribute('data-role') || 'Staff';
+                tokoId = opt.getAttribute('data-toko') || '';
+                shiftId = opt.getAttribute('data-shift') || '';
+                fotoUrl = opt.getAttribute('data-foto') || '';
+            }
 
             btn.disabled = true;
             btn.innerHTML = '<div class="spinner"></div> Memuat...';
@@ -677,6 +699,12 @@
 
         // ==================== KARYAWAN DROPDOWN ====================
         async function loadKaryawanDropdown() {
+            // Tampilkan input manual jika di luar native APK (Browser Web / Debugging)
+            const manualContainer = document.getElementById('manualLoginContainer');
+            if (manualContainer && !window.Capacitor) {
+                manualContainer.style.display = 'block';
+            }
+
             const populateDropdown = (list) => {
                 const sel = document.getElementById('loginSelect');
                 if (!sel) return;
