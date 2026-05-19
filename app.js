@@ -4680,6 +4680,7 @@
         }
 
         let hasAttemptedPushInit = false;
+        let pushInitRetries = 0;
         function initNativePushNotifications() {
             // 1. Cek apakah berjalan di Capacitor
             if (!window.Capacitor) {
@@ -4691,6 +4692,11 @@
             // 2. Jika plugin belum ter-injeksi oleh Capacitor, tunggu 1 detik lalu coba lagi (mengatasi race-condition)
             if (!window.Capacitor.Plugins || !window.Capacitor.Plugins.PushNotifications) {
                 console.log("[PUSH] Plugin PushNotifications belum siap, mencoba kembali dalam 1 detik...");
+                pushInitRetries++;
+                if (pushInitRetries > 5) {
+                    showToast("Gagal mendeteksi modul PushNotifications di HP! Cek instalasi plugin.", "error");
+                    return;
+                }
                 setTimeout(initNativePushNotifications, 1000);
                 return;
             }
@@ -4799,6 +4805,27 @@
                 }
             }).catch(e => {
                 showToast("Gagal meminta izin: " + e.message, "error");
+            });
+        }
+
+        async function forceRegisterFCM() {
+            hasAttemptedPushInit = false;
+            pushInitRetries = 0;
+            showToast("Memulai ulang registrasi FCM...", "info");
+            
+            // Cek manual Capacitor
+            if (!window.Capacitor) {
+                tampilPicoModal('default', 'Aplikasi mendeteksi mode Web Browser. Fitur Push Notifikasi Native hanya berfungsi saat aplikasi dijalankan sebagai APK Android asli.');
+                return;
+            }
+            
+            if (!window.Capacitor.Plugins || !window.Capacitor.Plugins.PushNotifications) {
+                tampilPicoModal('default', 'Gagal memuat modul PushNotifications. Silakan hubungi admin untuk memeriksa kelengkapan plugin APK.');
+                return;
+            }
+            
+            tampilPicoModal('sukses', 'Memulai registrasi FCM di HP. Silakan klik OK untuk mendaftarkan ulang perangkat Anda.', () => {
+                initNativePushNotifications();
             });
         }
 
