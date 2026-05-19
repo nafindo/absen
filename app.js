@@ -4706,7 +4706,46 @@
             
             const PushNotifications = window.Capacitor.Plugins.PushNotifications;
             
-            // 1. Minta izin push notifikasi native
+            // 1. Buat Channel Notifikasi (Sesuai Kategori)
+            try {
+                PushNotifications.createChannel({
+                    id: 'chat',
+                    name: 'Pesan Obrolan',
+                    description: 'Pesan antar karyawan',
+                    importance: 5,
+                    visibility: 1,
+                    vibration: true
+                });
+                PushNotifications.createChannel({
+                    id: 'absen',
+                    name: 'Absensi',
+                    description: 'Notifikasi absensi & kehadiran',
+                    importance: 4, // Sedikit lebih rendah
+                    visibility: 1,
+                    vibration: true
+                });
+                PushNotifications.createChannel({
+                    id: 'general',
+                    name: 'General',
+                    description: 'Notifikasi aktivitas apk umum (Lembur, Izin)',
+                    importance: 4,
+                    visibility: 1,
+                    vibration: true
+                });
+                PushNotifications.createChannel({
+                    id: 'emergency',
+                    name: 'Emergency',
+                    description: 'Peringatan penting / darurat',
+                    importance: 5,
+                    visibility: 1,
+                    vibration: true
+                });
+                console.log("[PUSH] Semua Channel Notifikasi berhasil dibuat.");
+            } catch (e) {
+                console.warn("[PUSH] Gagal buat channel:", e);
+            }
+
+            // 2. Minta izin push notifikasi native
             PushNotifications.requestPermissions().then(result => {
                 if (result.receive === 'granted') {
                     PushNotifications.register();

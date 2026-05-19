@@ -728,6 +728,11 @@ function absenMasuk(data) {
   } catch (e) {
     Logger.log("Pusher broadcast failed in absenMasuk: " + e.toString());
   }
+
+  // Kirim notifikasi personal ke karyawan
+  try {
+    sendPushNotification(idKaryawan, 'Absen Masuk Sukses ✅', 'Berhasil absen pukul ' + formatTime(now) + ' (' + statusMasuk + ').', 'absen');
+  } catch(e) {}
   
   return {
     success: true,
@@ -838,6 +843,11 @@ function absenPulang(data) {
   } catch (e) {
     Logger.log("Pusher broadcast failed in absenPulang: " + e.toString());
   }
+
+  // Kirim notifikasi personal ke karyawan
+  try {
+    sendPushNotification(idKaryawan, 'Absen Pulang Sukses ✅', 'Berhasil absen pulang pukul ' + formatTime(now) + '. Sampai jumpa!', 'absen');
+  } catch(e) {}
 
   return {
     success: true,
@@ -2663,7 +2673,8 @@ function sendChatMessage(data) {
           sendPushNotification(
             k.ID_Karyawan,
             nama + ' 💬',
-            pesan ? pesan : (tipe === 'image' ? '📸 Mengirim foto' : '📁 Mengirim lampiran file')
+            pesan ? pesan : (tipe === 'image' ? '📸 Mengirim foto' : '📁 Mengirim lampiran file'),
+            'chat'
           );
         }
       });
@@ -3095,7 +3106,7 @@ function initSpreadsheet() {
 
 
 // ==================== PUSH NOTIFICATION (WEBPUSHR INTEGRATION) ====================
-function sendPushNotification(idKaryawan, title, message) {
+function sendPushNotification(idKaryawan, title, message, channelId = 'general') {
   // 1. Kirim via Webpushr (Web/PWA)
   try {
     let webpushrKey = '4390bcc206161515a39ead22f9c1cf46';
@@ -3133,7 +3144,7 @@ function sendPushNotification(idKaryawan, title, message) {
   }
   
   // 2. Kirim via Firebase Cloud Messaging (FCM) Native Push (APK)
-  sendFCMPushNotification(idKaryawan, title, message);
+  sendFCMPushNotification(idKaryawan, title, message, channelId);
 }
 
 // ==================== FIREBASE CLOUD MESSAGING (FCM) REGISTER & BROADCAST ====================
@@ -3221,7 +3232,7 @@ function getFCMAccessToken(serviceAccountJsonStr) {
   }
 }
 
-function sendFCMPushNotification(idKaryawan, title, message) {
+function sendFCMPushNotification(idKaryawan, title, message, channelId = 'general') {
   try {
     const masterKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
     const karyawan = masterKaryawan.find(k => String(k.ID_Karyawan) === String(idKaryawan));
@@ -3266,6 +3277,7 @@ function sendFCMPushNotification(idKaryawan, title, message) {
         android: {
           priority: "HIGH",
           notification: {
+            channel_id: channelId, // Dinamis: "chat", "absen", "general", dll.
             sound: "default",
             click_action: "FCM_PLUGIN_ACTIVITY",
             notification_priority: "PRIORITY_MAX",
