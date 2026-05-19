@@ -4794,18 +4794,31 @@
             });
             
             // 5. Minta izin & daftarkan ke Firebase
-            PushNotifications.requestPermissions().then(result => {
-                showToast("Izin Notifikasi HP: " + (result.receive === 'granted' ? 'DIIZINKAN' : 'DITOLAK'), "info");
-                if (result.receive === 'granted') {
-                    showToast("Mendaftarkan perangkat ke Firebase...", "info");
-                    PushNotifications.register();
-                } else {
-                    console.warn("[PUSH] Izin push notifikasi native ditolak.");
-                    showToast("Izin notifikasi ditolak oleh sistem HP!", "error");
-                }
-            }).catch(e => {
-                showToast("Gagal meminta izin: " + e.message, "error");
-            });
+            try {
+                showToast("Meminta izin notifikasi ke HP...", "info");
+                PushNotifications.requestPermissions().then(result => {
+                    showToast("Status Izin HP: " + (result.receive === 'granted' ? 'DIIZINKAN' : 'DITOLAK'), "info");
+                    if (result.receive === 'granted') {
+                        showToast("Mendaftarkan ke Firebase (FCM)...", "info");
+                        try {
+                            PushNotifications.register().then(() => {
+                                showToast("Proses registrasi FCM dikirim ke OS...", "info");
+                            }).catch(errReg => {
+                                showToast("Error register async: " + errReg.message, "error");
+                            });
+                        } catch(eReg) {
+                            showToast("Exception register sync: " + eReg.toString(), "error");
+                        }
+                    } else {
+                        console.warn("[PUSH] Izin push notifikasi native ditolak.");
+                        showToast("Izin notifikasi ditolak oleh HP!", "error");
+                    }
+                }).catch(e => {
+                    showToast("Gagal meminta izin async: " + e.message, "error");
+                });
+            } catch (err) {
+                showToast("Exception requestPermission: " + err.toString(), "error");
+            }
         }
 
         async function forceRegisterFCM() {
