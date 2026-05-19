@@ -4679,15 +4679,30 @@
             }
         }
 
+        let hasAttemptedPushInit = false;
         function initNativePushNotifications() {
-            if (!window.Capacitor || !window.Capacitor.Plugins.PushNotifications) {
+            // 1. Cek apakah berjalan di Capacitor
+            if (!window.Capacitor) {
                 console.log("[PUSH] Tidak berjalan di Capacitor native context, skip Native Push.");
                 return;
             }
             
+            // 2. Jika plugin belum ter-injeksi oleh Capacitor, tunggu 1 detik lalu coba lagi (mengatasi race-condition)
+            if (!window.Capacitor.Plugins || !window.Capacitor.Plugins.PushNotifications) {
+                console.log("[PUSH] Plugin PushNotifications belum siap, mencoba kembali dalam 1 detik...");
+                setTimeout(initNativePushNotifications, 1000);
+                return;
+            }
+            
+            // Mencegah inisialisasi ganda
+            if (hasAttemptedPushInit) return;
+            hasAttemptedPushInit = true;
+            
+            showToast("Menginisialisasi Layanan Notifikasi HP...", "info");
+            
             const PushNotifications = window.Capacitor.Plugins.PushNotifications;
             
-            // 1. Buat Channel Notifikasi (Sesuai Kategori)
+            // 3. Buat Channel Notifikasi (Sesuai Kategori)
             try {
                 PushNotifications.createChannel({
                     id: 'chat',
@@ -4701,7 +4716,7 @@
                     id: 'absen',
                     name: 'Absensi',
                     description: 'Notifikasi absensi & kehadiran',
-                    importance: 4, // Sedikit lebih rendah
+                    importance: 4,
                     visibility: 1,
                     vibration: true
                 });
@@ -4725,11 +4740,10 @@
             } catch (e) {
                 console.warn("[PUSH] Gagal buat channel:", e);
             }
-
-            // 2. Daftarkan Listener TERLEBIH DAHULU (Wajib sebelum memanggil register!)
+            
+            // 4. Daftarkan Listener TERLEBIH DAHULU (Wajib sebelum memanggil register!)
             PushNotifications.addListener('registration', (token) => {
                 console.log('[PUSH] Token registrasi FCM didapat:', token.value);
-                // Beri sinyal ke user bahwa HP sukses kontak Firebase
                 showToast('FCM Token berhasil didapat!', 'success');
                 
                 if (state.user && state.user.id) {
@@ -4748,7 +4762,7 @@
                         showToast('Koneksi gagal mengirim token: ' + err.message, 'error');
                     });
                 } else {
-                    showToast('Token didapat, tapi user belum terdeteksi login.', 'warning');
+                    showToast('Token didapat, tapi user belum login.', 'warning');
                 }
             });
             
@@ -4771,14 +4785,19 @@
                     openModal('modalChat');
                 }
             });
-
-            // 3. Minta izin & daftarkan ke Firebase
+            
+            // 5. Minta izin & daftarkan ke Firebase
             PushNotifications.requestPermissions().then(result => {
+                showToast("Izin Notifikasi HP: " + (result.receive === 'granted' ? 'DIIZINKAN' : 'DITOLAK'), "info");
                 if (result.receive === 'granted') {
+                    showToast("Mendaftarkan perangkat ke Firebase...", "info");
                     PushNotifications.register();
                 } else {
                     console.warn("[PUSH] Izin push notifikasi native ditolak.");
+                    showToast("Izin notifikasi ditolak oleh sistem HP!", "error");
                 }
+            }).catch(e => {
+                showToast("Gagal meminta izin: " + e.message, "error");
             });
         }
 
