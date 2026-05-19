@@ -1,5 +1,13 @@
 {
   "appId": "com.pinguincell.absen",
   "appName": "Pinguin Absen",
-  "webDir": "recom"
+  "webDir": "recom",
+  "server": {
+    "url": "https://pinguin-absen.vercel.app",
+    "cleartext": true,
+    "allowNavigation": [
+      "script.google.com",
+      "*.googleusercontent.com"
+    ]
+  }
 }

@@ -2954,26 +2954,6 @@ function initSpreadsheet() {
   return 'Spreadsheet berhasil diinisialisasi! Sheet yang dibuat: ' + Object.values(SHEET_NAMES).join(', ');
 }
 
-// ==================== TEST CONNECTION ====================
-function testConnection() {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheets = ss.getSheets().map(s => s.getName());
-    return {
-      success: true,
-      message: 'Koneksi berhasil!',
-      spreadsheetName: ss.getName(),
-      availableSheets: sheets,
-      spreadsheetUrl: ss.getUrl()
-    };
-  } catch (e) {
-    return {
-      success: false,
-      error: e.toString(),
-      message: 'Gagal terhubung ke spreadsheet. Pastikan ID benar dan Anda memiliki akses.'
-    };
-  }
-}
 
 // ==================== PUSH NOTIFICATION (WEBPUSHR INTEGRATION) ====================
 function sendPushNotification(idKaryawan, title, message) {
