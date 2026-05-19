@@ -66,8 +66,8 @@ echo [INFO] 6. Masuk ke folder Android...
 cd android
 echo.
 
-echo [INFO] 7. Memulai Kompilasi APK (assembleDebug)...
-call gradlew.bat assembleDebug
+echo [INFO] 7. Memulai Kompilasi APK (clean assembleDebug)...
+call gradlew.bat clean assembleDebug
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Gagal melakukan kompilasi APK.
     cd ..
