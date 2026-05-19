@@ -1,7 +1,31 @@
 @echo off
 color 0A
+
+:: Deteksi otomatis JAVA_HOME dari Android Studio jika belum diset
+if "%JAVA_HOME%"=="" (
+    echo [INFO] Variabel JAVA_HOME belum diset. Mencoba mendeteksi JDK/JBR bawaan Android Studio...
+    if exist "%ProgramFiles%\Android\Android Studio\jbr" (
+        set "JAVA_HOME=%ProgramFiles%\Android\Android Studio\jbr"
+    ) else if exist "%ProgramFiles%\Android\Android Studio\jre" (
+        set "JAVA_HOME=%ProgramFiles%\Android\Android Studio\jre"
+    ) else if exist "%LocalAppdata%\Programs\Android Studio\jbr" (
+        set "JAVA_HOME=%LocalAppdata%\Programs\Android Studio\jbr"
+    ) else if exist "%LocalAppdata%\Programs\Android Studio\jre" (
+        set "JAVA_HOME=%LocalAppdata%\Programs\Android Studio\jre"
+    )
+)
+
+if not "%JAVA_HOME%"=="" (
+    echo [INFO] Java terdeteksi! Menggunakan JAVA_HOME: %JAVA_HOME%
+    set "PATH=%JAVA_HOME%\bin;%PATH%"
+) else (
+    echo [WARNING] Tidak dapat mendeteksi JDK bawaan Android Studio secara otomatis.
+    echo           Jika proses kompilasi APK gagal, mohon set variabel lingkungan JAVA_HOME.
+)
+echo.
+
 echo ============================================================
-echo  [PINGUIN ABSEN] Memulai Otomatisasi Deploy & Build APK
+echo  [PINGUIN ABSEN] Memulai Otomatisasi Deploy ^& Build APK
 echo ============================================================
 echo.
 
