@@ -77,6 +77,12 @@
         function resolveFotoUrl(url) {
             if (!url || !url.trim()) return '';
             
+            // Jika berupa ID Google Drive langsung (alphanumeric panjang dan tidak mengandung slash/titik)
+            const isGoogleDriveId = /^[a-zA-Z0-9_-]{25,45}$/.test(url);
+            if (isGoogleDriveId) {
+                return `https://drive.google.com/thumbnail?sz=w1000&id=${url}`;
+            }
+            
             // Konversi otomatis URL Google Drive ke thumbnail CDN publik beresolusi tinggi (bebas cookies & login Gmail)
             if (url.includes('drive.google.com')) {
                 let driveId = '';
@@ -1975,7 +1981,7 @@
             document.getElementById(id).classList.remove('active');
             document.body.style.overflow = '';
             if (id === 'modalChat') {
-                stopChatPolling();
+                startChatPolling(); // Transisi ke polling latar belakang lambat
                 const navChat = document.getElementById('navChat');
                 if (navChat) navChat.classList.remove('active');
                 
@@ -2734,18 +2740,23 @@
                 chatPollTimeout = null;
             }
             
-            // Loop polling pintar & aman: Hanya jalan jika modalChat aktif!
+            // Polling latar belakang tetap berjalan jika pengguna sudah login
+            if (!state.user || !state.user.id) return;
+            
             const modal = document.getElementById('modalChat');
-            if (modal && modal.classList.contains('active')) {
-                chatPollTimeout = setTimeout(async () => {
-                    try {
-                        await loadChatMessages();
-                    } catch (e) {
-                        console.warn('[CHAT] Polling error:', e);
-                    }
-                    startChatPolling(); // Lanjutkan loop
-                }, 3500); // Polling cepat 3.5 detik untuk menjamin kecepatan chat saat dibuka
-            }
+            const isActive = modal && modal.classList.contains('active');
+            
+            // Polling cepat (3.5s) saat chat terbuka, polling santai (15s) di latar belakang saat ditutup
+            const interval = isActive ? 3500 : 15000;
+            
+            chatPollTimeout = setTimeout(async () => {
+                try {
+                    await loadChatMessages();
+                } catch (e) {
+                    console.warn('[CHAT] Polling error:', e);
+                }
+                startChatPolling(); // Lanjutkan loop
+            }, interval);
         }
 
         function stopChatPolling() {

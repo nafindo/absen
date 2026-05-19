@@ -6,7 +6,9 @@
     "cleartext": true,
     "allowNavigation": [
       "script.google.com",
-      "*.googleusercontent.com"
+      "*.googleusercontent.com",
+      "drive.google.com",
+      "*.google.com"
     ]
   }
 }
