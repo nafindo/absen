@@ -336,14 +336,28 @@
 
         function playSound(type) {
             if (!state.audioUnlocked) return;
-            const audio = document.getElementById(
+            const audioId = 
                 type === 'success' ? 'soundSuccess' : 
                 type === 'error' ? 'soundError' : 
                 type === 'chatsent' ? 'soundChatSent' : 
                 type === 'tagalert' ? 'soundTagAlert' : 
-                'soundNotif'
-            );
-            if (audio) { audio.currentTime = 0; audio.play().catch(() => { }); }
+                'soundNotif';
+            const audio = document.getElementById(audioId);
+            if (audio) { 
+                try {
+                    audio.pause();
+                    audio.currentTime = 0; 
+                    // Gunakan promise play untuk mencegah exception autoplay browser
+                    const playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(error => {
+                            console.warn("[AUDIO] Pemutaran suara terblokir autoplay:", error);
+                        });
+                    }
+                } catch (e) {
+                    console.warn("[AUDIO] Gagal memutar audio:", e);
+                }
+            }
         }
 
         // ==================== INIT ====================
@@ -514,6 +528,7 @@
         function showApp() {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appContent').style.display = 'block';
+            try { initNativePushNotifications(); } catch (e) { console.warn("[PUSH] Gagal inisialisasi push native:", e); }
         }
 
         const appStartTime = Date.now();
@@ -4591,6 +4606,63 @@
                     console.error('[WEBPUSHR] Failed to register segment:', e);
                 }
             }
+        }
+
+        function initNativePushNotifications() {
+            if (!window.Capacitor || !window.Capacitor.Plugins.PushNotifications) {
+                console.log("[PUSH] Tidak berjalan di Capacitor native context, skip Native Push.");
+                return;
+            }
+            
+            const PushNotifications = window.Capacitor.Plugins.PushNotifications;
+            
+            // 1. Minta izin push notifikasi native
+            PushNotifications.requestPermissions().then(result => {
+                if (result.receive === 'granted') {
+                    PushNotifications.register();
+                } else {
+                    console.warn("[PUSH] Izin push notifikasi native ditolak.");
+                }
+            });
+            
+            // 2. Registrasi sukses: dapatkan token FCM
+            PushNotifications.addListener('registration', (token) => {
+                console.log('[PUSH] Token registrasi FCM didapat:', token.value);
+                if (state.user && state.user.id) {
+                    apiCall('registerFCMToken', {
+                        idKaryawan: state.user.id,
+                        token: token.value
+                    }).then(res => {
+                        if (res.success) {
+                            console.log("[PUSH] Token FCM sukses disimpan di Google Sheets!");
+                        }
+                    }).catch(err => {
+                        console.error("[PUSH] Gagal mengirim Token FCM ke server:", err);
+                    });
+                }
+            });
+            
+            // 3. Registrasi error
+            PushNotifications.addListener('registrationError', (error) => {
+                console.error('[PUSH] Registrasi FCM error:', error);
+            });
+            
+            // 4. Tangani notifikasi masuk saat aplikasi terbuka (foreground)
+            PushNotifications.addListener('pushNotificationReceived', (notification) => {
+                console.log('[PUSH] Notifikasi diterima:', notification);
+                if (notification.title && notification.body) {
+                    showToast(`🔔 ${notification.title}: ${notification.body}`, 'info');
+                    playSound('pop');
+                }
+            });
+            
+            // 5. Tangani aksi saat notifikasi diklik oleh user
+            PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+                console.log('[PUSH] Aksi notifikasi diklik:', notification);
+                if (notification.notification.title && notification.notification.title.includes('💬')) {
+                    openModal('modalChat');
+                }
+            });
         }
 
         function checkNotificationStatus() {

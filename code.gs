@@ -161,9 +161,10 @@ function doPost(e) {
       case 'sendChatMessage':
       case 'sendchatmessage': return jsonResponse(sendChatMessage(data));
       
-      // === DELTA SYNC ===
+      // === DELTA SYNC & PUSH NOTIFICATIONS ===
       case 'getDeltas': return jsonResponse(getDeltas(data));
       case 'upgradeDatabase': return jsonResponse(upgradeSheetsForDeltaSync());
+      case 'registerFCMToken': return jsonResponse(registerFCMToken(data));
       
       default:
         return jsonResponse({ success: false, error: 'Action tidak dikenal: ' + action });
@@ -411,6 +412,28 @@ function upgradeSheetsForDeltaSync() {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const now = Date.now();
     
+    // Pastikan kolom FCM_Token terbuat di MASTER_KARYAWAN
+    const empSheet = ss.getSheetByName(SHEET_NAMES.MASTER_KARYAWAN);
+    if (empSheet) {
+      const lastCol = empSheet.getLastColumn();
+      if (lastCol > 0) {
+        const headers = empSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+        if (headers.indexOf('FCM_Token') === -1) {
+          empSheet.getRange(1, lastCol + 1).setValue('FCM_Token').setFontWeight('bold');
+        }
+      }
+    }
+    
+    // Pastikan parameter FCM_SERVICE_ACCOUNT_JSON terbuat di SETTING_GLOBAL
+    const settingSheet = ss.getSheetByName(SHEET_NAMES.SETTING_GLOBAL);
+    if (settingSheet) {
+      const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
+      const hasFcmJson = settings.some(s => s.Parameter === 'FCM_SERVICE_ACCOUNT_JSON' || s.Kunci === 'FCM_SERVICE_ACCOUNT_JSON');
+      if (!hasFcmJson) {
+        settingSheet.appendRow(['FCM_SERVICE_ACCOUNT_JSON', 'TEMPELKAN_KONTEN_JSON_SERVICE_ACCOUNT_FIREBASE_ANDA', 'File Kunci Privat JSON Service Account untuk FCM HTTP v1']);
+      }
+    }
+
     for (const key in SHEET_NAMES) {
       const sheetName = SHEET_NAMES[key];
       const sheet = ss.getSheetByName(sheetName);
@@ -3073,10 +3096,10 @@ function initSpreadsheet() {
 
 // ==================== PUSH NOTIFICATION (WEBPUSHR INTEGRATION) ====================
 function sendPushNotification(idKaryawan, title, message) {
-  let webpushrKey = '4390bcc206161515a39ead22f9c1cf46'; // REST API Key Anda
-  let webpushrAuthToken = '121398'; // REST API Auth Token Anda
-  
+  // 1. Kirim via Webpushr (Web/PWA)
   try {
+    let webpushrKey = '4390bcc206161515a39ead22f9c1cf46';
+    let webpushrAuthToken = '121398';
     const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
     if (settings && settings.length > 0) {
       const keyRow = settings.find(s => s.Key === 'WEBPUSHR_KEY' || s.Kunci === 'WEBPUSHR_KEY');
@@ -3084,11 +3107,7 @@ function sendPushNotification(idKaryawan, title, message) {
       if (keyRow && keyRow.Value) webpushrKey = keyRow.Value;
       if (tokenRow && tokenRow.Value) webpushrAuthToken = tokenRow.Value;
     }
-  } catch (e) {
-    Logger.log('Gagal memuat setting Webpushr, menggunakan default. Error: ' + e.message);
-  }
-  
-  try {
+    
     const payload = {
       title: title,
       message: message,
@@ -3111,6 +3130,161 @@ function sendPushNotification(idKaryawan, title, message) {
     Logger.log('Webpushr Push Response for ' + idKaryawan + ': ' + response.getContentText());
   } catch (e) {
     Logger.log('Webpushr Push Error for ' + idKaryawan + ': ' + e.message);
+  }
+  
+  // 2. Kirim via Firebase Cloud Messaging (FCM) Native Push (APK)
+  sendFCMPushNotification(idKaryawan, title, message);
+}
+
+// ==================== FIREBASE CLOUD MESSAGING (FCM) REGISTER & BROADCAST ====================
+function registerFCMToken(data) {
+  try {
+    const { idKaryawan, token } = data;
+    if (!idKaryawan || !token) return { success: false, error: 'Data tidak lengkap' };
+    
+    const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
+    const dataRange = sheet.getDataRange().getValues();
+    const headers = dataRange[0];
+    
+    let fcmIdx = headers.indexOf('FCM_Token');
+    if (fcmIdx === -1) {
+      // Buat kolom FCM_Token jika belum ada
+      sheet.getRange(1, headers.length + 1).setValue('FCM_Token').setFontWeight('bold');
+      fcmIdx = headers.length;
+    }
+    
+    for (let i = 1; i < dataRange.length; i++) {
+      if (String(dataRange[i][0]) === String(idKaryawan)) {
+        sheet.getRange(i + 1, fcmIdx + 1).setValue(token);
+        touchRow(sheet, i + 1);
+        return { success: true, message: 'Token FCM berhasil disimpan di server!' };
+      }
+    }
+    return { success: false, error: 'Karyawan tidak ditemukan' };
+  } catch (e) {
+    logError('registerFCMToken', e, data);
+    return { success: false, error: e.toString() };
+  }
+}
+
+function getFCMAccessToken(serviceAccountJsonStr) {
+  try {
+    const sa = JSON.parse(serviceAccountJsonStr);
+    const privateKey = sa.private_key;
+    const clientEmail = sa.client_email;
+    const tokenUrl = "https://oauth2.googleapis.com/token";
+    
+    // Header JWT
+    const header = JSON.stringify({
+      alg: "RS256",
+      typ: "JWT"
+    });
+    
+    // Payload JWT (scope: https://www.googleapis.com/auth/firebase.messaging)
+    const now = Math.floor(Date.now() / 1000);
+    const payload = JSON.stringify({
+      iss: clientEmail,
+      scope: "https://www.googleapis.com/auth/firebase.messaging",
+      aud: tokenUrl,
+      exp: now + 3600,
+      iat: now
+    });
+    
+    // Encode Base64Url
+    const base64Encode = (str) => {
+      const bytes = Utilities.newBlob(str).getBytes();
+      return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, '');
+    };
+    
+    const signatureInput = base64Encode(header) + "." + base64Encode(payload);
+    
+    // Tanda tangani dengan kunci privat RSA-SHA256 bawaan Google Apps Script!
+    const signatureBytes = Utilities.computeRsaSha256Signature(signatureInput, privateKey);
+    const signature = Utilities.base64EncodeWebSafe(signatureBytes).replace(/=+$/, '');
+    
+    const jwt = signatureInput + "." + signature;
+    
+    // Tukarkan JWT dengan Access Token Google OAuth2
+    const options = {
+      method: "post",
+      contentType: "application/x-www-form-urlencoded",
+      payload: "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=" + jwt,
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(tokenUrl, options);
+    const resObj = JSON.parse(response.getContentText());
+    return resObj.access_token;
+  } catch (e) {
+    Logger.log("[FCM V1] Gagal membuat token akses OAuth2: " + e.toString());
+    return null;
+  }
+}
+
+function sendFCMPushNotification(idKaryawan, title, message) {
+  try {
+    const masterKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+    const karyawan = masterKaryawan.find(k => String(k.ID_Karyawan) === String(idKaryawan));
+    if (!karyawan || !karyawan.FCM_Token) {
+      Logger.log('[FCM] Token tidak ditemukan untuk karyawan: ' + idKaryawan);
+      return;
+    }
+    
+    let serviceAccountJsonStr = '';
+    let projectId = '';
+    try {
+      const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
+      const keyRow = settings.find(s => s.Parameter === 'FCM_SERVICE_ACCOUNT_JSON' || s.Kunci === 'FCM_SERVICE_ACCOUNT_JSON');
+      if (keyRow && keyRow.Value) {
+        serviceAccountJsonStr = keyRow.Value;
+        const sa = JSON.parse(serviceAccountJsonStr);
+        projectId = sa.project_id;
+      }
+    } catch(e) {
+      Logger.log('[FCM] Gagal parsing JSON Service Account: ' + e.message);
+    }
+    
+    if (!serviceAccountJsonStr || !projectId || serviceAccountJsonStr === 'TEMPELKAN_KONTEN_JSON_SERVICE_ACCOUNT_FIREBASE_ANDA') {
+      Logger.log('[FCM] FCM_SERVICE_ACCOUNT_JSON belum dikonfigurasi di SETTING_GLOBAL');
+      return;
+    }
+    
+    const accessToken = getFCMAccessToken(serviceAccountJsonStr);
+    if (!accessToken) {
+      Logger.log('[FCM] Gagal otentikasi Google OAuth2 untuk FCM');
+      return;
+    }
+    
+    // Payload FCM HTTP v1 (Modern & Masa Depan!)
+    const payload = {
+      message: {
+        token: karyawan.FCM_Token,
+        notification: {
+          title: title,
+          body: message
+        },
+        data: {
+          title: title,
+          message: message
+        }
+      }
+    };
+    
+    const options = {
+      method: 'POST',
+      contentType: 'application/json',
+      headers: {
+        'Authorization': 'Bearer ' + accessToken
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    const url = 'https://fcm.googleapis.com/v1/projects/' + projectId + '/messages:send';
+    const res = UrlFetchApp.fetch(url, options);
+    Logger.log('[FCM V1] Send response for ' + idKaryawan + ': ' + res.getContentText());
+  } catch (e) {
+    Logger.log('[FCM V1] Gagal mengirim push FCM v1: ' + e.toString());
   }
 }
 

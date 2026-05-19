@@ -44,6 +44,12 @@ echo  [PINGUIN ABSEN] Memulai Otomatisasi Deploy ^& Build APK
 echo ============================================================
 echo.
 
+:: Bersihkan Git dari commit lokal yang tertolak agar rapi kembali
+echo [INFO] Membersihkan index Git dari file kredensial rahasia...
+git reset origin/main --mixed >nul 2>&1
+git rm --cached pinguinabsen-*.json google-services.json android/app/google-services.json >nul 2>&1
+echo.
+
 echo [INFO] 1. Menyelaraskan berkas statis (compile.py)...
 python compile.py
 if %ERRORLEVEL% NEQ 0 (
@@ -52,6 +58,12 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b %ERRORLEVEL%
 )
 echo.
+
+:: Memasang plugin native push notifikasi secara otomatis jika belum ada
+if not exist "node_modules\@capacitor\push-notifications" (
+    echo [INFO] Menginstal plugin native push notifications...
+    call npm.cmd install @capacitor/push-notifications
+)
 
 echo [INFO] 2. Sinkronisasi berkas Capacitor...
 call npx.cmd cap sync

@@ -2,3 +2,8 @@ node_modules/
 .DS_Store
 *.log
 /recom/
+
+# Credentials & Secrets (Sangat Rahasia - Tidak boleh masuk GitHub)
+pinguinabsen-*.json
+google-services.json
+android/app/google-services.json
