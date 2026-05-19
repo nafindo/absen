@@ -79,48 +79,56 @@
         // ==================== BASIS DATA LOKAL & DELTA SYNC ENGINE ====================
         function initLocalDatabase() {
             return new Promise((resolve, reject) => {
-                const request = indexedDB.open("PinguinAbsenDB", 1);
-                
-                request.onupgradeneeded = (e) => {
-                    const db = e.target.result;
-                    const stores = [
-                        { name: "MASTER_KARYAWAN", key: "ID_Karyawan" },
-                        { name: "MASTER_TOKO", key: "ID_Toko" },
-                        { name: "SHIFT_TOKO", key: "ID_Shift" },
-                        { name: "JADWAL_KARYAWAN", key: "ID_Jadwal" },
-                        { name: "ABSENSI", key: "Timestamp" },
-                        { name: "LEMBUR", key: "ID" },
-                        { name: "IZIN_CUTI", key: "ID" },
-                        { name: "MASTER_JENIS_IZIN", key: "ID_Jenis" },
-                        { name: "SETTING_GLOBAL", key: "Parameter" },
-                        { name: "LOG_ERROR", key: "Timestamp" },
-                        { name: "CHAT", key: "ID_Pesan" },
-                        { name: "TUKER_SHIFT", key: "ID_Tuker" },
-                        { name: "TUGAS", key: "ID_Tugas" },
-                        { name: "BERITA", key: "ID_Berita" },
-                        { name: "OUTBOX_QUEUE", key: "id", auto: true }
-                    ];
+                try {
+                    if (!window.indexedDB) {
+                        throw new Error("IndexedDB tidak didukung atau diblokir di browser ini.");
+                    }
+                    const request = indexedDB.open("PinguinAbsenDB", 1);
                     
-                    stores.forEach(store => {
-                        if (!db.objectStoreNames.contains(store.name)) {
-                            db.createObjectStore(store.name, { 
-                                keyPath: store.key, 
-                                autoIncrement: store.auto || false 
-                            });
-                        }
-                    });
-                };
-                
-                request.onsuccess = (e) => {
-                    localDB = e.target.result;
-                    console.log("[DB] IndexedDB PinguinAbsenDB Berhasil Diinisialisasi.");
-                    resolve(localDB);
-                };
-                
-                request.onerror = (e) => {
-                    console.error("[DB] Gagal membuka IndexedDB:", e.target.error);
-                    reject(e.target.error);
-                };
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        const stores = [
+                            { name: "MASTER_KARYAWAN", key: "ID_Karyawan" },
+                            { name: "MASTER_TOKO", key: "ID_Toko" },
+                            { name: "SHIFT_TOKO", key: "ID_Shift" },
+                            { name: "JADWAL_KARYAWAN", key: "ID_Jadwal" },
+                            { name: "ABSENSI", key: "Timestamp" },
+                            { name: "LEMBUR", key: "ID" },
+                            { name: "IZIN_CUTI", key: "ID" },
+                            { name: "MASTER_JENIS_IZIN", key: "ID_Jenis" },
+                            { name: "SETTING_GLOBAL", key: "Parameter" },
+                            { name: "LOG_ERROR", key: "Timestamp" },
+                            { name: "CHAT", key: "ID_Pesan" },
+                            { name: "TUKER_SHIFT", key: "ID_Tuker" },
+                            { name: "TUGAS", key: "ID_Tugas" },
+                            { name: "BERITA", key: "ID_Berita" },
+                            { name: "OUTBOX_QUEUE", key: "id", auto: true }
+                        ];
+                        
+                        stores.forEach(store => {
+                            if (!db.objectStoreNames.contains(store.name)) {
+                                db.createObjectStore(store.name, { 
+                                    keyPath: store.key, 
+                                    autoIncrement: store.auto || false 
+                                });
+                            }
+                        });
+                    };
+                    
+                    request.onsuccess = (e) => {
+                        localDB = e.target.result;
+                        console.log("[DB] IndexedDB PinguinAbsenDB Berhasil Diinisialisasi.");
+                        resolve(localDB);
+                    };
+                    
+                    request.onerror = (e) => {
+                        console.error("[DB] Gagal membuka IndexedDB:", e.target.error);
+                        reject(e.target.error);
+                    };
+                } catch (err) {
+                    console.error("[DB] Eksepsi saat membuka IndexedDB:", err);
+                    reject(err);
+                }
             });
         }
 
@@ -444,7 +452,23 @@
                     hideSplashScreen(); // Langsung hilangkan splash screen secara instan!
                 }
             }).catch(e => {
-                console.warn('[DB] Gagal inisialisasi basis data lokal IndexedDB:', e);
+                console.warn('[DB] Gagal inisialisasi basis data lokal IndexedDB (Aplikasi berjalan dalam mode tanpa IndexedDB cache):', e);
+                
+                // Cek localStorage login fallback
+                const saved = loadLogin();
+                if (saved && saved.id) {
+                    state.user = { id: saved.id, name: saved.name, role: saved.role, tokoDefault: saved.tokoDefault, shiftDefault: saved.shiftDefault };
+                    state.currentUser = state.user;
+                    unlockAudio();
+                    showApp();
+                    setupUserUI(saved.fotoUrl || '');
+                } else {
+                    // Jalankan pemuatan tanpa IndexedDB
+                    testBackendConnection();
+                    loadKaryawanDropdown().then(() => {
+                        console.log('[STARTUP] loadKaryawanDropdown selesai (mode fallback tanpa IndexedDB)');
+                    });
+                }
                 hideSplashScreen();
             });
             
@@ -2352,7 +2376,7 @@
                     badge.classList.remove('hidden');
                 }
                 if (badgeBottom) {
-                    badgeBottom.textContent = text;
+                    badgeBottom.textContent = ''; // Cukup nyala merah berdenyut saja, tanpa angka!
                     badgeBottom.classList.remove('hidden');
                 }
             } else {

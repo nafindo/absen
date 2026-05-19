@@ -3255,13 +3255,22 @@ function sendFCMPushNotification(idKaryawan, title, message) {
       return;
     }
     
-    // Payload FCM HTTP v1 (Modern & Masa Depan!)
+    // Payload FCM HTTP v1 (Modern, Prioritas Tinggi, & Tembus Layar Kunci!)
     const payload = {
       message: {
         token: karyawan.FCM_Token,
         notification: {
           title: title,
           body: message
+        },
+        android: {
+          priority: "HIGH",
+          notification: {
+            sound: "default",
+            click_action: "FCM_PLUGIN_ACTIVITY",
+            notification_priority: "PRIORITY_MAX",
+            visibility: "PUBLIC" // Menampilkan notifikasi di layar kunci (lockscreen)
+          }
         },
         data: {
           title: title,

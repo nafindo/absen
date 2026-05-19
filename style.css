@@ -2717,3 +2717,23 @@
             letter-spacing: 0.3px;
             display: inline-block;
         }
+
+        /* ===== CHAT BADGE RED GLOW PULSE ===== */
+        .red-glow-pulse {
+            animation: glowRedPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
+        }
+
+        @keyframes glowRedPulse {
+            0% {
+                transform: scale(0.92);
+                box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.85);
+            }
+            70% {
+                transform: scale(1.15);
+                box-shadow: 0 0 0 7px rgba(255, 59, 48, 0);
+            }
+            100% {
+                transform: scale(0.92);
+                box-shadow: 0 0 0 0 rgba(255, 59, 48, 0);
+            }
+        }
