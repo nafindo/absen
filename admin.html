@@ -241,8 +241,53 @@
 </div>
     <!-- PAGE: NOTIFIKASI -->
     <div id="page-notifikasi" class="hidden">
-      <div class="section-title">🔔 Semua Notifikasi</div>
-      <div class="notif-section" id="allNotifList"></div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; align-items: start;">
+        <!-- Kiri: Form Kirim Notifikasi Manual -->
+        <div class="table-section" style="padding: 24px; background: var(--card); border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="font-size: 16px; font-weight: 700; margin-bottom: 20px; color: var(--text); display: flex; align-items: center; gap: 8px;">
+            <span>📣</span> Kirim Push Notifikasi Manual
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" style="font-weight: 600;">Karyawan Penerima *</label>
+            <select class="form-select" id="notifTargetKaryawan" style="width: 100%;">
+              <option value="ALL">📢 Kirim ke Semua Karyawan</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" style="font-weight: 600;">Judul Notifikasi *</label>
+            <input type="text" class="form-input" id="notifTitle" placeholder="Contoh: Pengumuman Toko / Lembur">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" style="font-weight: 600;">Pesan / Isi Notifikasi *</label>
+            <textarea class="form-input" id="notifBody" rows="4" placeholder="Tulis pesan Anda di sini..." style="height: auto; resize: vertical; padding: 10px 14px; font-family: inherit; line-height: 1.5;"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" style="font-weight: 600;">Kategori / Channel</label>
+            <select class="form-select" id="notifChannel" style="width: 100%;">
+              <option value="general">General (Umum / Pengumuman)</option>
+              <option value="chat">Chat (Pesan Obrolan)</option>
+              <option value="absen">Absen (Kehadiran)</option>
+              <option value="emergency">Emergency (Darurat / Penting)</option>
+            </select>
+          </div>
+          
+          <div style="margin-top: 24px;">
+            <button class="btn-export" style="background: var(--primary); color: white; border: none; width: 100%; padding: 12px; font-weight: bold; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: all 0.2s;" onclick="sendManualNotification()">
+              🚀 Kirim Notifikasi Sekarang
+            </button>
+          </div>
+        </div>
+
+        <!-- Kanan: List Menunggu Approval -->
+        <div>
+          <div class="section-title" style="margin-top: 0; padding-top: 0;">🔔 Menunggu Approval</div>
+          <div class="notif-section" id="allNotifList" style="max-height: 500px; overflow-y: auto;"></div>
+        </div>
+      </div>
     </div>
 
     <!-- PAGE: DATA ABSENSI -->

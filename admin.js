@@ -274,12 +274,27 @@ function renderNotifList(targetId = 'notifList') {
 
 async function loadNotifPage() {
   try {
+    // Populate dropdown target karyawan
+    const targetSel = document.getElementById('notifTargetKaryawan');
+    if (targetSel) {
+      if (karyawanData.length === 0) {
+        await loadKaryawanData();
+      }
+      targetSel.innerHTML = '<option value="ALL">📢 Kirim ke Semua Karyawan</option>';
+      karyawanData.filter(k => k.Status === 'Aktif').forEach(k => {
+        targetSel.innerHTML += `<option value="${k.ID_Karyawan}">${k.Nama} (${k.Jabatan})</option>`;
+      });
+    }
+
     const notif = await apiCall('getPendingApprovals', {});
     if (notif.success) {
       notifData = notif.data || [];
       renderNotifList('allNotifList');
     }
-  } catch(e) { showToast('Gagal load notifikasi', 'error'); }
+  } catch(e) { 
+    console.error(e);
+    showToast('Gagal load notifikasi', 'error'); 
+  }
 }
 
 async function approveNotif(id, tipe, status) {
@@ -295,6 +310,41 @@ async function approveNotif(id, tipe, status) {
     loadNotifPage();
   } catch (e) {
     showToast('Gagal: ' + e.message, 'error');
+    playSound('error');
+  }
+}
+
+async function sendManualNotification() {
+  const idKaryawan = document.getElementById('notifTargetKaryawan').value;
+  const title = document.getElementById('notifTitle').value.trim();
+  const message = document.getElementById('notifBody').value.trim();
+  const channelId = document.getElementById('notifChannel').value;
+
+  if (!title || !message) {
+    showToast('⚠️ Judul dan pesan wajib diisi!', 'warning');
+    return;
+  }
+
+  showToast('⏳ Mengirim notifikasi...', 'info');
+  try {
+    const res = await apiCall('sendManualPushNotification', {
+      idKaryawan,
+      title,
+      message,
+      channelId
+    });
+
+    if (res.success) {
+      showToast('🚀 ' + res.message, 'success');
+      playSound('success');
+      document.getElementById('notifTitle').value = '';
+      document.getElementById('notifBody').value = '';
+    } else {
+      showToast('❌ Gagal: ' + (res.error || 'Unknown error'), 'error');
+      playSound('error');
+    }
+  } catch (e) {
+    showToast('❌ Error: ' + e.message, 'error');
     playSound('error');
   }
 }

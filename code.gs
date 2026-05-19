@@ -165,6 +165,7 @@ function doPost(e) {
       case 'getDeltas': return jsonResponse(getDeltas(data));
       case 'upgradeDatabase': return jsonResponse(upgradeSheetsForDeltaSync());
       case 'registerFCMToken': return jsonResponse(registerFCMToken(data));
+      case 'sendManualPushNotification': return jsonResponse(sendManualPushNotification(data));
       
       default:
         return jsonResponse({ success: false, error: 'Action tidak dikenal: ' + action });
@@ -3234,6 +3235,37 @@ function getFCMAccessToken(serviceAccountJsonStr) {
   } catch (e) {
     Logger.log("[FCM V1] Gagal membuat token akses OAuth2: " + e.toString());
     return null;
+  }
+}
+
+function sendManualPushNotification(data) {
+  const idKaryawan = data.idKaryawan; // Jika 'ALL', kirim ke semua karyawan
+  const title = data.title;
+  const message = data.message;
+  const channelId = data.channelId || 'general';
+  
+  if (!title || !message) {
+    return { success: false, error: 'Judul dan pesan wajib diisi.' };
+  }
+  
+  try {
+    if (idKaryawan === 'ALL') {
+      const masterKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+      let count = 0;
+      masterKaryawan.forEach(k => {
+        if (k.FCM_Token || k.Webpushr_SID) {
+          sendPushNotification(k.ID_Karyawan, title, message, channelId);
+          count++;
+        }
+      });
+      return { success: true, message: 'Berhasil mengirim notifikasi ke ' + count + ' karyawan.' };
+    } else {
+      sendPushNotification(idKaryawan, title, message, channelId);
+      return { success: true, message: 'Notifikasi berhasil dikirim.' };
+    }
+  } catch (e) {
+    logError('sendManualPushNotification', e, data);
+    return { success: false, error: e.toString() };
   }
 }
 
