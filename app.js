@@ -542,6 +542,17 @@
         function showApp() {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appContent').style.display = 'block';
+            
+            // Sync cached FCM token if present
+            const cachedToken = localStorage.getItem('cached_fcm_token') || state.fcmToken;
+            if (cachedToken && state.user && state.user.id) {
+                try {
+                    syncFCMTokenWithServer(state.user.id, cachedToken);
+                } catch (e) {
+                    console.warn("[PUSH] Gagal menyinkronkan token cached:", e);
+                }
+            }
+            
             try { initNativePushNotifications(); } catch (e) { console.warn("[PUSH] Gagal inisialisasi push native:", e); }
         }
 
@@ -4679,6 +4690,26 @@
             }
         }
 
+        function syncFCMTokenWithServer(idKaryawan, token) {
+            if (!idKaryawan || !token) return;
+            console.log("[PUSH] Menyinkronkan Token FCM dengan Google Sheets untuk:", idKaryawan);
+            apiCall('registerFCMToken', {
+                idKaryawan: idKaryawan,
+                token: token
+            }).then(res => {
+                if (res.success) {
+                    console.log("[PUSH] Token FCM sukses disimpan di Google Sheets!");
+                    showToast('Token FCM sukses disimpan di Google Sheets!', 'success');
+                } else {
+                    console.error("[PUSH] Server gagal menyimpan token:", res.error);
+                    showToast('Gagal simpan token ke server: ' + (res.error || 'Unknown Error'), 'error');
+                }
+            }).catch(err => {
+                console.error("[PUSH] Gagal mengirim Token FCM ke server:", err);
+                showToast('Koneksi gagal mengirim token: ' + err.message, 'error');
+            });
+        }
+
         let hasAttemptedPushInit = false;
         let pushInitRetries = 0;
         function initNativePushNotifications() {
@@ -4753,21 +4784,12 @@
                 console.log('[PUSH] Token registrasi FCM didapat:', token.value);
                 showToast('FCM Token berhasil didapat!', 'success');
                 
+                // Simpan token ke cache lokal agar bisa disinkronkan saat login atau retry
+                localStorage.setItem('cached_fcm_token', token.value);
+                state.fcmToken = token.value;
+                
                 if (state.user && state.user.id) {
-                    apiCall('registerFCMToken', {
-                        idKaryawan: state.user.id,
-                        token: token.value
-                    }).then(res => {
-                        if (res.success) {
-                            console.log("[PUSH] Token FCM sukses disimpan di Google Sheets!");
-                            showToast('Token FCM sukses disimpan di Google Sheets!', 'success');
-                        } else {
-                            showToast('Gagal simpan token: ' + (res.error || 'Unknown Error'), 'error');
-                        }
-                    }).catch(err => {
-                        console.error("[PUSH] Gagal mengirim Token FCM ke server:", err);
-                        showToast('Koneksi gagal mengirim token: ' + err.message, 'error');
-                    });
+                    syncFCMTokenWithServer(state.user.id, token.value);
                 } else {
                     showToast('Token didapat, tapi user belum login.', 'warning');
                 }
@@ -4793,31 +4815,55 @@
                 }
             });
             
-            // 5. Minta izin & daftarkan ke Firebase
+            // 5. Cek izin & daftarkan ke Firebase
             try {
-                showToast("Meminta izin notifikasi ke HP...", "info");
-                PushNotifications.requestPermissions().then(result => {
-                    showToast("Status Izin HP: " + (result.receive === 'granted' ? 'DIIZINKAN' : 'DITOLAK'), "info");
+                showToast("Memeriksa izin notifikasi HP...", "info");
+                PushNotifications.checkPermissions().then(result => {
+                    console.log("[PUSH] Status izin saat ini:", result.receive);
                     if (result.receive === 'granted') {
-                        showToast("Mendaftarkan ke Firebase (FCM)...", "info");
-                        try {
-                            PushNotifications.register().then(() => {
-                                showToast("Proses registrasi FCM dikirim ke OS...", "info");
-                            }).catch(errReg => {
-                                showToast("Error register async: " + errReg.message, "error");
-                            });
-                        } catch(eReg) {
-                            showToast("Exception register sync: " + eReg.toString(), "error");
-                        }
+                        registerFCMDevice();
+                    } else if (result.receive === 'prompt') {
+                        showToast("Meminta izin notifikasi ke HP...", "info");
+                        PushNotifications.requestPermissions().then(reqResult => {
+                            showToast("Status Izin HP: " + (reqResult.receive === 'granted' ? 'DIIZINKAN' : 'DITOLAK'), "info");
+                            if (reqResult.receive === 'granted') {
+                                registerFCMDevice();
+                            } else {
+                                console.warn("[PUSH] Izin push notifikasi native ditolak.");
+                                showToast("Izin notifikasi ditolak oleh HP!", "error");
+                            }
+                        }).catch(e => {
+                            showToast("Gagal meminta izin async: " + e.message, "error");
+                        });
                     } else {
-                        console.warn("[PUSH] Izin push notifikasi native ditolak.");
-                        showToast("Izin notifikasi ditolak oleh HP!", "error");
+                        showToast("Izin notifikasi diblokir HP. Harap aktifkan manual di Pengaturan.", "warning");
+                        registerFCMDevice();
                     }
-                }).catch(e => {
-                    showToast("Gagal meminta izin async: " + e.message, "error");
+                }).catch(errCheck => {
+                    console.warn("[PUSH] Gagal cek izin, langsung meminta izin...", errCheck);
+                    PushNotifications.requestPermissions().then(reqResult => {
+                        if (reqResult.receive === 'granted') {
+                            registerFCMDevice();
+                        }
+                    }).catch(e => {
+                        showToast("Gagal fallback izin async: " + e.message, "error");
+                    });
                 });
             } catch (err) {
                 showToast("Exception requestPermission: " + err.toString(), "error");
+            }
+
+            function registerFCMDevice() {
+                showToast("Mendaftarkan ke Firebase (FCM)...", "info");
+                try {
+                    PushNotifications.register().then(() => {
+                        showToast("Proses registrasi FCM dikirim ke OS...", "info");
+                    }).catch(errReg => {
+                        showToast("Error register async: " + errReg.message, "error");
+                    });
+                } catch(eReg) {
+                    showToast("Exception register sync: " + eReg.toString(), "error");
+                }
             }
         }
 

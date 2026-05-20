@@ -115,9 +115,9 @@ if os.path.exists(logo_path):
             fg_canvas.save(os.path.join(target_folder, "ic_launcher_foreground.png"), "PNG")
             
             print(f"Icon Android berhasil dibuat untuk folder: {folder}")
-        print("🎉 Semua icon Android (ic_launcher) berhasil diperbarui menggunakan logo.png!")
+        print("[SUKSES] Semua icon Android (ic_launcher) berhasil diperbarui menggunakan logo.png!")
     except Exception as e:
-        print(f"⚠️ Gagal memperbarui icon secara otomatis: {e}")
+        print(f"[WARNING] Gagal memperbarui icon secara otomatis: {str(e)}")
         print("Silakan jalankan manual: pip install Pillow")
 else:
     print("\nlogo.png tidak ditemukan di root directory. Skip pembuatan icon.")
