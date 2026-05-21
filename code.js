@@ -74,6 +74,7 @@ function doPost(e) {
       // === AUTH ===
       case 'login': return jsonResponse(login(data));
       case 'getUserInfo': return jsonResponse(getUserInfo(data));
+      case 'registerFCMToken': return jsonResponse(registerFCMToken(data));
 
       // === SETTING ===
       case 'getSettingGlobal': return jsonResponse(getSettingGlobal());
@@ -160,6 +161,15 @@ function doPost(e) {
       case 'getchatmessages': return jsonResponse(getChatMessages(data));
       case 'sendChatMessage':
       case 'sendchatmessage': return jsonResponse(sendChatMessage(data));
+
+      // === TUGAS & BERITA ===
+      case 'getTugasList': return jsonResponse(getTugasList(data));
+      case 'updateTugasStatus': return jsonResponse(updateTugasStatus(data));
+      case 'getBeritaList': return jsonResponse(getBeritaList(data));
+      case 'createBerita': return jsonResponse(createBerita(data));
+
+      // === DELTA SYNC ===
+      case 'getDeltas': return jsonResponse(getDeltas(data));
 
       default:
         return jsonResponse({ success: false, error: 'Action tidak dikenal: ' + action });
@@ -254,7 +264,7 @@ function uploadFotoToko(data) {
     }
 
     const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value;
+    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value || '1tJgsRcaRejhI6SAvDfrikvOTOEHz2CEw';
 
     if (!folderId) throw new Error('Folder Drive ID belum diatur');
 
@@ -400,6 +410,18 @@ function formatTime(date) {
   return Utilities.formatDate(date, 'Asia/Jakarta', 'HH:mm');
 }
 
+function parseKoordinat(val) {
+  if (!val) return NaN;
+  let str = String(val).trim();
+  str = str.replace(/['"]/g, '');
+  str = str.replace(/,/g, '.');
+  const parts = str.split('.');
+  if (parts.length > 2) {
+    str = parts[0] + '.' + parts.slice(1).join('');
+  }
+  return parseFloat(str);
+}
+
 function hitungJarak(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -515,11 +537,20 @@ function absenMasuk(data) {
   const toko = getSheetData(SHEET_NAMES.MASTER_TOKO).find(t => t.ID_Toko === idToko);
   let jarak = 0, statusGPS = 'Invalid';
   if (toko && lat && lng) {
-    jarak = hitungJarak(parseFloat(lat), parseFloat(lng), parseFloat(toko.Lat), parseFloat(toko.Long));
-    if (jarak > parseFloat(toko.Radius_M)) {
-      return { success: false, error: 'Anda berada ' + Math.round(jarak) + 'm dari toko. Maksimal ' + toko.Radius_M + 'm.' };
+    const parsedLat = parseKoordinat(lat);
+    const parsedLng = parseKoordinat(lng);
+    const tLat = parseKoordinat(toko.Lat);
+    const tLng = parseKoordinat(toko.Long);
+    
+    if (!isNaN(parsedLat) && !isNaN(parsedLng) && !isNaN(tLat) && !isNaN(tLng)) {
+      jarak = hitungJarak(parsedLat, parsedLng, tLat, tLng);
+      if (jarak > parseFloat(toko.Radius_M || 50)) {
+        return { success: false, error: 'Anda berada ' + Math.round(jarak) + 'm dari toko. Maksimal ' + (toko.Radius_M || 50) + 'm.' };
+      }
+      statusGPS = 'Valid';
+    } else {
+      return { success: false, error: 'Format koordinat GPS tidak valid.' };
     }
-    statusGPS = 'Valid';
   }
 
   // Cek toleransi keterlambatan
@@ -546,6 +577,9 @@ function absenMasuk(data) {
 
   // Simpan ke sheet
   const idAbsensi = generateId('A');
+  const safeLat = lat ? (String(lat).startsWith("'") ? lat : "'" + lat) : '';
+  const safeLng = lng ? (String(lng).startsWith("'") ? lng : "'" + lng) : '';
+
   appendRow(SHEET_NAMES.ABSENSI, [
     formatDateTime(now),
     idKaryawan,
@@ -561,8 +595,8 @@ function absenMasuk(data) {
     statusMasuk,
     menitTelat,
     fotoUrl,
-    lat || '',
-    lng || '',
+    safeLat,
+    safeLng,
     toko ? Math.round(jarak) : '',
     statusGPS,
     'Ya',
@@ -585,7 +619,7 @@ function absenMasuk(data) {
       tipe: 'Masuk',
       waktu: formatTime(now),
       status: statusMasuk,
-      pesan: nama + ' telah absen MASUK (' + statusMasuk + ') di ' + namaToko
+      pesan: nama + ' telah absen MASUK (' + statusMasuk + ') di ' + namaToko + ', Shift ' + namaShift
     });
   } catch (e) {
     Logger.log("Pusher broadcast failed in absenMasuk: " + e.toString());
@@ -654,8 +688,17 @@ function absenPulang(data) {
   // Update record masuk dengan jam pulang
   const sheet = getSheet(SHEET_NAMES.ABSENSI);
   const allData = sheet.getDataRange().getValues();
+  const headers = allData[0];
+  const colTipe = headers.indexOf('Tipe');
+  const colIdKar = headers.indexOf('ID_Karyawan');
+  
   for (let i = 1; i < allData.length; i++) {
-    if (allData[i][0] === recordMasuk.Timestamp && allData[i][1] === idKaryawan) {
+    // Cari baris "Masuk" milik karyawan ini hari ini
+    const rowDate = allData[i][0] instanceof Date ? formatDate(allData[i][0]) : formatDate(new Date(allData[i][0]));
+    const rowTipe = colTipe >= 0 ? String(allData[i][colTipe]) : String(allData[i][7]);
+    const rowIdKar = colIdKar >= 0 ? String(allData[i][colIdKar]) : String(allData[i][1]);
+    
+    if (rowIdKar === idKaryawan && rowDate === today && rowTipe === 'Masuk') {
       sheet.getRange(i + 1, 10).setValue(formatTime(now)); // Jam_Pulang
       sheet.getRange(i + 1, 11).setValue(durasiKerja); // Jam_Kerja
       sheet.getRange(i + 1, 20).setValue(fotoUrl); // Foto_Pulang_URL
@@ -663,29 +706,33 @@ function absenPulang(data) {
     }
   }
 
-  // Tambah record pulang
+  // Tambah record pulang agar sesuai dengan rancangan sheet awal
+  const safeLat = lat ? (String(lat).startsWith("'") ? lat : "'" + lat) : recordMasuk.Lat_Hp || '';
+  const safeLng = lng ? (String(lng).startsWith("'") ? lng : "'" + lng) : recordMasuk.Long_Hp || '';
+
   appendRow(SHEET_NAMES.ABSENSI, [
     formatDateTime(now),
     idKaryawan,
     nama,
-    recordMasuk.ID_Toko,
-    recordMasuk.Nama_Toko,
-    recordMasuk.ID_Shift,
-    recordMasuk.Nama_Shift,
+    recordMasuk.ID_Toko || '',
+    recordMasuk.Nama_Toko || '',
+    recordMasuk.ID_Shift || '',
+    recordMasuk.Nama_Shift || '',
     'Pulang',
-    recordMasuk.Jam_Masuk,
+    recordMasuk.Jam_Masuk || '',
     formatTime(now),
     durasiKerja,
-    recordMasuk.Status_Masuk,
-    recordMasuk.Menit_Telat,
-    recordMasuk.Foto_URL,
-    lat || '',
-    lng || '',
-    '', // Jarak_M
-    '', // Status_GPS
-    '', // Face_Detected
-    fotoUrl // Foto_Pulang_URL
+    recordMasuk.Status_Masuk || '',
+    recordMasuk.Menit_Telat || '0',
+    recordMasuk.Foto_URL || '',
+    safeLat,
+    safeLng,
+    recordMasuk.Jarak_M || '',
+    recordMasuk.Status_GPS || '',
+    'Ya',
+    fotoUrl
   ]);
+
   // Broadcast real-time notification to admins
   try {
     triggerPusher('pinguin-chat', 'absen-alert', {
@@ -694,10 +741,19 @@ function absenPulang(data) {
       tipe: 'Pulang',
       waktu: formatTime(now),
       status: 'Ontime',
-      pesan: nama + ' telah absen PULANG. Durasi kerja: ' + durasiKerja
+      namaToko: recordMasuk.Nama_Toko || '',
+      namaShift: recordMasuk.Nama_Shift || '',
+      pesan: nama + ' telah absen PULANG di ' + (recordMasuk.Nama_Toko || '') + ', Shift ' + (recordMasuk.Nama_Shift || '') + '. Durasi kerja: ' + durasiKerja
     });
   } catch (e) {
     Logger.log("Pusher broadcast failed in absenPulang: " + e.toString());
+  }
+
+  // SISTEM GANDA: Hitung ulang lembur yang sudah Approved saat karyawan pulang
+  try {
+    recalculateApprovedLembur(idKaryawan, today, formatTime(now));
+  } catch (e) {
+    Logger.log('Gagal recalculate lembur saat pulang: ' + e.toString());
   }
 
   return {
@@ -705,6 +761,100 @@ function absenPulang(data) {
     jamPulang: formatTime(now),
     durasiKerja: durasiKerja
   };
+}
+
+/**
+ * SISTEM GANDA - Dipanggil saat karyawan absen pulang.
+ * Mengecek apakah ada lembur Approved hari itu, lalu hitung ulang G, H, I.
+ */
+function recalculateApprovedLembur(idKaryawan, tanggal, jamPulangReal) {
+  const lemburSheet = getSheet(SHEET_NAMES.LEMBUR);
+  const lemburData = lemburSheet.getDataRange().getValues();
+  
+  for (let i = 1; i < lemburData.length; i++) {
+    const rowIdKar = String(lemburData[i][1]);
+    const rowTanggal = lemburData[i][5] instanceof Date ? formatDate(lemburData[i][5]) : String(lemburData[i][5]);
+    const rowStatus = String(lemburData[i][11]);
+    
+    if (rowIdKar === idKaryawan && rowTanggal === tanggal && rowStatus === 'Approved') {
+      // Hitung ulang durasi dengan data absensi terbaru (sudah ada jam pulang)
+      const calc = calculateLemburDuration(idKaryawan, tanggal);
+      
+      if (calc.success) {
+        lemburSheet.getRange(i + 1, 7).setValue(calc.jamMasukReal);      // Jam_Mulai
+        lemburSheet.getRange(i + 1, 8).setValue(calc.jamPulangReal || jamPulangReal); // Jam_Selesai
+        lemburSheet.getRange(i + 1, 9).setValue(calc.durasiString);      // Durasi_Jam
+        Logger.log('Lembur ID ' + lemburData[i][0] + ' berhasil dihitung ulang saat pulang: ' + calc.durasiString);
+      }
+      break; // Hanya 1 lembur per hari per karyawan
+    }
+  }
+}
+
+// ==================== DELTA SYNC ====================
+function getDeltas(data) {
+  const syncType = data.syncType || 'full';
+  const deltas = {};
+  const now = new Date();
+  const today = formatDate(now);
+  
+  try {
+    // === HOT DATA (setiap 15 detik) ===
+    try {
+      const absensi = getSheetData(SHEET_NAMES.ABSENSI);
+      if (syncType === 'full') {
+        const cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        deltas.ABSENSI = absensi.filter(a => {
+          try { return new Date(a.Timestamp) >= cutoff; } catch(e) { return false; }
+        });
+      } else {
+        deltas.ABSENSI = absensi.filter(a => {
+          try { return formatDate(new Date(a.Timestamp)) === today; } catch(e) { return false; }
+        });
+      }
+    } catch(e) { deltas.ABSENSI = []; }
+    
+    try {
+      const lembur = getSheetData(SHEET_NAMES.LEMBUR);
+      const monthPrefix = today.substring(0, 7);
+      deltas.LEMBUR = lembur.filter(l => {
+        const tgl = l.Tanggal instanceof Date ? formatDate(l.Tanggal) : String(l.Tanggal || '');
+        return tgl.startsWith(monthPrefix);
+      });
+    } catch(e) { deltas.LEMBUR = []; }
+    
+    // === WARM DATA (setiap 2 menit) ===
+    if (syncType === 'warm' || syncType === 'full') {
+      try { deltas.JADWAL_KARYAWAN = getSheetData(SHEET_NAMES.JADWAL_KARYAWAN); } catch(e) { deltas.JADWAL_KARYAWAN = []; }
+      try { deltas.IZIN_CUTI = getSheetData(SHEET_NAMES.IZIN_CUTI); } catch(e) { deltas.IZIN_CUTI = []; }
+      try { deltas.TUKER_SHIFT = getSheetData(SHEET_NAMES.TUKER_SHIFT); } catch(e) { deltas.TUKER_SHIFT = []; }
+      try { deltas.TUGAS = getSheetData(SHEET_NAMES.TUGAS); } catch(e) { deltas.TUGAS = []; }
+      try { deltas.BERITA = getSheetData(SHEET_NAMES.BERITA); } catch(e) { deltas.BERITA = []; }
+      
+      try {
+        const chat = getSheetData(SHEET_NAMES.CHAT);
+        deltas.CHAT = chat.slice(-100);
+      } catch(e) { deltas.CHAT = []; }
+    }
+    
+    // === COLD DATA (setiap 5 menit / refresh manual) ===
+    if (syncType === 'full') {
+      try { deltas.MASTER_KARYAWAN = getSheetData(SHEET_NAMES.MASTER_KARYAWAN); } catch(e) { deltas.MASTER_KARYAWAN = []; }
+      try { deltas.MASTER_TOKO = getSheetData(SHEET_NAMES.MASTER_TOKO); } catch(e) { deltas.MASTER_TOKO = []; }
+      try { deltas.SHIFT_TOKO = getSheetData(SHEET_NAMES.SHIFT_TOKO); } catch(e) { deltas.SHIFT_TOKO = []; }
+      try { deltas.MASTER_JENIS_IZIN = getSheetData(SHEET_NAMES.MASTER_JENIS_IZIN); } catch(e) { deltas.MASTER_JENIS_IZIN = []; }
+      try { deltas.SETTING_GLOBAL = getSheetData(SHEET_NAMES.SETTING_GLOBAL); } catch(e) { deltas.SETTING_GLOBAL = []; }
+    }
+    
+    return {
+      success: true,
+      deltas: deltas,
+      serverTime: formatDateTime(now),
+      syncType: syncType
+    };
+  } catch (e) {
+    return { success: false, error: 'getDeltas error: ' + e.toString() };
+  }
 }
 
 function getAbsenStatus(data) {
@@ -1690,8 +1840,28 @@ function calculateLemburDuration(idKaryawan, tanggal) {
 
     if (!recordMasuk) return { success: false, error: 'Data absensi masuk tidak ditemukan' };
 
-    const jamMasukRealStr = recordMasuk.Jam_Masuk;
-    const jamPulangRealStr = recordMasuk.Jam_Pulang;
+    const rawJamMasuk = recordMasuk.Jam_Masuk;
+    const jamMasukRealStr = rawJamMasuk instanceof Date 
+      ? String(rawJamMasuk.getHours()).padStart(2,'0') + ':' + String(rawJamMasuk.getMinutes()).padStart(2,'0')
+      : String(rawJamMasuk || '');
+    
+    let rawJamPulang = recordMasuk.Jam_Pulang || '';
+
+    // Jika Jam_Pulang kosong di baris Masuk, cari dari baris Pulang
+    if (!rawJamPulang) {
+      const recordPulang = absensi.find(a =>
+        a.ID_Karyawan === idKaryawan &&
+        a.Tipe === 'Pulang' &&
+        formatDate(new Date(a.Timestamp)) === tanggal
+      );
+      if (recordPulang) {
+        rawJamPulang = recordPulang.Jam_Pulang || '';
+      }
+    }
+
+    const jamPulangRealStr = rawJamPulang instanceof Date 
+      ? String(rawJamPulang.getHours()).padStart(2,'0') + ':' + String(rawJamPulang.getMinutes()).padStart(2,'0')
+      : String(rawJamPulang || '');
 
     if (!jamMasukRealStr) return { success: false, error: 'Jam masuk real belum tercatat' };
 
@@ -1774,9 +1944,9 @@ function approveLembur(data) {
 
         const calc = calculateLemburDuration(idKaryawan, tanggalLembur);
         if (calc.success) {
-          sheet.getRange(i + 1, 7).setValue(calc.jamMasukReal); // Jam Mulai = jam masuk absen real
-          sheet.getRange(i + 1, 8).setValue(calc.jamPulangReal || '-'); // Jam Selesai = jam pulang absen real
-          sheet.getRange(i + 1, 9).setValue(calc.durasiString); // Durasi Jam = hasil hitung durasi real
+          sheet.getRange(i + 1, 7).setValue("'" + calc.jamMasukReal); // Force text
+          sheet.getRange(i + 1, 8).setValue("'" + (calc.jamPulangReal || '-')); // Force text
+          sheet.getRange(i + 1, 9).setValue(calc.durasiString);
         } else {
           // Fallback kalkulasi lama jika absensi tidak ditemukan
           const jamMulai = allData[i][6];
@@ -1808,15 +1978,19 @@ function approveLembur(data) {
         }
       }
 
-      // Kirim Notifikasi Push Latar Belakang (WhatsApp style)
+      // Broadcast real-time ke APK karyawan via Pusher WebSocket
       try {
         const idKaryawan = allData[i][1];
         const ket = allData[i][10] || '';
-        if (status === 'Approved') {
-          sendPushNotification(idKaryawan, 'Lembur Disetujui! 🔥', 'Pengajuan lembur Anda (' + ket + ') telah disetujui Bos. Tetap semangat!');
-        } else if (status === 'Rejected') {
-          sendPushNotification(idKaryawan, 'Lembur Ditolak ❌', 'Pengajuan lembur Anda (' + ket + ') ditolak Bos.');
-        }
+        triggerPusher('pinguin-chat', 'lembur-alert', {
+          idKaryawan: idKaryawan,
+          nama: allData[i][2],
+          status: status,
+          idLembur: idLembur,
+          pesan: status === 'Approved' 
+            ? 'Pengajuan lembur Anda (' + ket + ') telah disetujui'
+            : 'Pengajuan lembur Anda (' + ket + ') ditolak'
+        });
       } catch (e) {
         Logger.log('Gagal mengirim push lembur: ' + e.message);
       }
@@ -1840,15 +2014,17 @@ function approveIzin(data) {
       sheet.getRange(i + 1, 12).setValue(approvedBy);
       sheet.getRange(i + 1, 13).setValue(formatDateTime(new Date()));
 
-      // Kirim Notifikasi Push Latar Belakang (WhatsApp style)
+      // Broadcast real-time ke APK karyawan via Pusher WebSocket
       try {
         const idKaryawan = allData[i][1];
         const jenisIzin = allData[i][4] || 'Izin/Cuti';
-        if (status === 'Approved') {
-          sendPushNotification(idKaryawan, 'Izin/Cuti Disetujui! ✅', 'Pengajuan ' + jenisIzin + ' Anda telah disetujui Admin.');
-        } else if (status === 'Rejected') {
-          sendPushNotification(idKaryawan, 'Izin/Cuti Ditolak ❌', 'Pengajuan ' + jenisIzin + ' Anda ditolak Admin.');
-        }
+        triggerPusher('pinguin-chat', 'izin-alert', {
+          idKaryawan: idKaryawan,
+          nama: allData[i][2],
+          status: status,
+          idIzin: idIzin,
+          pesan: 'Pengajuan ' + jenisIzin + ' Anda telah ' + (status === 'Approved' ? 'disetujui' : 'ditolak')
+        });
       } catch (e) {
         Logger.log('Gagal mengirim push izin: ' + e.message);
       }
@@ -1937,8 +2113,11 @@ function saveToko(data) {
   const { nama, alamat, lat, lng, radius, jamBuka, jamTutup, fotoUrl } = data;
   const idToko = generateId('T');
 
+  const safeLat = lat ? (String(lat).startsWith("'") ? lat : "'" + lat) : '';
+  const safeLng = lng ? (String(lng).startsWith("'") ? lng : "'" + lng) : '';
+
   appendRow(SHEET_NAMES.MASTER_TOKO, [
-    idToko, nama, alamat, lat, lng, radius || 50, jamBuka || '08:00', jamTutup || '22:00', fotoUrl || '', 'Aktif'
+    idToko, nama, alamat, safeLat, safeLng, radius || 50, jamBuka || '08:00', jamTutup || '22:00', fotoUrl || '', 'Aktif'
   ]);
 
   return { success: true, idToko: idToko, message: 'Toko berhasil ditambahkan' };
@@ -1954,8 +2133,14 @@ function updateToko(data) {
     if (allData[i][0] === idToko) {
       if (nama !== undefined) sheet.getRange(i + 1, 2).setValue(nama);
       if (alamat !== undefined) sheet.getRange(i + 1, 3).setValue(alamat);
-      if (lat !== undefined) sheet.getRange(i + 1, 4).setValue(lat);
-      if (lng !== undefined) sheet.getRange(i + 1, 5).setValue(lng);
+      if (lat !== undefined) {
+          const safeLat = lat ? (String(lat).startsWith("'") ? lat : "'" + lat) : '';
+          sheet.getRange(i + 1, 4).setValue(safeLat);
+      }
+      if (lng !== undefined) {
+          const safeLng = lng ? (String(lng).startsWith("'") ? lng : "'" + lng) : '';
+          sheet.getRange(i + 1, 5).setValue(safeLng);
+      }
       if (radius !== undefined) sheet.getRange(i + 1, 6).setValue(radius);
       if (jamBuka !== undefined) sheet.getRange(i + 1, 7).setValue(jamBuka);
       if (jamTutup !== undefined) sheet.getRange(i + 1, 8).setValue(jamTutup);
@@ -2069,7 +2254,7 @@ function uploadFotoProfil(data) {
     }
 
     const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value;
+    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value || '1tJgsRcaRejhI6SAvDfrikvOTOEHz2CEw';
 
     if (!folderId) throw new Error('Folder Drive ID belum diatur');
 
@@ -2214,6 +2399,14 @@ function saveJadwalKaryawan(data) {
     tglMulai || formatDate(new Date()), tglSelesai || '2099-12-31', 'Aktif'
   ]);
 
+    // Broadcast notifikasi perubahan jadwal
+    try {
+      triggerPusher('pinguin-chat', 'jadwal-alert', {
+        idKaryawan: idKaryawan,
+        pesan: 'Jadwal Anda tanggal ' + (tglMulai || formatDate(new Date())) + ' - ' + (tglSelesai || 'seterusnya') + ' telah dirubah'
+      });
+    } catch (e) { Logger.log('Pusher jadwal error: ' + e.toString()); }
+
   return { success: true, idJadwal: idJadwal };
 }
 
@@ -2267,7 +2460,7 @@ function deleteJenisIzin(data) {
 function uploadFotoToDrive(base64Data, idKaryawan, tipe) {
   try {
     const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value;
+    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value || '1tJgsRcaRejhI6SAvDfrikvOTOEHz2CEw';
 
     if (!folderId) throw new Error('Folder Drive ID belum diatur');
 
@@ -2294,7 +2487,7 @@ function uploadFotoToDrive(base64Data, idKaryawan, tipe) {
 function uploadFileToDrive(base64Data, idKaryawan, tipe) {
   try {
     const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value;
+    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value || '1tJgsRcaRejhI6SAvDfrikvOTOEHz2CEw';
 
     if (!folderId) throw new Error('Folder Drive ID belum diatur');
 
@@ -2439,22 +2632,34 @@ function sendChatMessage(data) {
       const ext = tipe === 'image' ? '.jpg' : (namaFile.match(/\.[^.]+$/) || ['.bin'])[0];
 
       const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-      const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value;
+      const folderSetting = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID');
+      const folderId = (folderSetting ? folderSetting.Value : '') || '1tJgsRcaRejhI6SAvDfrikvOTOEHz2CEw';
+      
+      Logger.log('[CHAT_UPLOAD] folderType=' + folderType + ', folderId=' + folderId + ', namaFile=' + namaFile + ', base64Length=' + (fileBase64 ? fileBase64.length : 0));
 
       if (folderId) {
         const folder = DriveApp.getFolderById(folderId);
         const subFolders = folder.getFoldersByName(folderType);
         const subFolder = subFolders.hasNext() ? subFolders.next() : folder.createFolder(folderType);
 
+        // Sub-folder per bulan agar mudah dihapus jika memori penuh
+        const bulanFolderName = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
+        const bulanFolders = subFolder.getFoldersByName(bulanFolderName);
+        const bulanFolder = bulanFolders.hasNext() ? bulanFolders.next() : subFolder.createFolder(bulanFolderName);
+
         const fileName = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyyMMdd_HHmmss') + '_' + idKaryawan + ext;
-        const base64Data = fileBase64.split(',')[1];
+        const base64Data = fileBase64.split(',')[1] || fileBase64;
         const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, fileName);
-        const file = subFolder.createFile(blob);
+        const file = bulanFolder.createFile(blob);
         file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
         fileUrl = 'https://drive.google.com/uc?id=' + file.getId();
         sizeKB = Math.round(base64Data.length * 0.75 / 1024);
+        Logger.log('[CHAT_UPLOAD] SUCCESS fileUrl=' + fileUrl + ', sizeKB=' + sizeKB);
+      } else {
+        Logger.log('[CHAT_UPLOAD] FAILED: FOLDER_DRIVE_ID kosong atau tidak ditemukan di SETTING_GLOBAL');
       }
     } catch (e) {
+      Logger.log('[CHAT_UPLOAD] ERROR: ' + e.toString());
       logError('sendChatMessage_upload', e, data);
     }
   }
@@ -2489,25 +2694,7 @@ function sendChatMessage(data) {
     Logger.log("Pusher broadcast failed in sendChatMessage: " + e.toString());
   }
 
-  // Kirim notifikasi push latar belakang (Webpushr) ke rekan kerja lainnya
-  try {
-    const masterKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
-    if (masterKaryawan && masterKaryawan.length > 0) {
-      masterKaryawan.forEach(function (k) {
-        if (k.ID_Karyawan && k.ID_Karyawan !== idKaryawan) {
-          sendPushNotification(
-            k.ID_Karyawan,
-            nama + ' 💬',
-            pesan ? pesan : (tipe === 'image' ? '📸 Mengirim foto' : '📁 Mengirim lampiran file')
-          );
-        }
-      });
-    }
-  } catch (e) {
-    Logger.log('Gagal mengirim push notifikasi chat: ' + e.toString());
-  }
-
-  return { success: true, idPesan: idPesan };
+  return { success: true, idPesan: idPesan, fileUrl: fileUrl };
 }
 
 // ==================== TUKER SHIFT ====================
@@ -2536,17 +2723,7 @@ function ajukanTukerShift(data) {
     ''
   ]);
 
-  try {
-    sendPushNotification(
-      idKaryawanTujuan,
-      'Permintaan Tukar Shift ⇆',
-      nama + ' mengajukan tukar shift dengan Anda untuk tanggal ' + tanggal + '. Ketuk untuk merespon!'
-    );
-  } catch (e) {
-    Logger.log('Gagal kirim notif tukar shift: ' + e.toString());
-  }
-
-  // Broadcast real-time swap shift request via Pusher!
+  // Broadcast real-time swap shift request via Pusher WebSocket
   try {
     triggerPusher('pinguin-chat', 'swap-shift-alert', {
       targetId: idKaryawanTujuan,
@@ -2871,6 +3048,18 @@ function updateTugasStatus(data) {
       if (status === 'Selesai') {
         sheet.getRange(i + 1, 11).setValue(formatDateTime(new Date()));
       }
+
+      // Broadcast notifikasi tugas
+      try {
+        triggerPusher('pinguin-chat', 'tugas-alert', {
+          idTugas: idTugas,
+          idKaryawan: idKaryawan,
+          status: status,
+          judul: allData[i][3] || 'Tugas',
+          pesan: 'Tugas "' + (allData[i][3] || '') + '" telah di-' + status.toLowerCase()
+        });
+      } catch (e) { Logger.log('Pusher tugas error: ' + e.toString()); }
+
       return { success: true, message: 'Status tugas diupdate' };
     }
   }
@@ -2897,6 +3086,36 @@ function getBeritaList(data) {
       tglPublish: b.Tgl_Publish || formatDate(new Date(b.Timestamp))
     }))
   };
+}
+
+function createBerita(data) {
+  const { judul, isi, kategori, gambarUrl, dibuatOleh } = data;
+  if (!judul || !isi) return { success: false, error: 'Judul dan isi wajib diisi' };
+
+  const idBerita = generateId('BR');
+  appendRow(SHEET_NAMES.BERITA, [
+    formatDateTime(new Date()),
+    idBerita,
+    judul,
+    isi,
+    kategori || 'Umum',
+    gambarUrl || '',
+    dibuatOleh || '',
+    formatDate(new Date()),
+    'Aktif'
+  ]);
+
+    // Broadcast notifikasi berita baru
+    try {
+      triggerPusher('pinguin-chat', 'berita-alert', {
+        idBerita: idBerita,
+        judul: judul,
+        kategori: kategori || 'Umum',
+        pesan: judul
+      });
+    } catch (e) { Logger.log('Pusher berita error: ' + e.toString()); }
+
+  return { success: true, idBerita: idBerita, message: 'Berita berhasil dipublikasi' };
 }
 
 // ==================== INIT SPREADSHEET ====================
@@ -2929,10 +3148,186 @@ function initSpreadsheet() {
 }
 
 
-// ==================== PUSH NOTIFICATION (WEBPUSHR INTEGRATION) ====================
-function sendPushNotification(idKaryawan, title, message) {
-  let webpushrKey = '4390bcc206161515a39ead22f9c1cf46'; // REST API Key Anda
-  let webpushrAuthToken = '121398'; // REST API Auth Token Anda
+// ==================== PUSH NOTIFICATION (FCM v1 API + WEBPUSHR FALLBACK) ====================
+
+/**
+ * Simpan FCM token karyawan ke Sheet MASTER_KARYAWAN + PropertiesService
+ */
+function registerFCMToken(data) {
+  const { idKaryawan, token } = data;
+  if (!idKaryawan || !token) return { success: false, error: 'idKaryawan dan token wajib diisi' };
+  
+  try {
+    // Simpan ke PropertiesService (cache cepat)
+    PropertiesService.getScriptProperties().setProperty('FCM_' + idKaryawan, token);
+    
+    // Simpan juga ke sheet MASTER_KARYAWAN kolom FCM_Token agar terlihat
+    const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
+    if (sheet) {
+      const allData = sheet.getDataRange().getValues();
+      const headers = allData[0];
+      
+      // Cari atau buat kolom FCM_Token
+      let colFCM = headers.indexOf('FCM_Token');
+      if (colFCM === -1) {
+        // Buat header baru di kolom berikutnya
+        colFCM = headers.length;
+        sheet.getRange(1, colFCM + 1).setValue('FCM_Token');
+      }
+      
+      // Cari baris karyawan
+      for (let i = 1; i < allData.length; i++) {
+        if (String(allData[i][0]) === String(idKaryawan)) {
+          sheet.getRange(i + 1, colFCM + 1).setValue(token);
+          break;
+        }
+      }
+    }
+    
+    Logger.log('[FCM] Token disimpan untuk ' + idKaryawan);
+    return { success: true, message: 'FCM token berhasil disimpan' };
+  } catch (e) {
+    return { success: false, error: 'Gagal simpan token: ' + e.message };
+  }
+}
+
+/**
+ * Ambil FCM token karyawan (PropertiesService → Sheet fallback)
+ */
+function getFCMToken(idKaryawan) {
+  try {
+    // Coba dari PropertiesService dulu (cepat)
+    const cached = PropertiesService.getScriptProperties().getProperty('FCM_' + idKaryawan);
+    if (cached) return cached;
+    
+    // Fallback: baca dari sheet MASTER_KARYAWAN
+    const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
+    if (sheet) {
+      const allData = sheet.getDataRange().getValues();
+      const headers = allData[0];
+      const colFCM = headers.indexOf('FCM_Token');
+      if (colFCM >= 0) {
+        for (let i = 1; i < allData.length; i++) {
+          if (String(allData[i][0]) === String(idKaryawan)) {
+            const token = String(allData[i][colFCM] || '').trim();
+            if (token) {
+              // Cache ke PropertiesService untuk akses cepat berikutnya
+              PropertiesService.getScriptProperties().setProperty('FCM_' + idKaryawan, token);
+              return token;
+            }
+          }
+        }
+      }
+    }
+    return '';
+  } catch (e) {
+    return '';
+  }
+}
+
+/**
+ * Kirim notifikasi ke karyawan.
+ * Prioritas: FCM v1 API (untuk APK) → Webpushr (untuk Web) 
+ */
+function sendPushNotification(idKaryawan, title, message, channelId) {
+  channelId = channelId || 'general';
+  
+  // 1. Coba kirim via FCM v1 API (untuk APK Android)
+  const fcmToken = getFCMToken(idKaryawan);
+  if (fcmToken) {
+    try {
+      const fcmResult = sendFCMv1(fcmToken, title, message, channelId);
+      if (fcmResult.success) {
+        Logger.log('[FCM] ✅ Notifikasi berhasil dikirim ke ' + idKaryawan);
+        return; // Sukses, tidak perlu fallback
+      } else {
+        Logger.log('[FCM] ⚠️ FCM gagal untuk ' + idKaryawan + ': ' + fcmResult.error);
+        // Token mungkin expired, hapus agar bisa re-register
+        if (fcmResult.error && (fcmResult.error.includes('NOT_FOUND') || fcmResult.error.includes('UNREGISTERED'))) {
+          PropertiesService.getScriptProperties().deleteProperty('FCM_' + idKaryawan);
+          Logger.log('[FCM] Token expired dihapus untuk ' + idKaryawan);
+        }
+      }
+    } catch (e) {
+      Logger.log('[FCM] ❌ Exception saat kirim FCM ke ' + idKaryawan + ': ' + e.message);
+    }
+  }
+  
+  // 2. Fallback ke Webpushr (untuk user Web/PWA)
+  sendWebpushrFallback(idKaryawan, title, message);
+}
+
+/**
+ * Kirim notifikasi via Firebase Cloud Messaging HTTP v1 API
+ * Menggunakan ScriptApp.getOAuthToken() untuk autentikasi
+ */
+function sendFCMv1(fcmToken, title, body, channelId) {
+  const projectId = 'nafindo-group'; // Firebase project ID
+  
+  try {
+    const accessToken = ScriptApp.getOAuthToken();
+    
+    const payload = {
+      message: {
+        token: fcmToken,
+        notification: {
+          title: title,
+          body: body
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            channel_id: channelId,
+            sound: 'default',
+            default_vibrate_timings: true,
+            default_light_settings: true,
+            visibility: 'PUBLIC',
+            notification_priority: 'PRIORITY_HIGH'
+          }
+        },
+        data: {
+          title: title,
+          body: body,
+          channel_id: channelId,
+          click_action: 'FCM_PLUGIN_ACTIVITY'
+        }
+      }
+    };
+    
+    const url = 'https://fcm.googleapis.com/v1/projects/' + projectId + '/messages:send';
+    
+    const options = {
+      method: 'POST',
+      contentType: 'application/json',
+      headers: {
+        'Authorization': 'Bearer ' + accessToken
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText();
+    
+    Logger.log('[FCM] Response [' + responseCode + ']: ' + responseText);
+    
+    if (responseCode === 200) {
+      return { success: true };
+    } else {
+      return { success: false, error: responseText };
+    }
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Fallback: Kirim notifikasi via Webpushr (untuk user Web/PWA)
+ */
+function sendWebpushrFallback(idKaryawan, title, message) {
+  let webpushrKey = '4390bcc206161515a39ead22f9c1cf46';
+  let webpushrAuthToken = '121398';
 
   try {
     const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
@@ -2943,7 +3338,7 @@ function sendPushNotification(idKaryawan, title, message) {
       if (tokenRow && tokenRow.Value) webpushrAuthToken = tokenRow.Value;
     }
   } catch (e) {
-    Logger.log('Gagal memuat setting Webpushr, menggunakan default. Error: ' + e.message);
+    Logger.log('Gagal memuat setting Webpushr: ' + e.message);
   }
 
   try {
@@ -2966,17 +3361,17 @@ function sendPushNotification(idKaryawan, title, message) {
     };
 
     const response = UrlFetchApp.fetch('https://api.webpushr.com/v1/notification/send/sid', options);
-    Logger.log('Webpushr Push Response for ' + idKaryawan + ': ' + response.getContentText());
+    Logger.log('[WEBPUSHR] Response for ' + idKaryawan + ': ' + response.getContentText());
   } catch (e) {
-    Logger.log('Webpushr Push Error for ' + idKaryawan + ': ' + e.message);
+    Logger.log('[WEBPUSHR] Error for ' + idKaryawan + ': ' + e.message);
   }
 }
 
 // ==================== REAL-TIME WEBSOCKET PUSHER TRIGGER ====================
 function triggerPusher(channel, eventName, dataObj) {
-  const appId = "1804230";
-  const key = "e912ab0d6c703b0d5c07";
-  const secret = "6b6680cd7a2f582f45cc";
+  const appId = "2157387";
+  const key = "3c015a6e56c1e4beb0ea";
+  const secret = "03e4b6e13039837e93fb";
   const cluster = "ap1";
 
   try {
