@@ -161,6 +161,7 @@ function doPost(e) {
       case 'getchatmessages': return jsonResponse(getChatMessages(data));
       case 'sendChatMessage':
       case 'sendchatmessage': return jsonResponse(sendChatMessage(data));
+      case 'chatPresence': return jsonResponse(chatPresence(data));
 
       // === TUGAS & BERITA ===
       case 'getTugasList': return jsonResponse(getTugasList(data));
@@ -305,7 +306,7 @@ function uploadFotoToko(data) {
 }
 function getDefaultHeaders(sheetName) {
   const headers = {
-    'MASTER_KARYAWAN': ['ID_Karyawan', 'Nama', 'PIN', 'Jabatan', 'Tanggal_Masuk', 'Status', 'No_HP', 'Email', 'Toko_Default', 'Shift_Default', 'Foto_Profil'],
+    'MASTER_KARYAWAN': ['ID_Karyawan', 'Nama', 'PIN', 'Jabatan', 'Tanggal_Masuk', 'Status', 'No_HP', 'Email', 'Toko_Default', 'Shift_Default', 'Foto_Profil', 'FCM_Token', 'Device_ID'],
     'MASTER_TOKO': ['ID_Toko', 'Nama_Toko', 'Alamat', 'Lat', 'Long', 'Radius_M', 'Jam_Buka', 'Jam_Tutup', 'Foto_Toko_URL', 'Status'],
     'SHIFT_TOKO': ['ID_Shift', 'ID_Toko', 'Nama_Toko', 'Nama_Shift', 'Jam_Masuk', 'Jam_Pulang', 'Toleransi_Masuk_Menit', 'Status'],
     'JADWAL_KARYAWAN': ['ID_Jadwal', 'ID_Karyawan', 'Nama', 'ID_Toko', 'Nama_Toko', 'ID_Shift', 'Nama_Shift', 'Hari_Berjalan', 'Tanggal_Mulai', 'Tanggal_Selesai', 'Status'],
@@ -439,12 +440,62 @@ function getHariIni() {
 
 // ==================== AUTH ====================
 function login(data) {
-  const { idKaryawan, pin } = data;
+  const { idKaryawan, pin, deviceId, force } = data;
   const karyawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
   const user = karyawan.find(k => k.ID_Karyawan === idKaryawan && k.PIN === pin && k.Status === 'Aktif');
 
   if (!user) {
     return { success: false, error: 'Nama atau PIN salah' };
+  }
+
+  // === SINGLE DEVICE LOGIN CHECK ===
+  if (deviceId) {
+    const currentDevice = user.Device_ID;
+    
+    // Jika device ID beda dan tidak di-force, tolak dan minta konfirmasi
+    if (currentDevice && currentDevice !== deviceId && !force) {
+      return { 
+        success: false, 
+        requireDeviceConfirmation: true, 
+        message: 'Akun sedang aktif di perangkat lain. Lanjutkan login dan paksa keluar perangkat lain?' 
+      };
+    }
+    
+    // Jika force atau device id cocok atau belum ada device id: simpan device id baru
+    try {
+      const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
+      if (sheet) {
+        const allData = sheet.getDataRange().getValues();
+        const headers = allData[0];
+        
+        let colDevice = headers.indexOf('Device_ID');
+        if (colDevice === -1) {
+          colDevice = headers.length;
+          sheet.getRange(1, colDevice + 1).setValue('Device_ID');
+        }
+        
+        for (let i = 1; i < allData.length; i++) {
+          if (String(allData[i][0]) === String(idKaryawan)) {
+            sheet.getRange(i + 1, colDevice + 1).setValue(deviceId);
+            break;
+          }
+        }
+      }
+      
+      // Jika force login dari device berbeda, kirim pusher untuk log out device lama
+      if (currentDevice && currentDevice !== deviceId && force) {
+        try {
+          triggerPusher('pinguin-chat', 'force-logout', {
+            idKaryawan: idKaryawan,
+            newDeviceId: deviceId
+          });
+        } catch (e) {
+          Logger.log("Pusher force-logout failed: " + e.toString());
+        }
+      }
+    } catch (e) {
+      Logger.log("Gagal update Device_ID: " + e.toString());
+    }
   }
 
   const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
@@ -2613,6 +2664,19 @@ function getChatMessages(data) {
       waktu: formatDateTime(new Date(c.Timestamp))
     }))
   };
+}
+
+function chatPresence(data) {
+  try {
+    triggerPusher('pinguin-chat', 'chat-presence', {
+      idKaryawan: data.idKaryawan,
+      nama: data.nama,
+      status: data.status // 'online' atau 'offline'
+    });
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
 }
 
 function sendChatMessage(data) {

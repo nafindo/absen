@@ -6,6 +6,124 @@
             lemburStream: null, lemburPhotoData: null, audioUnlocked: false
         };
         
+        // Inlined pico.js library for maximum reliability on all platforms
+        const pico = {
+            unpack_cascade: function(bytes) {
+                const dview = new DataView(new ArrayBuffer(4));
+                let p = 8;
+                dview.setUint8(0, bytes[p+0]), dview.setUint8(1, bytes[p+1]), dview.setUint8(2, bytes[p+2]), dview.setUint8(3, bytes[p+3]);
+                const tdepth = dview.getInt32(0, true);
+                p = p + 4;
+                dview.setUint8(0, bytes[p+0]), dview.setUint8(1, bytes[p+1]), dview.setUint8(2, bytes[p+2]), dview.setUint8(3, bytes[p+3]);
+                const ntrees = dview.getInt32(0, true);
+                p = p + 4;
+                const tcodes_ls = [];
+                const tpreds_ls = [];
+                const thresh_ls = [];
+                for(let t=0; t<ntrees; ++t) {
+                    Array.prototype.push.apply(tcodes_ls, [0, 0, 0, 0]);
+                    Array.prototype.push.apply(tcodes_ls, bytes.slice(p, p+4*Math.pow(2, tdepth)-4));
+                    p = p + 4*Math.pow(2, tdepth)-4;
+                    for(let i=0; i<Math.pow(2, tdepth); ++i) {
+                        dview.setUint8(0, bytes[p+0]), dview.setUint8(1, bytes[p+1]), dview.setUint8(2, bytes[p+2]), dview.setUint8(3, bytes[p+3]);
+                        tpreds_ls.push(dview.getFloat32(0, true));
+                        p = p + 4;
+                    }
+                    dview.setUint8(0, bytes[p+0]), dview.setUint8(1, bytes[p+1]), dview.setUint8(2, bytes[p+2]), dview.setUint8(3, bytes[p+3]);
+                    thresh_ls.push(dview.getFloat32(0, true));
+                    p = p + 4;
+                }
+                const tcodes = new Int8Array(tcodes_ls);
+                const tpreds = new Float32Array(tpreds_ls);
+                const thresh = new Float32Array(thresh_ls);
+                function classify_region(r, c, s, pixels, ldim) {
+                     r = 256*r;
+                     c = 256*c;
+                     let root = 0;
+                     let o = 0.0;
+                     const pow2tdepth = Math.pow(2, tdepth) >> 0;
+                     for(let i=0; i<ntrees; ++i) {
+                        let idx = 1;
+                        for(let j=0; j<tdepth; ++j)
+                            idx = 2*idx + (pixels[((r+tcodes[root + 4*idx + 0]*s) >> 8)*ldim+((c+tcodes[root + 4*idx + 1]*s) >> 8)]<=pixels[((r+tcodes[root + 4*idx + 2]*s) >> 8)*ldim+((c+tcodes[root + 4*idx + 3]*s) >> 8)]);
+                         o = o + tpreds[pow2tdepth*i + idx-pow2tdepth];
+                         if(o<=thresh[i]) return -1;
+                         root += 4*pow2tdepth;
+                    }
+                    return o - thresh[ntrees-1];
+                }
+                return classify_region;
+            },
+            run_cascade: function(image, classify_region, params) {
+                const pixels = image.pixels;
+                const nrows = image.nrows;
+                const ncols = image.ncols;
+                const ldim = image.ldim;
+                const shiftfactor = params.shiftfactor;
+                const minsize = params.minsize;
+                const maxsize = params.maxsize;
+                const scalefactor = params.scalefactor;
+                let scale = minsize;
+                const detections = [];
+                while(scale<=maxsize) {
+                    const step = Math.max(shiftfactor*scale, 1) >> 0;
+                    const offset = (scale/2 + 1) >> 0;
+                    for(let r=offset; r<=nrows-offset; r+=step)
+                        for(let c=offset; c<=ncols-offset; c+=step) {
+                            const q = classify_region(r, c, scale, pixels, ldim);
+                            if (q > 0.0) detections.push([r, c, scale, q]);
+                        }
+                    scale = scale*scalefactor;
+                }
+                return detections;
+            },
+            cluster_detections: function(dets, iouthreshold) {
+                dets = dets.sort(function(a, b) { return b[3] - a[3]; });
+                function calculate_iou(det1, det2) {
+                    const r1=det1[0], c1=det1[1], s1=det1[2];
+                    const r2=det2[0], c2=det2[1], s2=det2[2];
+                    const overr = Math.max(0, Math.min(r1+s1/2, r2+s2/2) - Math.max(r1-s1/2, r2-s2/2));
+                    const overc = Math.max(0, Math.min(c1+s1/2, c2+s2/2) - Math.max(c1-s1/2, c2-s2/2));
+                    return overr*overc/(s1*s1+s2*s2-overr*overc);
+                }
+                const assignments = new Array(dets.length).fill(0);
+                const clusters = [];
+                for(let i=0; i<dets.length; ++i) {
+                    if(assignments[i]==0) {
+                        let r=0.0, c=0.0, s=0.0, q=0.0, n=0;
+                        for(let j=i; j<dets.length; ++j)
+                            if(calculate_iou(dets[i], dets[j])>iouthreshold) {
+                                assignments[j] = 1;
+                                r = r + dets[j][0];
+                                c = c + dets[j][1];
+                                s = s + dets[j][2];
+                                q = q + dets[j][3];
+                                n = n + 1;
+                            }
+                        clusters.push([r/n, c/n, s/n, q]);
+                    }
+                }
+                return clusters;
+            },
+            instantiate_detection_memory: function(size) {
+                let n = 0;
+                const memory = [];
+                for(let i=0; i<size; ++i) memory.push([]);
+                function update_memory(dets) {
+                    memory[n] = dets;
+                    n = (n+1)%memory.length;
+                    dets = [];
+                    for(let i=0; i<memory.length; ++i) dets = dets.concat(memory[i]);
+                    return dets;
+                }
+                return update_memory;
+            }
+        };
+
+        let facefinderClassifyRegion = null;
+        let faceDetectionInterval = null;
+        let updateMemory = null;
+        
         let localDB = null; // Handler Basis Data IndexedDB Karyawan (Server Mini)
 
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDyDhOWjdbi1dO9HBbcSEZumOkBGlg2Z4UzJ-YqcirnX7u487kUUOYota52PV-5BlN/exec';
@@ -27,6 +145,11 @@
         function saveLogin(userData) {
             const data = { ...userData, loggedAt: Date.now() };
             localStorage.setItem(LS_KEY, JSON.stringify(data));
+            // Sync to Native Preferences for Background Service
+            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) {
+                window.Capacitor.Plugins.Preferences.set({ key: 'userId', value: String(data.id || '') });
+                window.Capacitor.Plugins.Preferences.set({ key: 'userRole', value: String(data.role || '') });
+            }
         }
         function loadLogin() {
             try {
@@ -44,6 +167,11 @@
         }
         function clearLogin() {
             localStorage.removeItem(LS_KEY);
+            // Remove from Native Preferences
+            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) {
+                window.Capacitor.Plugins.Preferences.remove({ key: 'userId' });
+                window.Capacitor.Plugins.Preferences.remove({ key: 'userRole' });
+            }
         }
         function parseDateSafe(dateVal) {
             if (!dateVal) return null;
@@ -83,7 +211,7 @@
                     if (!window.indexedDB) {
                         throw new Error("IndexedDB tidak didukung atau diblokir di browser ini.");
                     }
-                    const request = indexedDB.open("PinguinAbsenDB", 1);
+                    const request = indexedDB.open("PinguinAbsenDB", 2); // Naikkan versi ke 2 untuk upgrade schema
                     
                     request.onupgradeneeded = (e) => {
                         const db = e.target.result;
@@ -102,7 +230,9 @@
                             { name: "TUKER_SHIFT", key: "ID_Tuker" },
                             { name: "TUGAS", key: "ID_Tugas" },
                             { name: "BERITA", key: "ID_Berita" },
-                            { name: "OUTBOX_QUEUE", key: "id", auto: true }
+                            { name: "OUTBOX_QUEUE", key: "id", auto: true },
+                            { name: "FOTO_CACHE", key: "url" },         // Store untuk simpan gambar terkompresi / profile pic
+                            { name: "RESPONSE_CACHE", key: "cacheKey" } // Store untuk simpan response query API kompleks
                         ];
                         
                         stores.forEach(store => {
@@ -117,7 +247,7 @@
                     
                     request.onsuccess = (e) => {
                         localDB = e.target.result;
-                        console.log("[DB] IndexedDB PinguinAbsenDB Berhasil Diinisialisasi.");
+                        console.log("[DB] IndexedDB PinguinAbsenDB Berhasil Diinisialisasi (Versi 2).");
                         resolve(localDB);
                     };
                     
@@ -132,39 +262,622 @@
             });
         }
 
-        async function triggerDeltaSync() {
+        // ==================== HELPER PENYIMPANAN LOKAL (OFFLINE ENGINE) ====================
+        function getAllLocal(storeName) {
+            return new Promise((resolve) => {
+                if (!localDB || !localDB.objectStoreNames.contains(storeName)) return resolve([]);
+                try {
+                    const tx = localDB.transaction(storeName, "readonly");
+                    const store = tx.objectStore(storeName);
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => resolve([]);
+                } catch(e) {
+                    console.warn(`[DB] Gagal getAllLocal untuk ${storeName}:`, e);
+                    resolve([]);
+                }
+            });
+        }
+
+        function getResponseCache(cacheKey) {
+            return new Promise((resolve) => {
+                if (!localDB || !localDB.objectStoreNames.contains("RESPONSE_CACHE")) return resolve(null);
+                try {
+                    const tx = localDB.transaction("RESPONSE_CACHE", "readonly");
+                    const store = tx.objectStore("RESPONSE_CACHE");
+                    const req = store.get(cacheKey);
+                    req.onsuccess = () => resolve(req.result ? req.result.data : null);
+                    req.onerror = () => resolve(null);
+                } catch (e) {
+                    resolve(null);
+                }
+            });
+        }
+
+        function saveResponseCache(cacheKey, data) {
+            return new Promise((resolve) => {
+                if (!localDB || !localDB.objectStoreNames.contains("RESPONSE_CACHE")) return resolve(false);
+                try {
+                    const tx = localDB.transaction("RESPONSE_CACHE", "readwrite");
+                    const store = tx.objectStore("RESPONSE_CACHE");
+                    const req = store.put({ cacheKey, data, timestamp: Date.now() });
+                    req.onsuccess = () => resolve(true);
+                    req.onerror = () => resolve(false);
+                } catch (e) {
+                    resolve(false);
+                }
+            });
+        }
+
+        async function cachedApiCall(action, payload = {}, onDataReceived) {
+            const cacheKey = action + "_" + JSON.stringify(payload);
+            
+            // 1. Ambil dari cache lokal instan
+            let cachedData = null;
+            try {
+                cachedData = await getResponseCache(cacheKey);
+                if (cachedData) {
+                    console.log(`[CACHE-ENGINE] Cache Hit untuk action: ${action}`);
+                    onDataReceived(cachedData);
+                }
+            } catch (e) {
+                console.warn("[CACHE-ENGINE] Gagal memuat cache:", e);
+            }
+            
+            // 2. Tarik data segar dari server di background
+            if (navigator.onLine) {
+                try {
+                    const res = await apiCall(action, payload);
+                    if (res.success) {
+                        const resStr = JSON.stringify(res);
+                        const cachedStr = cachedData ? JSON.stringify(cachedData) : "";
+                        
+                        // Jika data berbeda dengan cache (atau cache kosong), update UI
+                        if (resStr !== cachedStr) {
+                            console.log(`[CACHE-ENGINE] Refreshing UI karena data baru tersedia dari server untuk: ${action}`);
+                            onDataReceived(res);
+                        }
+                        
+                        // Simpan ke cache lokal
+                        await saveResponseCache(cacheKey, res);
+                    } else if (!cachedData) {
+                        // Jika gagal dan tidak ada cache, teruskan respon error
+                        onDataReceived(res);
+                    }
+                    return res;
+                } catch (err) {
+                    console.warn(`[CACHE-ENGINE] Gagal fetch network untuk ${action}:`, err);
+                    if (!cachedData) {
+                        throw err;
+                    }
+                }
+            } else {
+                console.log(`[CACHE-ENGINE] Mode Offline. Menggunakan cache untuk: ${action}`);
+                if (!cachedData) {
+                    onDataReceived({ success: false, error: "Koneksi terputus dan data belum tersedia." });
+                }
+            }
+        }
+
+        // ==================== ENGINE SINKRONISASI FOTO LOKAL ====================
+        function loadImageWithCache(imgElement, originalUrl) {
+            if (!imgElement) return;
+            const resolvedUrl = resolveFotoUrl(originalUrl);
+            if (!resolvedUrl) {
+                imgElement.src = "";
+                return;
+            }
+            
+            // Simpan resolvedUrl asli sebagai data attribute untuk self-healing jika gambar rusak
+            imgElement.setAttribute('data-resolved-url', resolvedUrl);
+            
+            // Tambahkan listener error satu kali untuk mendeteksi cache rusak
+            if (!imgElement.dataset.errorListenerAdded) {
+                imgElement.dataset.errorListenerAdded = "true";
+                imgElement.addEventListener('error', () => {
+                    const fallbackUrl = imgElement.getAttribute('data-resolved-url');
+                    // Jika saat ini sumbernya adalah data URI (cache), berarti cache rusak/invalid
+                    if (imgElement.src.startsWith('data:') && fallbackUrl) {
+                        console.warn("[CACHE-ENGINE] Cache gambar terdeteksi rusak, memulihkan ke URL asli:", fallbackUrl);
+                        imgElement.src = fallbackUrl;
+                        
+                        // Hapus cache yang rusak dari IndexedDB agar bisa diunduh ulang dengan benar
+                        if (localDB && localDB.objectStoreNames.contains("FOTO_CACHE")) {
+                            try {
+                                const tx = localDB.transaction("FOTO_CACHE", "readwrite");
+                                tx.objectStore("FOTO_CACHE").delete(fallbackUrl);
+                            } catch(e) {}
+                        }
+                        
+                        // Coba unduh ulang di latar belakang
+                        if (navigator.onLine) {
+                            fetchAndCacheImage(fallbackUrl);
+                        }
+                    }
+                });
+            }
+            
+            // 1. Cari di FOTO_CACHE IndexedDB
+            if (localDB && localDB.objectStoreNames.contains("FOTO_CACHE")) {
+                try {
+                    const tx = localDB.transaction("FOTO_CACHE", "readonly");
+                    const store = tx.objectStore("FOTO_CACHE");
+                    const req = store.get(resolvedUrl);
+                    
+                    req.onsuccess = () => {
+                        if (req.result && req.result.data && req.result.data.length > 150) {
+                            imgElement.src = req.result.data; // Data URI Base64
+                        } else {
+                            // Belum dicache, gunakan URL langsung lalu download di latar belakang
+                            imgElement.src = resolvedUrl;
+                            if (navigator.onLine) {
+                                fetchAndCacheImage(resolvedUrl);
+                            }
+                        }
+                    };
+                    req.onerror = () => {
+                        imgElement.src = resolvedUrl;
+                    };
+                } catch(e) {
+                    imgElement.src = resolvedUrl;
+                }
+            } else {
+                imgElement.src = resolvedUrl;
+            }
+        }
+
+        async function fetchAndCacheImage(url) {
+            if (!url || !url.startsWith("http")) return;
+            try {
+                let base64data = null;
+                
+                // Cari module Native Http Capacitor
+                let nativeHttp = null;
+                if (window.Capacitor) {
+                    if (window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp) {
+                        nativeHttp = window.Capacitor.Plugins.CapacitorHttp;
+                    } else if (window.Capacitor.Http) {
+                        nativeHttp = window.Capacitor.Http;
+                    }
+                }
+                
+                // Coba gunakan CapacitorHttp jika tersedia (untuk memintas CORS di Android)
+                if (nativeHttp) {
+                    try {
+                        console.log("[CACHE-ENGINE] Menggunakan Capacitor Native Http (ArrayBuffer) untuk gambar:", url);
+                        const response = await nativeHttp.get({
+                            url: url,
+                            responseType: 'arraybuffer'
+                        });
+                        
+                        if (response && response.status === 200 && response.data) {
+                            let base64str = "";
+                            if (response.data instanceof ArrayBuffer) {
+                                const bytes = new Uint8Array(response.data);
+                                let binary = "";
+                                for (let i = 0; i < bytes.length; i++) {
+                                    binary += String.fromCharCode(bytes[i]);
+                                }
+                                base64str = btoa(binary);
+                            } else if (typeof response.data === 'string') {
+                                // Jika dikembalikan sebagai string base64 atau teks mentah
+                                base64str = response.data;
+                            }
+                            
+                            if (base64str && base64str.length > 50) {
+                                const contentType = response.headers['Content-Type'] || response.headers['content-type'] || '';
+                                const finalType = contentType.includes("image") ? contentType : "image/jpeg";
+                                base64data = `data:${finalType};base64,${base64str}`;
+                                console.log("[CACHE-ENGINE] Gambar berhasil diunduh via Native Http (ArrayBuffer)");
+                            }
+                        }
+                    } catch (nativeErr) {
+                        console.warn("[CACHE-ENGINE] Native Http gagal, mencoba fallback fetch standard:", nativeErr);
+                    }
+                }
+                
+                // Fallback ke standard fetch jika Native Http tidak ada atau gagal
+                if (!base64data) {
+                    const res = await fetch(url);
+                    if (res.status === 200) {
+                        const contentType = res.headers.get("content-type") || "";
+                        if (contentType.includes("image") || contentType.includes("octet-stream") || !contentType) {
+                            const blob = await res.blob();
+                            base64data = await new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => resolve(reader.result);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(blob);
+                            });
+                        }
+                    }
+                }
+                
+                if (base64data && base64data.length > 150 && localDB && localDB.objectStoreNames.contains("FOTO_CACHE")) {
+                    const tx = localDB.transaction("FOTO_CACHE", "readwrite");
+                    tx.objectStore("FOTO_CACHE").put({ url: url, data: base64data, timestamp: Date.now() });
+                    console.log("[CACHE-ENGINE] Gambar berhasil disimpan di FOTO_CACHE:", url);
+                }
+            } catch(e) {
+                console.warn("[CACHE-ENGINE] Gagal mengunduh gambar untuk cache:", url, e);
+            }
+        }
+
+        // ==================== OVERLAY BLOCKING SINKRONISASI ====================
+        function showSyncOverlay(message = "Sedang menyelaraskan data...") {
+            let overlay = document.getElementById('syncOverlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'syncOverlay';
+                overlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(15, 23, 42, 0.85);
+                    backdrop-filter: blur(8px);
+                    -webkit-backdrop-filter: blur(8px);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 999999;
+                    color: white;
+                    font-family: 'Outfit', sans-serif;
+                    transition: opacity 0.3s ease;
+                    opacity: 0;
+                `;
+                overlay.innerHTML = `
+                    <div style="background: var(--surface, #ffffff); color: #0f172a; padding: 30px 40px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); text-align: center; max-width: 85%; width: 340px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; gap: 20px; transform: scale(0.9); transition: transform 0.3s ease;">
+                        <div class="spinner-sync" style="width: 48px; height: 48px; border: 4px solid #f1f5f9; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                        <div style="font-weight: 800; font-size: 18px; line-height: 1.4; color: #0f172a;" id="syncOverlayTitle">Sinkronisasi Data</div>
+                        <div style="font-size: 13.5px; font-weight: 600; color: #64748b; line-height: 1.5;" id="syncOverlayText">${message}</div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                
+                // Add spin animation dynamically if not present
+                if (!document.getElementById('spinStyle')) {
+                    const style = document.createElement('style');
+                    style.id = 'spinStyle';
+                    style.innerHTML = `
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+                
+                // Trigger reflow & transition
+                setTimeout(() => {
+                    overlay.style.opacity = '1';
+                    overlay.querySelector('div').style.transform = 'scale(1)';
+                }, 50);
+            } else {
+                document.getElementById('syncOverlayText').innerText = message;
+            }
+        }
+
+        function hideSyncOverlay() {
+            const overlay = document.getElementById('syncOverlay');
+            if (overlay) {
+                overlay.style.opacity = '0';
+                overlay.querySelector('div').style.transform = 'scale(0.9)';
+                setTimeout(() => {
+                    try { overlay.remove(); } catch(e) {}
+                }, 300);
+            }
+        }
+
+        async function triggerDeltaSync(showOverlay = false, syncType = 'full') {
             if (!state.user || !state.user.id || !localDB) return;
+            if (!navigator.onLine) return;
+            
             const lastSyncTime = localStorage.getItem("lastSyncTime") || "0";
+            const isInitialSync = lastSyncTime === "0";
+            
+            // Initial sync selalu full
+            if (isInitialSync) syncType = 'full';
+            
+            const shouldShowOverlay = showOverlay && navigator.onLine;
+            if (shouldShowOverlay) {
+                showSyncOverlay(isInitialSync ? "Mengunduh data awal dari server... Harap tunggu hingga proses sinkronisasi selesai." : "Menyelaraskan data terbaru...");
+            }
             
             try {
-                const res = await apiCall('getDeltas', { lastSyncTime: lastSyncTime });
+                const res = await apiCall('getDeltas', { lastSyncTime: lastSyncTime, syncType: syncType, idKaryawan: state.user.id });
                 if (res.success && res.deltas) {
-                    const storeNames = Object.keys(res.deltas);
+                    const storeNames = Object.keys(res.deltas).filter(name => 
+                        localDB.objectStoreNames.contains(name)
+                    );
                     if (storeNames.length === 0) return;
                     
-                    const tx = localDB.transaction(storeNames, "readwrite");
+                    if (shouldShowOverlay) {
+                        showSyncOverlay("Menyimpan data terbaru ke database lokal...");
+                    }
                     
-                    for (const sheetName in res.deltas) {
-                        const store = tx.objectStore(sheetName);
-                        const rows = res.deltas[sheetName];
-                        const keyPath = getPrimaryKey(sheetName);
-                        
-                        rows.forEach(row => {
-                            if (row.isDeleted === "true" || row.isDeleted === true) {
-                                store.delete(row[keyPath]);
-                            } else {
-                                store.put(row);
-                            }
+                    // Cek apakah ada upload pending di OUTBOX_QUEUE
+                    let hasOutboxPending = false;
+                    try {
+                        const obTx = localDB.transaction("OUTBOX_QUEUE", "readonly");
+                        const obStore = obTx.objectStore("OUTBOX_QUEUE");
+                        const outboxItems = await new Promise((resolve, reject) => {
+                            const req = obStore.getAll();
+                            req.onsuccess = () => resolve(req.result || []);
+                            req.onerror = () => reject(req.error);
                         });
+                        hasOutboxPending = outboxItems.length > 0;
+                    } catch(e) { /* abaikan */ }
+                    
+                    // Simpan ke IndexedDB per-store agar transaksi tidak expire
+                    for (const sheetName of storeNames) {
+                        // Skip ABSENSI & LEMBUR jika ada upload pending
+                        // Mencegah data server (tanpa foto) menimpa data lokal (dengan foto)
+                        if (hasOutboxPending && (sheetName === 'ABSENSI' || sheetName === 'LEMBUR')) {
+                            console.log(`[SYNC] ⏸️ Skip ${sheetName} — ada upload pending di OUTBOX`);
+                            continue;
+                        }
+                        
+                        try {
+                            const tx = localDB.transaction(sheetName, "readwrite");
+                            const store = tx.objectStore(sheetName);
+                            const rows = res.deltas[sheetName];
+                            const keyPath = getPrimaryKey(sheetName);
+                            
+                            rows.forEach(row => {
+                                if (row[keyPath]) {
+                                    store.put(row);
+                                }
+                            });
+                        } catch(e) {
+                            console.warn(`[SYNC] Gagal menyimpan ${sheetName}:`, e);
+                        }
                     }
                     
                     localStorage.setItem("lastSyncTime", res.serverTime);
-                    console.log(`[SYNC] Delta Sync Berhasil. Waktu Server: ${res.serverTime}`);
+                    console.log(`[SYNC] ${syncType.toUpperCase()} sync berhasil. ${storeNames.length} store diperbarui.`);
+                    
+                    // Update foto/data user jika ada perubahan MASTER_KARYAWAN
+                    if (res.deltas.MASTER_KARYAWAN) {
+                        const curr = res.deltas.MASTER_KARYAWAN.find(k => String(k.ID_Karyawan) === String(state.user.id));
+                        if (curr) {
+                            const newFotoUrl = curr.Foto_URL || curr.Foto_Profil || curr.fotoUrl || '';
+                            setupUserUI(newFotoUrl);
+                            const saved = loadLogin();
+                            if (saved) {
+                                saved.fotoUrl = newFotoUrl;
+                                saveLogin(saved);
+                            }
+                        }
+                    }
                 }
             } catch (e) {
-                console.warn("[SYNC] Polling delta sync gagal di latar belakang:", e);
+                console.warn(`[SYNC] ${syncType} sync gagal:`, e.message);
+            } finally {
+                if (shouldShowOverlay) {
+                    hideSyncOverlay();
+                }
             }
         }
+        window.manualSyncRefresh = async function() {
+            if (!navigator.onLine) {
+                tampilPicoModal('error', 'Koneksi internet terputus. Silakan hubungkan internet terlebih dahulu untuk menyelaraskan data terbaru.');
+                return;
+            }
+            
+            const btn = document.querySelector('.header-refresh');
+            const svg = document.getElementById('refreshIconSvg');
+            if (btn && svg) {
+                svg.style.transition = 'transform 1s ease';
+                svg.style.transform = 'rotate(360deg)';
+                btn.disabled = true;
+            }
+            
+            try {
+                // Bersihkan FOTO_CACHE IndexedDB agar bisa mengunduh foto terbaru secara bersih
+                if (window.localDB && window.localDB.objectStoreNames.contains("FOTO_CACHE")) {
+                    try {
+                        const tx = window.localDB.transaction("FOTO_CACHE", "readwrite");
+                        tx.objectStore("FOTO_CACHE").clear();
+                        console.log("[SYNC] FOTO_CACHE berhasil dibersihkan untuk penyegaran media.");
+                    } catch (cacheErr) {
+                        console.warn("[SYNC] Gagal membersihkan FOTO_CACHE:", cacheErr);
+                    }
+                }
+
+                // Jalankan sinkronisasi penuh dengan overlay pemblokir
+                await triggerDeltaSync(true);
+                
+                // Muat ulang data UI berdasarkan tab aktif saat ini
+                const activeTab = state.activeTab || 'beranda';
+                if (activeTab === 'chat') {
+                    await loadChatMessages();
+                } else if (activeTab === 'absensi') {
+                    await checkAbsenStatus();
+                } else if (activeTab === 'raport') {
+                    await renderRaport();
+                } else if (activeTab === 'berita') {
+                    await renderBeritaList();
+                } else if (activeTab === 'tugas') {
+                    if (typeof renderTugas === 'function') await renderTugas();
+                }
+                
+                // Selalu perbarui informasi karyawan & data toko/jadwal di beranda
+                if (state.user && state.user.id) {
+                    await checkAbsenStatus();
+                    await updateMonthlyRecap();
+                    await checkMyApprovals();
+                }
+                
+                showToast('Penyelarasan data berhasil!', 'success');
+            } catch (err) {
+                console.error('[SYNC] Gagal melakukan penyegaran manual:', err);
+                showToast('Gagal menyelaraskan data.', 'error');
+            } finally {
+                if (btn && svg) {
+                    svg.style.transform = 'none';
+                    btn.disabled = false;
+                }
+            }
+        };
+
+        window.toggleProfilePopover = function(event) {
+            if (event) event.stopPropagation();
+            const popover = document.getElementById('profilePopover');
+            if (!popover) return;
+            
+            if (popover.style.display === 'none' || popover.style.display === '') {
+                // Update text/image inside popover using current user state
+                const popoverName = document.getElementById('popoverName');
+                const popoverRole = document.getElementById('popoverRole');
+                const popoverAvatarText = document.getElementById('popoverAvatarText');
+                const popoverAvatarImg = document.getElementById('popoverAvatarImg');
+                
+                if (state.user) {
+                    if (popoverName) popoverName.textContent = state.user.name || '-';
+                    if (popoverRole) popoverRole.textContent = state.user.role || '-';
+                    
+                    // Avatar text
+                    if (popoverAvatarText) {
+                        popoverAvatarText.textContent = (state.user.name || 'U').charAt(0).toUpperCase();
+                    }
+                    
+                    // Avatar image
+                    const headerImg = document.getElementById('headerAvatarImg');
+                    if (headerImg && headerImg.src && headerImg.style.display !== 'none') {
+                        if (popoverAvatarImg) {
+                            popoverAvatarImg.src = headerImg.src;
+                            popoverAvatarImg.style.display = 'block';
+                        }
+                        if (popoverAvatarText) popoverAvatarText.style.display = 'none';
+                    } else {
+                        if (popoverAvatarImg) popoverAvatarImg.style.display = 'none';
+                        if (popoverAvatarText) popoverAvatarText.style.display = 'flex';
+                    }
+                }
+                
+                popover.style.display = 'flex';
+                // Listen to click outside to close popover
+                document.addEventListener('click', closePopoverOutside);
+            } else {
+                popover.style.display = 'none';
+                document.removeEventListener('click', closePopoverOutside);
+            }
+        };
+
+        function closePopoverOutside(e) {
+            const popover = document.getElementById('profilePopover');
+            const headerAvatar = document.getElementById('headerAvatar');
+            const headerInfo = document.querySelector('.header-info');
+            
+            if (popover && !popover.contains(e.target) && (!headerAvatar || !headerAvatar.contains(e.target)) && (!headerInfo || !headerInfo.contains(e.target))) {
+                popover.style.display = 'none';
+                document.removeEventListener('click', closePopoverOutside);
+            }
+        }
+
+        window.openChangePinModal = function() {
+            // Close popover first
+            const popover = document.getElementById('profilePopover');
+            if (popover) {
+                popover.style.display = 'none';
+                document.removeEventListener('click', closePopoverOutside);
+            }
+            
+            // Clear inputs
+            const pinLama = document.getElementById('pinLama');
+            const pinBaru = document.getElementById('pinBaru');
+            const errorDiv = document.getElementById('changePinError');
+            if (pinLama) pinLama.value = '';
+            if (pinBaru) pinBaru.value = '';
+            if (errorDiv) {
+                errorDiv.textContent = '';
+                errorDiv.style.display = 'none';
+            }
+            
+            openModal('modalChangePin');
+        };
+
+        window.submitChangePin = async function() {
+            const pinLama = document.getElementById('pinLama');
+            const pinBaru = document.getElementById('pinBaru');
+            const errorDiv = document.getElementById('changePinError');
+            
+            if (!pinLama || !pinBaru || !errorDiv) return;
+            
+            errorDiv.style.display = 'none';
+            errorDiv.textContent = '';
+            
+            const valLama = pinLama.value.trim();
+            const valBaru = pinBaru.value.trim();
+            
+            if (!valLama || !valBaru) {
+                errorDiv.textContent = 'Semua kolom PIN harus diisi!';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Verifikasi PIN lama di sisi klien
+            const currentPin = String(state.user ? state.user.pin : '').trim().padStart(4, '0');
+            const inputOldPin = String(valLama).trim().padStart(4, '0');
+            if (currentPin !== inputOldPin) {
+                errorDiv.textContent = 'PIN saat ini salah!';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Validasi format PIN baru (4-6 digit angka)
+            if (!/^[0-9]{4,6}$/.test(valBaru)) {
+                errorDiv.textContent = 'PIN baru harus terdiri dari 4-6 digit angka!';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Pastikan PIN baru tidak sama dengan PIN lama
+            if (valLama === valBaru) {
+                errorDiv.textContent = 'PIN baru tidak boleh sama dengan PIN saat ini!';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            const btnSubmit = document.querySelector('#modalChangePin .btn-primary');
+            const btnCancel = document.querySelector('#modalChangePin .btn-secondary');
+            if (btnSubmit) btnSubmit.disabled = true;
+            if (btnCancel) btnCancel.disabled = true;
+            
+            try {
+                const res = await apiCall('changePin', {
+                    idKaryawan: state.user.id,
+                    newPin: valBaru
+                });
+                
+                if (res && res.success) {
+                    // Update pin di state & local storage
+                    state.user.pin = valBaru;
+                    saveLogin({
+                        ...loadLogin(),
+                        pin: valBaru
+                    });
+                    
+                    closeModal('modalChangePin');
+                    tampilPicoModal('sukses', '<b>PIN Berhasil Diubah! 🔑</b><br>PIN baru Anda telah berhasil diperbarui.');
+                } else {
+                    errorDiv.textContent = (res && res.error) ? res.error : 'Gagal mengubah PIN.';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                console.error('[PIN] Error changing pin:', err);
+                errorDiv.textContent = 'Terjadi kesalahan jaringan. Coba lagi.';
+                errorDiv.style.display = 'block';
+            } finally {
+                if (btnSubmit) btnSubmit.disabled = false;
+                if (btnCancel) btnCancel.disabled = false;
+            }
+        };
+
+
 
         function getPrimaryKey(sheetName) {
             const keys = {
@@ -235,30 +948,67 @@
         async function processOutboxQueue() {
             if (!navigator.onLine || !state.user || !localDB) return;
             
-            const tx = localDB.transaction("OUTBOX_QUEUE", "readwrite");
-            const store = tx.objectStore("OUTBOX_QUEUE");
+            // Langkah 1: Baca semua item dari antrean terlebih dahulu (sinkron)
+            let allItems = [];
+            try {
+                const readTx = localDB.transaction("OUTBOX_QUEUE", "readonly");
+                const readStore = readTx.objectStore("OUTBOX_QUEUE");
+                allItems = await new Promise((resolve, reject) => {
+                    const req = readStore.getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error);
+                });
+            } catch (e) {
+                console.error("[OUTBOX] Gagal membaca antrean:", e);
+                return;
+            }
             
-            const request = store.openCursor();
-            request.onsuccess = async (e) => {
-                const cursor = e.target.result;
-                if (!cursor) return; // Antrean kosong
-                
-                const item = cursor.value;
-                if (item.status === "uploading") return;
-                
-                item.status = "uploading";
-                cursor.update(item);
-                
+            if (allItems.length === 0) return;
+            console.log(`[OUTBOX] Ditemukan ${allItems.length} item dalam antrean.`);
+            
+            // Langkah 2: Reset item "uploading" yang sudah nyangkut > 2 menit
+            const STUCK_TIMEOUT = 2 * 60 * 1000; // 2 menit
+            for (const item of allItems) {
+                if (item.status === "uploading" && item.uploadStartedAt) {
+                    if (Date.now() - item.uploadStartedAt > STUCK_TIMEOUT) {
+                        console.warn(`[OUTBOX] Item ID ${item.id} nyangkut, reset ke pending.`);
+                        item.status = "pending";
+                        delete item.uploadStartedAt;
+                        try {
+                            const resetTx = localDB.transaction("OUTBOX_QUEUE", "readwrite");
+                            resetTx.objectStore("OUTBOX_QUEUE").put(item);
+                        } catch (e) { /* abaikan */ }
+                    }
+                }
+            }
+            
+            // Langkah 3: Proses setiap item "pending" secara berurutan
+            const pendingItems = allItems.filter(i => i.status === "pending" || i.status === "failed");
+            
+            for (const item of pendingItems) {
                 try {
-                    console.log(`[OUTBOX] Memproses unggah latar belakang: ${item.tipe}`);
+                    // Tandai sebagai "uploading" dengan timestamp
+                    item.status = "uploading";
+                    item.uploadStartedAt = Date.now();
+                    try {
+                        const markTx = localDB.transaction("OUTBOX_QUEUE", "readwrite");
+                        markTx.objectStore("OUTBOX_QUEUE").put(item);
+                    } catch (e) { /* lanjutkan saja */ }
+                    
+                    console.log(`[OUTBOX] Memproses unggah: ${item.tipe} (ID: ${item.id})`);
                     
                     // Dekripsi foto sebelum diunggah ke Google Drive
                     let payloadToUpload = { ...item.payload };
                     if (payloadToUpload.isEncrypted && payloadToUpload.fotoBase64) {
                         try {
-                            const rawDecrypted = enkripsiDekripsiFoto(atob(payloadToUpload.fotoBase64), state.user.pin || '1234');
+                            const encString = atob(payloadToUpload.fotoBase64);
+                            const key = String(state.user.pin || '1234');
+                            let rawDecrypted = "";
+                            for (let i = 0; i < encString.length; i++) {
+                                rawDecrypted += String.fromCharCode(encString.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+                            }
                             payloadToUpload.fotoBase64 = rawDecrypted;
-                            delete payloadToUpload.isEncrypted; // Bersihkan metadata enkripsi
+                            delete payloadToUpload.isEncrypted;
                         } catch (decErr) {
                             console.error("[OUTBOX] Gagal mendekripsi foto:", decErr);
                         }
@@ -266,20 +1016,31 @@
                     
                     const res = await apiCall(item.tipe, payloadToUpload);
                     
+                    // Hapus dari antrean (baik sukses maupun gagal permanen dari server)
+                    try {
+                        const delTx = localDB.transaction("OUTBOX_QUEUE", "readwrite");
+                        delTx.objectStore("OUTBOX_QUEUE").delete(item.id);
+                    } catch (e) { /* abaikan */ }
+                    
                     if (res.success) {
-                        const deleteTx = localDB.transaction("OUTBOX_QUEUE", "readwrite");
-                        deleteTx.objectStore("OUTBOX_QUEUE").delete(item.id);
-                        console.log(`[OUTBOX] Aksi ID ${item.id} berhasil diunggah. Berkas lokal dihapus.`);
+                        console.log(`[OUTBOX] ✅ ${item.tipe} ID ${item.id} berhasil dikirim ke server!`);
+                        showToast(`✅ Data ${item.tipe} berhasil dikirim ke server`, 'success');
                     } else {
-                        item.status = "failed";
-                        cursor.update(item);
+                        console.error(`[OUTBOX] ❌ ${item.tipe} ID ${item.id} ditolak server:`, res.error);
+                        showToast(`❌ Gagal sinkron ${item.tipe}: ${res.error}`, 'error');
                     }
+                    
                 } catch (err) {
-                    console.warn(`[OUTBOX] Pengunggahan tertunda (koneksi buruk).`, err);
-                    item.status = "pending";
-                    cursor.update(item);
+                    // Error jaringan / timeout - kembalikan ke pending untuk dicoba lagi nanti
+                    console.warn(`[OUTBOX] ⏳ Koneksi buruk, coba lagi nanti:`, err.message);
+                    try {
+                        item.status = "pending";
+                        delete item.uploadStartedAt;
+                        const resetTx = localDB.transaction("OUTBOX_QUEUE", "readwrite");
+                        resetTx.objectStore("OUTBOX_QUEUE").put(item);
+                    } catch (e) { /* abaikan */ }
                 }
-            };
+            }
         }
 
         function resolveFotoUrl(url) {
@@ -366,8 +1127,62 @@
             }
         }
 
+        function loadFaceFinderXHR(url) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.responseType = 'arraybuffer';
+                xhr.onload = function() {
+                    if ((xhr.status >= 200 && xhr.status < 300) || (xhr.status === 0 && xhr.response && xhr.response.byteLength > 0)) {
+                        resolve(xhr.response);
+                    } else {
+                        reject(new Error(`XHR Status: ${xhr.status}`));
+                    }
+                };
+                xhr.onerror = function() {
+                    reject(new Error('XHR Network Error'));
+                };
+                xhr.send();
+            });
+        }
+
+        async function loadFaceFinder() {
+            const urls = [
+                'facefinder.bin',
+                'facefinder',
+                'https://raw.githubusercontent.com/nenadmarkus/picojs/master/cascade/facefinder'
+            ];
+            
+            for (let url of urls) {
+                try {
+                    console.log(`[FACE] Attempting to load model from: ${url}`);
+                    let buffer;
+                    try {
+                        const response = await fetch(url);
+                        if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+                        buffer = await response.arrayBuffer();
+                    } catch (fetchErr) {
+                        console.warn(`[FACE] Fetch failed for ${url}, trying XHR:`, fetchErr.message);
+                        buffer = await loadFaceFinderXHR(url);
+                    }
+                    
+                    const bytes = new Int8Array(buffer);
+                    facefinderClassifyRegion = pico.unpack_cascade(bytes);
+                    console.log(`[FACE] pico.js facefinder loaded successfully from ${url}!`);
+                    return;
+                } catch (err) {
+                    console.error(`[FACE] Failed loading from ${url}:`, err.message);
+                }
+            }
+            
+            showToast("Gagal memuat modul deteksi wajah. Fitur kotak dinamis dinonaktifkan.", "error");
+        }
+
         // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', async () => {
+            // Load face detection model
+            loadFaceFinder();
+            
             // Trigger Snow effects
             createSnowEffect('splashScreen');
             createSnowEffect('loginScreen');
@@ -377,6 +1192,9 @@
             const today = new Date().toISOString().split('T')[0];
             const tglMulai = document.getElementById('izinTglMulai');
             if (tglMulai) tglMulai.value = today;
+            
+            // Initialize static custom select dropdowns
+            makeSelectCustom('lemburKeteranganType');
 
             // Initialize real-time Pusher WebSockets
             initPusher();
@@ -390,12 +1208,15 @@
             initLocalDatabase().then(async () => {
                 // Jalankan Delta Sync & Outbox schedulers
                 try {
-                    await triggerDeltaSync();
+                    await triggerDeltaSync(true);
                 } catch (e) {
                     console.warn('[SYNC] Delta sync awal gagal:', e);
                 }
                 
-                setInterval(triggerDeltaSync, 15000);
+                // Tiered Delta Sync: Hot (15s), Warm (2min), Full (5min)
+                setInterval(() => triggerDeltaSync(false, 'hot'), 15000);     // Absensi + Lembur
+                setInterval(() => triggerDeltaSync(false, 'warm'), 120000);   // Izin, Jadwal, Chat, dll
+                setInterval(() => triggerDeltaSync(false, 'full'), 300000);   // Semua master data
                 setInterval(processOutboxQueue, 10000);
                 
                 // ⚡ Muat data setelah Database DIJAMIN SIAP!
@@ -406,7 +1227,13 @@
                 const saved = loadLogin();
                 if (saved && saved.id) {
                     // Auto login dari localStorage
-                    state.user = { id: saved.id, name: saved.name, role: saved.role, tokoDefault: saved.tokoDefault, shiftDefault: saved.shiftDefault };
+                    state.user = { id: saved.id, name: saved.name, role: saved.role, tokoDefault: saved.tokoDefault, shiftDefault: saved.shiftDefault, pin: saved.pin };
+                    
+                    // Auto sync to preferences if opened
+                    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) {
+                        window.Capacitor.Plugins.Preferences.set({ key: 'userId', value: String(state.user.id || '') });
+                        window.Capacitor.Plugins.Preferences.set({ key: 'userRole', value: String(state.user.role || '') });
+                    }
                     state.currentUser = state.user;
                     unlockAudio();
                     showApp();
@@ -455,7 +1282,7 @@
                 // Cek localStorage login fallback
                 const saved = loadLogin();
                 if (saved && saved.id) {
-                    state.user = { id: saved.id, name: saved.name, role: saved.role, tokoDefault: saved.tokoDefault, shiftDefault: saved.shiftDefault };
+                    state.user = { id: saved.id, name: saved.name, role: saved.role, tokoDefault: saved.tokoDefault, shiftDefault: saved.shiftDefault, pin: saved.pin };
                     state.currentUser = state.user;
                     unlockAudio();
                     showApp();
@@ -619,17 +1446,27 @@
         function setHeaderAvatar(name, fotoUrl) {
             const textEl = document.getElementById('headerAvatarText');
             const imgEl = document.getElementById('headerAvatarImg');
-            const resolved = resolveFotoUrl(fotoUrl);
-            if (resolved) {
-                imgEl.src = resolved; imgEl.style.display = 'block'; textEl.style.display = 'none';
+            if (fotoUrl) {
+                loadImageWithCache(imgEl, fotoUrl); imgEl.style.display = 'block'; textEl.style.display = 'none';
             } else {
                 textEl.textContent = (name || 'U').charAt(0).toUpperCase();
                 textEl.style.display = 'flex'; imgEl.style.display = 'none';
             }
         }
 
+        // ==================== SINGLE DEVICE LOGIN ====================
+        function getDeviceId() {
+            let deviceId = localStorage.getItem('absen_device_id');
+            if (!deviceId) {
+                // Generate a random UUID-like string
+                deviceId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('absen_device_id', deviceId);
+            }
+            return deviceId;
+        }
+
         // ==================== LOGIN ====================
-        async function doLogin() {
+        async function doLogin(force = false) {
             const sel = document.getElementById('loginSelect');
             const manualIdInput = document.getElementById('loginManualId');
             let id = sel ? sel.value : '';
@@ -662,24 +1499,139 @@
                 fotoUrl = opt.getAttribute('data-foto') || '';
             }
 
+            const enteredPin = document.getElementById('loginPin') ? document.getElementById('loginPin').value.trim() : '';
+            const isManualDebug = manualIdInput && manualIdInput.value.trim() !== '';
+            
+            if (!isManualDebug) {
+                if (!enteredPin) {
+                    errBox.textContent = 'Masukkan PIN Anda terlebih dahulu!';
+                    errBox.classList.add('show');
+                    return;
+                }
+            }
+
             btn.disabled = true;
             btn.innerHTML = '<div class="spinner"></div> Memuat...';
             errBox.classList.remove('show');
 
-            // Simulasi verifikasi ke backend (tanpa password)
-            try {
-                // Optional: verify ke backend
-                const res = await apiCall('getKaryawanById', { idKaryawan: id });
-                if (!res.success) {
-                    // Fallback: tetap lanjut pakai data dari dropdown
+            let verifiedUser = null;
+            
+            // Coba verifikasi secara offline-first menggunakan data lokal (IndexedDB yang ter-load di state.karyawanList)
+            if (!isManualDebug && state.karyawanList && state.karyawanList.length > 0 && !navigator.onLine) {
+                const k = state.karyawanList.find(item => String(item.ID_Karyawan) === String(id));
+                if (k) {
+                    const localPin = String(k.PIN === undefined || k.PIN === null ? '' : k.PIN).trim().padStart(4, '0');
+                    const enteredPinClean = String(enteredPin || '').trim().padStart(4, '0');
+                    if (localPin !== enteredPinClean) {
+                        errBox.textContent = 'PIN yang Anda masukkan salah!';
+                        errBox.classList.add('show');
+                        btn.disabled = false;
+                        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> Masuk`;
+                        return;
+                    }
+                    verifiedUser = {
+                        id: k.ID_Karyawan,
+                        name: k.Nama,
+                        role: k.Jabatan || 'Staff',
+                        tokoDefault: k.Toko_Default || '',
+                        shiftDefault: k.Shift_Default || '',
+                        pin: localPin,
+                        fotoUrl: k.Foto_Profil || k.Foto_URL || k.fotoUrl || ''
+                    };
                 }
-            } catch (e) { }
+            }
+            
+            // Fallback ke verifikasi server jika online
+            if (!verifiedUser && !isManualDebug) {
+                try {
+                    console.log("[AUTH] Memverifikasi ke server...");
+                    const res = await apiCall('login', { 
+                        idKaryawan: id, 
+                        pin: enteredPin,
+                        deviceId: getDeviceId(),
+                        force: force
+                    });
+                    
+                    if (res.requireDeviceConfirmation) {
+                        // User exists in another device, show popup confirmation
+                        Swal.fire({
+                            title: 'Perhatian!',
+                            text: res.message,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#3085d6',
+                            cancelButtonColor: '#d33',
+                            confirmButtonText: 'Ya, Lanjut Login!',
+                            cancelButtonText: 'Batal'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                // Call login again with force=true
+                                doLogin(true);
+                            } else {
+                                // Reset button state
+                                btn.disabled = false;
+                                btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> Masuk`;
+                            }
+                        });
+                        return; // Stop current flow
+                    }
 
-            state.user = { id, name, role, tokoDefault: tokoId, shiftDefault: shiftId };
+                    if (res.success && res.user) {
+                        verifiedUser = {
+                            id: res.user.id,
+                            name: res.user.nama,
+                            role: res.user.jabatan || 'Staff',
+                            tokoDefault: res.user.tokoDefault || '',
+                            shiftDefault: res.user.shiftDefault || '',
+                            pin: res.user.pin,
+                            fotoUrl: res.user.fotoProfil || res.user.fotoUrl || res.user.Foto_Profil || ''
+                        };
+                        tokoId = res.user.tokoDefault || '';
+                        shiftId = res.user.shiftDefault || '';
+                    } else {
+                        errBox.textContent = res.error || 'PIN yang Anda masukkan salah!';
+                        errBox.classList.add('show');
+                        btn.disabled = false;
+                        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> Masuk`;
+                        return;
+                    }
+                } catch (e) {
+                    errBox.textContent = 'Gagal memverifikasi ke server: ' + e.message;
+                    errBox.classList.add('show');
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg> Masuk`;
+                    return;
+                }
+            }
+
+            if (isManualDebug) {
+                verifiedUser = { id, name, role, tokoDefault: tokoId, shiftDefault: shiftId, pin: '0000' };
+            }
+
+            if (verifiedUser && verifiedUser.fotoUrl && !fotoUrl) {
+                fotoUrl = verifiedUser.fotoUrl;
+            }
+
+            state.user = { 
+                id: verifiedUser.id, 
+                name: verifiedUser.name, 
+                role: verifiedUser.role, 
+                tokoDefault: verifiedUser.tokoDefault, 
+                shiftDefault: verifiedUser.shiftDefault,
+                pin: verifiedUser.pin
+            };
             state.currentUser = state.user;
 
             // Simpan ke localStorage
-            saveLogin({ id, name, role, tokoDefault: tokoId, shiftDefault: shiftId, fotoUrl });
+            saveLogin({ 
+                id: verifiedUser.id, 
+                name: verifiedUser.name, 
+                role: verifiedUser.role, 
+                tokoDefault: verifiedUser.tokoDefault, 
+                shiftDefault: verifiedUser.shiftDefault, 
+                fotoUrl,
+                pin: verifiedUser.pin
+            });
 
             // Daftarkan ke Webpushr agar bisa menerima notifikasi push latar belakang
             try { registerWebpushrUser(id); } catch(e) { }
@@ -690,6 +1642,13 @@
 
             showApp();
             setupUserUI(fotoUrl);
+
+            // Jalankan Delta Sync pasca-login dengan blocking overlay
+            try {
+                await triggerDeltaSync(true);
+            } catch(e) {
+                console.warn('[SYNC] Delta sync pasca-login gagal:', e);
+            }
 
             await loadTokoData();
             if (tokoId) {
@@ -721,6 +1680,26 @@
                 manualContainer.style.display = 'block';
             }
 
+            // Daftarkan event listener untuk loginSelect jika belum terdaftar
+            const selEl = document.getElementById('loginSelect');
+            if (selEl && !selEl.dataset.listenerAdded) {
+                selEl.dataset.listenerAdded = 'true';
+                selEl.addEventListener('change', (e) => {
+                    const pinContainer = document.getElementById('pinContainer');
+                    const pinInput = document.getElementById('loginPin');
+                    if (e.target.value) {
+                        if (pinContainer) pinContainer.style.display = 'block';
+                        if (pinInput) {
+                            pinInput.value = '';
+                            setTimeout(() => pinInput.focus(), 100);
+                        }
+                    } else {
+                        if (pinContainer) pinContainer.style.display = 'none';
+                        if (pinInput) pinInput.value = '';
+                    }
+                });
+            }
+
             const populateDropdown = (list) => {
                 const sel = document.getElementById('loginSelect');
                 if (!sel) return;
@@ -730,6 +1709,20 @@
                     const fotoUrl = k.Foto_URL || k.Foto_Profil || k.fotoUrl || '';
                     sel.innerHTML += `<option value="${k.ID_Karyawan}" data-toko="${k.Toko_Default || ''}" data-shift="${k.Shift_Default || ''}" data-role="${k.Jabatan || 'Staff'}" data-foto="${fotoUrl}">${k.Nama}</option>`;
                 });
+                makeSelectCustom('loginSelect');
+                // Sinkronisasi/perbarui foto profil user aktif jika datanya berubah di server
+                if (state.user && state.user.id) {
+                    const curr = state.karyawanList.find(k => String(k.ID_Karyawan) === String(state.user.id));
+                    if (curr) {
+                        const newFotoUrl = curr.Foto_URL || curr.Foto_Profil || curr.fotoUrl || '';
+                        setupUserUI(newFotoUrl);
+                        const saved = loadLogin();
+                        if (saved) {
+                            saved.fotoUrl = newFotoUrl;
+                            saveLogin(saved);
+                        }
+                    }
+                }
             };
 
             // 1. Ambil data dari IndexedDB lokal terlebih dahulu (Instan & Offline-First!)
@@ -775,7 +1768,7 @@
         function switchTab(tab) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.querySelector('.nav-fab').style.background = '';
+            document.getElementById('navAbsensi').classList.remove('active');
             
             const labelAbsensi = document.getElementById('labelAbsensi');
             if (labelAbsensi) labelAbsensi.style.color = 'var(--text-secondary)';
@@ -783,28 +1776,62 @@
             if (tab === 'beranda') {
                 document.getElementById('tabBeranda').classList.add('active');
                 document.getElementById('navBeranda').classList.add('active');
+                // Reset absensi photo state when navigating away to Beranda
+                state.photoData = null;
+                const previewImg = document.getElementById('previewImg');
+                const video = document.getElementById('video');
+                const retakeBtn = document.getElementById('retakeBtn');
+                if (previewImg) previewImg.style.display = 'none';
+                if (video) video.style.display = 'block';
+                if (retakeBtn) retakeBtn.style.display = 'none';
                 stopCamera();
             } else if (tab === 'absensi') {
                 document.getElementById('tabAbsensi').classList.add('active');
-                document.getElementById('navAbsensi').style.background = 'linear-gradient(135deg, #0A6B8E, #065473)';
+                document.getElementById('navAbsensi').classList.add('active');
                 if (labelAbsensi) labelAbsensi.style.color = 'var(--primary)';
+                
+                // Clear photo and ensure we start in fullscreen camera mode
+                state.photoData = null;
+                const previewImg = document.getElementById('previewImg');
+                const video = document.getElementById('video');
+                const retakeBtn = document.getElementById('retakeBtn');
+                if (previewImg) previewImg.style.display = 'none';
+                if (video) video.style.display = 'block';
+                if (retakeBtn) retakeBtn.style.display = 'none';
+                openCameraFS();
+                
                 // Auto-start camera after tab switch animation
                 setTimeout(() => autoStartCamera(), 350);
             } else if (tab === 'data') {
                 document.getElementById('tabData').classList.add('active');
                 document.getElementById('navData').classList.add('active');
+                // Reset absensi photo state when navigating away to Data
+                state.photoData = null;
+                const previewImg = document.getElementById('previewImg');
+                const video = document.getElementById('video');
+                const retakeBtn = document.getElementById('retakeBtn');
+                if (previewImg) previewImg.style.display = 'none';
+                if (video) video.style.display = 'block';
+                if (retakeBtn) retakeBtn.style.display = 'none';
                 stopCamera();
             }
         }
 
         function toggleAbsensiTab() {
+            // Blokir akses menu absensi jika sudah pulang (sehari hanya bisa sekali)
+            if (state.absenStatus === 'sudah_pulang') {
+                tampilPicoModal('sukses', '<b>Anda sudah menyelesaikan absen hari ini! 🎉</b><br>Absen masuk dan pulang sudah tercatat.<br>Selamat beristirahat, sampai jumpa besok!', () => {
+                    switchTab('beranda');
+                });
+                return;
+            }
+            
             const tabAbsensi = document.getElementById('tabAbsensi');
             if (tabAbsensi.classList.contains('active')) {
                 // Already on absensi tab -> go back to beranda (close)
                 switchTab('beranda');
                 showToast('Kembali ke Beranda', 'info');
             } else {
-                // Open absensi tab -> auto start camera
                 switchTab('absensi');
             }
         }
@@ -822,13 +1849,346 @@
             box.classList.remove('hidden');
         }
 
+        function openCameraFS() {
+            const container = document.getElementById('cameraContainer');
+            if (container) {
+                container.classList.add('fullscreen');
+                const captureBtn = document.getElementById('captureBtn');
+                if (captureBtn) {
+                    captureBtn.style.display = 'none';
+                    captureBtn.classList.remove('disabled');
+                }
+                const retakeBtn = document.getElementById('retakeBtn');
+                if (retakeBtn) retakeBtn.style.display = 'none';
+            }
+        }
+
+        function closeCameraFS(event) {
+            if (event) event.stopPropagation();
+            const container = document.getElementById('cameraContainer');
+            if (container) {
+                container.classList.remove('fullscreen');
+            }
+            stopCamera();
+            if (!state.photoData) {
+                switchTab('beranda');
+            }
+        }
+
+        function startFaceDetection() {
+            const video = document.getElementById('video');
+            const container = document.getElementById('faceBoxesContainer');
+            if (!container) return;
+            
+            if (typeof pico !== 'undefined') {
+                updateMemory = pico.instantiate_detection_memory(5);
+            }
+
+            const detectCanvas = document.createElement('canvas');
+            const detectCtx = detectCanvas.getContext('2d');
+            const dWidth = 320;
+            const dHeight = 240;
+            detectCanvas.width = dWidth;
+            detectCanvas.height = dHeight;
+            
+            const imagePixels = new Uint8Array(dWidth * dHeight);
+
+            if (faceDetectionInterval) clearInterval(faceDetectionInterval);
+            
+            let stableFaceFrames = 0;
+            const cameraStartTime = Date.now();
+            const cameraWarmupDuration = 3000; // 3 seconds camera warmup/delay to stabilize focus/exposure
+            
+            faceDetectionInterval = setInterval(() => {
+                if (!video || video.paused || video.ended || !facefinderClassifyRegion) {
+                    return;
+                }
+                
+                const helpText = document.getElementById('cameraFSHelpText');
+                
+                detectCtx.drawImage(video, 0, 0, dWidth, dHeight);
+                const imgData = detectCtx.getImageData(0, 0, dWidth, dHeight);
+                const rgba = imgData.data;
+                
+                for (let i = 0; i < dWidth * dHeight; i++) {
+                    imagePixels[i] = (2 * rgba[i*4] + 7 * rgba[i*4+1] + rgba[i*4+2]) / 10;
+                }
+
+                const imageParams = {
+                    "pixels": imagePixels,
+                    "nrows": dHeight,
+                    "ncols": dWidth,
+                    "ldim": dWidth
+                };
+                
+                const runParams = {
+                    "shiftfactor": 0.1,
+                    "minsize": 40,
+                    "maxsize": 1000,
+                    "scalefactor": 1.1
+                };
+
+                let detections = pico.run_cascade(imageParams, facefinderClassifyRegion, runParams);
+                detections = pico.cluster_detections(detections, 0.2);
+                
+                if (updateMemory) {
+                    detections = updateMemory(detections);
+                    detections = pico.cluster_detections(detections, 0.2);
+                }
+                // Lowered threshold to 8.5 to detect side-lit or partially shadowed faces reliably
+                const validDets = detections.filter(det => det[3] > 8.5);
+                
+                const anyOccluded = renderFaceBoxes(validDets, dWidth, dHeight, detectCtx);
+                
+                if (validDets.length > 0 && !anyOccluded) {
+                    stableFaceFrames++;
+                    
+                    if (helpText) {
+                        helpText.innerText = `📸 Wajah terdeteksi! Mengambil foto...`;
+                        helpText.style.color = "#34C759";
+                        helpText.style.textShadow = "0 2px 4px rgba(0,0,0,0.8)";
+                    }
+                    
+                    const elapsed = Date.now() - cameraStartTime;
+                    if (stableFaceFrames >= 5 && elapsed >= 3000) { // ~400ms stable green box, and 3s minimum warmup passed
+                        if (faceDetectionInterval) {
+                            clearInterval(faceDetectionInterval);
+                            faceDetectionInterval = null;
+                        }
+                        console.log("[AUTO-CAPTURE] Face stable and 3s elapsed. Triggering capture...");
+                        capturePhoto();
+                    }
+                } else {
+                    stableFaceFrames = 0;
+                }
+            }, 80);
+        }
+
+        function checkFaceOcclusion(ctx, c, r, s) {
+            if (!ctx) return false;
+            
+            // Calculate unclipped sampling regions based on actual face scale
+            const upperYStart = r - s/2 + s * 0.15;
+            const upperYEnd = r - s/2 + s * 0.35;
+            const lowerYStart = r - s/2 + s * 0.60;
+            const lowerYEnd = r - s/2 + s * 0.85;
+            const xStart = c - s/2 + s * 0.20;
+            const xEnd = c - s/2 + s * 0.80;
+            
+            // Clip to canvas boundaries (320x240)
+            const safeUpperYStart = Math.max(0, Math.min(239, Math.floor(upperYStart)));
+            const safeUpperYEnd = Math.max(0, Math.min(239, Math.floor(upperYEnd)));
+            const safeLowerYStart = Math.max(0, Math.min(239, Math.floor(lowerYStart)));
+            const safeLowerYEnd = Math.max(0, Math.min(239, Math.floor(lowerYEnd)));
+            const safeXStart = Math.max(0, Math.min(319, Math.floor(xStart)));
+            const safeXEnd = Math.max(0, Math.min(319, Math.floor(xEnd)));
+            
+            const upperHeight = safeUpperYEnd - safeUpperYStart;
+            const lowerHeight = safeLowerYEnd - safeLowerYStart;
+            const sampleWidth = safeXEnd - safeXStart;
+            
+            if (upperHeight < 2 || lowerHeight < 2 || sampleWidth < 2) {
+                // Too close or too far off-screen, skip occlusion checks to prevent false positives
+                return false;
+            }
+            
+            let upperR = 0, upperG = 0, upperB = 0, upperCount = 0;
+            let lowerR = 0, lowerG = 0, lowerB = 0, lowerCount = 0;
+            
+            try {
+                // Get pixels for the upper region
+                const upperData = ctx.getImageData(safeXStart, safeUpperYStart, sampleWidth, upperHeight).data;
+                for (let i = 0; i < upperData.length; i += 4) {
+                    upperR += upperData[i];
+                    upperG += upperData[i+1];
+                    upperB += upperData[i+2];
+                    upperCount++;
+                }
+                
+                // Get pixels for the lower region
+                const lowerData = ctx.getImageData(safeXStart, safeLowerYStart, sampleWidth, lowerHeight).data;
+                for (let i = 0; i < lowerData.length; i += 4) {
+                    lowerR += lowerData[i];
+                    lowerG += lowerData[i+1];
+                    lowerB += lowerData[i+2];
+                    lowerCount++;
+                }
+            } catch (e) {
+                console.error("Error sampling face pixels:", e);
+                return false;
+            }
+            
+            if (upperCount === 0 || lowerCount === 0) return false;
+            
+            const avgUpperR = upperR / upperCount;
+            const avgUpperG = upperG / upperCount;
+            const avgUpperB = upperB / upperCount;
+            
+            const avgLowerR = lowerR / lowerCount;
+            const avgLowerG = lowerG / lowerCount;
+            const avgLowerB = lowerB / lowerCount;
+            
+            // Euclidean distance in RGB color space
+            const colorDist = Math.sqrt(
+                Math.pow(avgUpperR - avgLowerR, 2) +
+                Math.pow(avgUpperG - avgLowerG, 2) +
+                Math.pow(avgUpperB - avgLowerB, 2)
+            );
+            
+            // Brightness (Luma) formula: Y = 0.299R + 0.587G + 0.114B
+            const upperBright = 0.299 * avgUpperR + 0.587 * avgUpperG + 0.114 * avgUpperB;
+            const lowerBright = 0.299 * avgLowerR + 0.587 * avgLowerG + 0.114 * avgLowerB;
+            
+            // Check for blue/green medical mask (common)
+            // Relaxes matching threshold to avoid false alerts under cold/warm indoor lighting
+            const isMedicalMask = (avgLowerB > avgLowerR + 15) || (avgLowerG > avgLowerR + 25);
+            
+            // Check for black/dark mask (brightness difference > 70 luma levels)
+            const isDarkMask = (upperBright - lowerBright) > 70;
+            
+            // Check for white/light mask (brightness difference > 70 luma levels)
+            const isWhiteMask = (lowerBright - upperBright) > 70;
+            
+            // General color shift (increased from 30 to 65 to be more lenient on lighting/shadows)
+            const isColorShift = colorDist > 65;
+            
+            if (isMedicalMask || isDarkMask || isWhiteMask || isColorShift) {
+                console.log(`[OCCLUSION DETECTED] colorDist: ${colorDist.toFixed(1)}, upperBr: ${upperBright.toFixed(1)}, lowerBr: ${lowerBright.toFixed(1)}, medMask: ${isMedicalMask}`);
+                return true;
+            }
+            
+            return false;
+        }
+
+        function renderFaceBoxes(dets, dWidth, dHeight, detectCtx) {
+            const container = document.getElementById('faceBoxesContainer');
+            const video = document.getElementById('video');
+            const helpText = document.getElementById('cameraFSHelpText');
+            if (!container || !video) return;
+            container.innerHTML = '';
+            
+            if (dets.length === 0) {
+                // Generate 3 confused red boxes scattered randomly
+                for (let i = 0; i < 3; i++) {
+                    const box = document.createElement('div');
+                    box.className = 'confused-box';
+                    
+                    // Generate random positions (in percentages) and sizes
+                    const w = Math.floor(Math.random() * 60) + 50;  // 50px to 110px
+                    const h = Math.floor(Math.random() * 60) + 50;  // 50px to 110px
+                    const x = Math.floor(Math.random() * 80);        // 0% to 80%
+                    const y = Math.floor(Math.random() * 80);        // 0% to 80%
+                    
+                    box.style.width = `${w}px`;
+                    box.style.height = `${h}px`;
+                    box.style.left = `${x}%`;
+                    box.style.top = `${y}%`;
+                    
+                    const errCodes = ["NO_FACE", "SCAN_ERR", "RETRYING", "FACE_LOST", "SYS_SRCH", "ALIGN_ERR", "ERR_109", "ERR_404"];
+                    const randomCode = errCodes[Math.floor(Math.random() * errCodes.length)];
+                    box.setAttribute('data-code', randomCode);
+                    
+                    container.appendChild(box);
+                }
+            }
+            // Get actual dimensions of the video element (viewport size)
+            const rect = video.getBoundingClientRect();
+            const containerWidth = rect.width;
+            const containerHeight = rect.height;
+            if (!containerWidth || !containerHeight) return;
+            
+            // Get intrinsic dimensions of the video stream
+            const videoWidth = video.videoWidth;
+            const videoHeight = video.videoHeight;
+            if (!videoWidth || !videoHeight) return;
+            
+            // Calculate scale factor matching object-fit: cover
+            const scale = Math.max(containerWidth / videoWidth, containerHeight / videoHeight);
+            
+            // Calculate actual rendered dimensions of the video inside container
+            const renderedWidth = videoWidth * scale;
+            const renderedHeight = videoHeight * scale;
+            
+            // Calculate offset crops
+            const offsetX = (containerWidth - renderedWidth) / 2;
+            const offsetY = (containerHeight - renderedHeight) / 2;
+            
+            let anyOccluded = false;
+            
+            dets.forEach(det => {
+                const [r, c, s, q] = det;
+                
+                // Detect occlusion (mask, glasses, hat, etc.)
+                const isOccluded = checkFaceOcclusion(detectCtx, c, r, s);
+                if (isOccluded) {
+                    anyOccluded = true;
+                }
+                
+                const box = document.createElement('div');
+                box.className = 'face-track-box active';
+                if (isOccluded) {
+                    box.classList.add('occluded');
+                }
+                
+                // 1. Calculate face center in normalized coordinates (0.0 to 1.0)
+                const normCenterX = c / dWidth;
+                const normCenterY = r / dHeight;
+                
+                // 2. Mirror the X coordinate because the video is mirrored (scaleX(-1))
+                const normCenterXMirrored = 1 - normCenterX;
+                
+                // 3. Calculate box size in the rendered video area (based on width scale)
+                const boxSize = (s / dWidth) * renderedWidth;
+                
+                // 4. Map the center coordinates to the rendered video area
+                const centerX = normCenterXMirrored * renderedWidth;
+                const centerY = normCenterY * renderedHeight;
+                
+                // 5. Calculate top-left corner of the square box centered at (centerX, centerY)
+                const xInRendered = centerX - boxSize / 2;
+                const yInRendered = centerY - boxSize / 2;
+                
+                // 6. Add offsets to get coordinates relative to the container
+                const finalX = xInRendered + offsetX;
+                const finalY = yInRendered + offsetY;
+                const finalSize = boxSize;
+                
+                // Apply precise inline styles in pixels
+                box.style.left = `${finalX}px`;
+                box.style.top = `${finalY}px`;
+                box.style.width = `${finalSize}px`;
+                box.style.height = `${finalSize}px`;
+                
+                container.appendChild(box);
+            });
+            
+            // Update help text style and text based on occlusion state
+            if (helpText) {
+                if (anyOccluded) {
+                    helpText.innerText = "⚠️ Harap lepas kacamata, topi, atau masker Anda!";
+                    helpText.style.color = "#FF3B30";
+                    helpText.style.textShadow = "0 2px 4px rgba(0,0,0,0.8)";
+                } else {
+                    helpText.innerText = "Dilarang menggunakan kacamata, topi, atau masker yang menutupi wajah!";
+                    helpText.style.color = "#FFFFFF";
+                    helpText.style.textShadow = "0 2px 4px rgba(0,0,0,0.5)";
+                }
+            }
+            return anyOccluded;
+        }
+
+
         // Auto-start camera when tab opens - no manual button needed
         async function autoStartCamera() {
             // Small delay to let previous stream fully release
             await new Promise(r => setTimeout(r, 400));
             try {
+                if (!state.photoData) {
+                    openCameraFS();
+                }
                 await startCameraStream();
                 hideCameraOverlay();
+                startFaceDetection();
             } catch (err) {
                 if (err.name === 'NotAllowedError') { showCameraError('Izin kamera ditolak.'); showPermHelp(); }
                 else if (err.name === 'NotFoundError') showCameraError('Kamera tidak ditemukan.');
@@ -840,6 +2200,7 @@
                         await startCameraStream();
                         hideCameraOverlay();
                         document.getElementById('cameraErrorBox').classList.add('hidden');
+                        startFaceDetection();
                     } catch (err2) {
                         showCameraError('Kamera sedang dipakai aplikasi lain.');
                     }
@@ -849,15 +2210,28 @@
         }
 
         function stopCamera() {
+            if (faceDetectionInterval) {
+                clearInterval(faceDetectionInterval);
+                faceDetectionInterval = null;
+            }
+            const container = document.getElementById('faceBoxesContainer');
+            if (container) container.innerHTML = '';
+
             if (state.stream) {
                 state.stream.getTracks().forEach(t => { t.stop(); });
                 state.stream = null;
             }
             const video = document.getElementById('video');
             if (video) {
+                video.classList.remove('playing');
                 video.srcObject = null;
                 video.pause();
                 video.load(); // Force release
+            }
+            const loadingOverlay = document.getElementById('cameraLoadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.remove('fade-out');
+                loadingOverlay.style.display = 'none';
             }
             // Don't show "Kamera mati" text since we removed faceLabel
             document.getElementById('faceFrame').classList.remove('active');
@@ -866,10 +2240,19 @@
         async function startCameraStream() {
             const video = document.getElementById('video');
             stopCamera();
+            
+            const container = document.getElementById('cameraContainer');
+            if (container) container.classList.remove('hidden');
 
             // Ensure video element is fully reset
             video.style.display = 'block';
             video.removeAttribute('src');
+
+            const loadingOverlay = document.getElementById('cameraLoadingOverlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.remove('fade-out');
+                loadingOverlay.style.display = 'flex';
+            }
 
             const constraints = {
                 video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false
@@ -885,10 +2268,21 @@
 
             // Wait for video to be ready with better promise handling
             await new Promise((resolve, reject) => {
+                const onPlaying = () => {
+                    video.classList.add('playing');
+                    if (loadingOverlay) {
+                        loadingOverlay.classList.add('fade-out');
+                        setTimeout(() => {
+                            if (loadingOverlay.classList.contains('fade-out')) {
+                                loadingOverlay.style.display = 'none';
+                            }
+                        }, 300);
+                    }
+                    resolve();
+                };
+                video.onplaying = onPlaying;
                 const onLoaded = () => {
-                    video.play().then(() => {
-                        resolve();
-                    }).catch(reject);
+                    video.play().catch(reject);
                 };
                 video.onloadedmetadata = onLoaded;
                 video.onloadeddata = onLoaded;
@@ -922,11 +2316,18 @@
             }
             canvas.width = w; canvas.height = h;
             const ctx = canvas.getContext('2d');
-            ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0);
+            ctx.translate(canvas.width, 0); ctx.scale(-1, 1); ctx.drawImage(video, 0, 0, w, h);
             state.photoData = canvas.toDataURL('image/jpeg', 0.6);
             preview.src = state.photoData; preview.style.display = 'block';
-            video.style.display = 'none'; document.getElementById('retakeBtn').style.display = 'block';
-            document.getElementById('captureBtn').classList.add('disabled');
+            
+            const container = document.getElementById('cameraContainer');
+            if (container) {
+                container.classList.remove('fullscreen');
+            }
+            
+            video.style.display = 'none'; 
+            document.getElementById('retakeBtn').style.display = 'block';
+            document.getElementById('captureBtn').style.display = 'none';
             stopCamera();
             showToast('Foto berhasil diambil', 'success'); playSound('success');
         }
@@ -935,14 +2336,49 @@
             document.getElementById('previewImg').style.display = 'none';
             document.getElementById('video').style.display = 'block';
             document.getElementById('retakeBtn').style.display = 'none';
-            document.getElementById('captureBtn').classList.remove('disabled');
             state.photoData = null;
             stopCamera();
+            openCameraFS();
             // Auto-restart camera after retake
             setTimeout(() => autoStartCamera(), 300);
         }
 
+        function tutupKameraSelesaiAbsen() {
+            state.photoData = null;
+            document.getElementById('previewImg').style.display = 'none';
+            document.getElementById('previewImg').src = '';
+            document.getElementById('retakeBtn').style.display = 'none';
+            
+            // Sembunyikan container kamera dan overlay fullscreen
+            document.getElementById('cameraOverlay').classList.add('hidden');
+            const container = document.getElementById('cameraContainer');
+            if (container) container.classList.remove('fullscreen');
+            container.classList.add('hidden'); // Sembunyikan sama sekali agar hemat batre
+            
+            // Stop kamera sepenuhnya
+            stopCamera();
+        }
+
         // ==================== GPS ====================
+        function parseKoordinat(val) {
+            if (!val) return NaN;
+            let str = String(val).trim();
+            
+            // Hapus tanda kutip tunggal/ganda (misal dari sheet format text)
+            str = str.replace(/['"]/g, '');
+            
+            // Ganti koma dengan titik untuk standarisasi
+            str = str.replace(/,/g, '.');
+            
+            // Jika ada lebih dari satu titik (misal -7.500.185), pertahankan yang pertama saja
+            const parts = str.split('.');
+            if (parts.length > 2) {
+                str = parts[0] + '.' + parts.slice(1).join('');
+            }
+            
+            return parseFloat(str);
+        }
+
         function initGPS() {
             const badge = document.getElementById('gpsBadge');
             const text = document.getElementById('gpsText');
@@ -953,14 +2389,30 @@
                 (pos) => {
                     state.gps.lat = pos.coords.latitude; state.gps.lng = pos.coords.longitude; state.gps.accuracy = pos.coords.accuracy;
                     const toko = state.tokoList.find(t => t.ID_Toko === document.getElementById('selectToko').value);
-                    if (toko && toko.Lat && toko.Long) {
-                        const jarak = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(toko.Lat), parseFloat(toko.Long));
+                    if (toko) {
+                        if (!toko.Lat || !toko.Long) {
+                            badge.className = 'gps-badge bad'; text.textContent = 'GPS Toko Kosong'; return;
+                        }
+                        const tLat = parseKoordinat(toko.Lat);
+                        const tLng = parseKoordinat(toko.Long);
+                        const tRad = parseKoordinat(toko.Radius_M) || 50;
+                        
+                        if (isNaN(tLat) || isNaN(tLng)) {
+                            badge.className = 'gps-badge bad'; text.textContent = 'Format GPS Toko Salah'; return;
+                        }
+
+                        const jarak = hitungJarak(state.gps.lat, state.gps.lng, tLat, tLng);
                         state.gps.jarak = Math.round(jarak);
-                        const radius = parseFloat(toko.Radius_M) || 50;
-                        if (jarak <= radius) { badge.className = 'gps-badge ok'; text.textContent = `${Math.round(jarak)}m - Valid`; }
-                        else { badge.className = 'gps-badge bad'; text.textContent = `${Math.round(jarak)}m - Jauh (max ${radius}m)`; }
+                        
+                        if (jarak <= tRad) { 
+                            badge.className = 'gps-badge ok'; 
+                            text.textContent = `${Math.round(jarak)}m - Lokasi Sesuai`; 
+                        } else { 
+                            badge.className = 'gps-badge bad'; 
+                            text.textContent = `${Math.round(jarak)}m - Jauh (Batas ${tRad}m)`; 
+                        }
                     } else {
-                        badge.className = 'gps-badge ok'; text.textContent = `GPS aktif (${Math.round(pos.coords.accuracy)}m)`;
+                        badge.className = 'gps-badge bad'; text.textContent = `Pilih Toko Dulu`;
                     }
                 },
                 (err) => {
@@ -985,26 +2437,39 @@
 
         // ==================== TOKO & SHIFT ====================
         async function loadTokoData() {
-            try {
-                const res = await apiCall('getTokoList');
+            const handleData = (res) => {
                 if (res.success && Array.isArray(res.data)) {
                     state.tokoList = res.data.filter(t => t.Status === 'Aktif');
                     const sel = document.getElementById('selectToko');
-                    sel.innerHTML = '<option value="">Pilih...</option>';
-                    state.tokoList.forEach(t => { sel.innerHTML += `<option value="${t.ID_Toko}">${t.Nama_Toko}</option>`; });
+                    if (sel) {
+                        sel.innerHTML = '<option value="">Pilih...</option>';
+                        state.tokoList.forEach(t => { sel.innerHTML += `<option value="${t.ID_Toko}">${t.Nama_Toko}</option>`; });
+                        makeSelectCustom('selectToko');
+                    }
                     const selLembur = document.getElementById('lemburToko');
-                    selLembur.innerHTML = '';
-                    state.tokoList.forEach(t => { selLembur.innerHTML += `<option value="${t.ID_Toko}">${t.Nama_Toko}</option>`; });
+                    if (selLembur) {
+                        selLembur.innerHTML = '';
+                        state.tokoList.forEach(t => { selLembur.innerHTML += `<option value="${t.ID_Toko}">${t.Nama_Toko}</option>`; });
+                        makeSelectCustom('lemburToko');
+                    }
                 }
+            };
+            try {
+                await cachedApiCall('getTokoList', {}, handleData);
             } catch (e) { console.log('loadTokoData error:', e); }
         }
 
         async function onTokoChange() {
             const tokoId = document.getElementById('selectToko').value;
             const shiftSel = document.getElementById('selectShift');
-            if (!tokoId) { shiftSel.innerHTML = '<option value="">Pilih...</option>'; document.getElementById('jamInfoCard').classList.add('hidden'); return; }
-            try {
-                const res = await apiCall('getShiftByToko', { idToko: tokoId });
+            if (!tokoId) { 
+                shiftSel.innerHTML = '<option value="">Pilih...</option>'; 
+                makeSelectCustom('selectShift');
+                updateShiftInfo(); 
+                return; 
+            }
+            
+            const handleData = (res) => {
                 if (res.success && Array.isArray(res.data)) {
                     state.shiftList = res.data;
                     shiftSel.innerHTML = '<option value="">Pilih...</option>';
@@ -1014,25 +2479,39 @@
                         shiftSel.innerHTML += `<option value="${s.ID_Shift}">${s.Nama_Shift} (${jm} - ${jp})</option>`;
                     });
                     if (state.user.shiftDefault) { const ex = res.data.some(s => s.ID_Shift === state.user.shiftDefault); if (ex) shiftSel.value = state.user.shiftDefault; }
+                    makeSelectCustom('selectShift');
                     updateShiftInfo();
                 }
+            };
+            try {
+                await cachedApiCall('getShiftByToko', { idToko: tokoId }, handleData);
             } catch (e) { console.log('onTokoChange error:', e); }
             initGPS();
             updateTokoCardInfo();
         }
 
         function updateShiftInfo() {
+            const tokoId = document.getElementById('selectToko').value;
             const shiftId = document.getElementById('selectShift').value;
-            const shift = state.shiftList.find(s => s.ID_Shift === shiftId);
+            const toko = state.tokoList ? state.tokoList.find(t => t.ID_Toko === tokoId) : null;
+            const shift = state.shiftList ? state.shiftList.find(s => s.ID_Shift === shiftId) : null;
+            
+            const infoNamaTokoEl = document.getElementById('infoNamaToko');
+            if (infoNamaTokoEl) {
+                infoNamaTokoEl.textContent = toko ? toko.Nama_Toko : 'Umum';
+            }
+            
             if (shift) {
                 document.getElementById('jamInfoCard').classList.remove('hidden');
                 const jamMasuk = formatTimeFromResponse(shift.Jam_Masuk);
                 const jamPulang = formatTimeFromResponse(shift.Jam_Pulang);
-                document.getElementById('infoJamMasuk').textContent = 'Jam Masuk: ' + jamMasuk;
-                document.getElementById('infoJamPulang').textContent = 'Jam Pulang: ' + jamPulang;
+                document.getElementById('infoJamMasuk').textContent = 'Masuk: ' + jamMasuk;
+                document.getElementById('infoJamPulang').textContent = 'Pulang: ' + jamPulang;
                 document.getElementById('shiftNama').textContent = (shift.Nama_Shift || 'Reguler') + ' - ' + jamMasuk + ' - ' + jamPulang;
             } else {
-                document.getElementById('jamInfoCard').classList.add('hidden');
+                document.getElementById('jamInfoCard').classList.remove('hidden');
+                document.getElementById('infoJamMasuk').textContent = 'Masuk: --:--';
+                document.getElementById('infoJamPulang').textContent = 'Pulang: --:--';
                 document.getElementById('shiftNama').textContent = 'Reguler - --:-- - --:--';
             }
         }
@@ -1169,7 +2648,6 @@
             }
             return curMin < startMin || curMin > endMin;
         }
-
         function updateButtonVisibility() {
             const bm = document.getElementById('btnMasuk');
             const bp = document.getElementById('btnPulang');
@@ -1185,29 +2663,31 @@
                 return;
             }
             
-            bl.classList.remove('hidden');
-            
             let isLemburDisabled = false;
+            const hasSubmittedLembur = state.lemburStatus === 'Pending' || state.lemburStatus === 'Approved';
             
             if (state.absenStatus === 'belum_masuk') {
                 bm.classList.remove('hidden');
                 bp.classList.add('hidden');
+                bl.classList.remove('hidden');
                 isLemburDisabled = true;
-                bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Belum Absen Masuk`;
+                bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> MODE LEMBUR (BELUM ABSEN)`;
             } else if (state.absenStatus === 'sudah_masuk') {
                 bm.classList.add('hidden');
                 bp.classList.remove('hidden');
                 
-                // Selama shift berjalan (sudah absen masuk), tombol lembur selalu aktif/bisa diakses
-                isLemburDisabled = false;
-                bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> MODE LEMBUR`;
+                if (hasSubmittedLembur) {
+                    bl.classList.add('hidden');
+                } else {
+                    bl.classList.remove('hidden');
+                    isLemburDisabled = false;
+                    bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> AJUKAN LEMBUR`;
+                }
             } else if (state.absenStatus === 'sudah_pulang') {
                 bm.classList.add('hidden');
                 bp.classList.add('hidden');
-                
-                // Setelah absen pulang, tombol lembur kembali off
+                bl.classList.add('hidden');
                 isLemburDisabled = true;
-                bl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Sudah Absen Pulang`;
             } else {
                 bm.classList.add('hidden');
                 bp.classList.add('hidden');
@@ -1217,7 +2697,7 @@
             bl.disabled = isLemburDisabled;
             
             if (ml) {
-                if (isLemburDisabled) {
+                if (isLemburDisabled || hasSubmittedLembur) {
                     ml.disabled = true;
                     ml.style.cursor = 'not-allowed';
                     ml.style.opacity = '0.5';
@@ -1266,9 +2746,29 @@
             if (!document.getElementById('selectShift').value) { showToast('Pilih shift dulu!', 'error'); return; }
 
             const toko = state.tokoList.find(t => t.ID_Toko === document.getElementById('selectToko').value);
-            if (toko && state.gps.jarak !== null) {
-                const radius = parseFloat(toko.Radius_M) || 50;
-                if (state.gps.jarak > radius) { tampilPicoModal('gps_jauh', `Anda ${state.gps.jarak}m dari toko. Max ${radius}m.<br>Mendekatlah!`); return; }
+            if (toko) {
+                if (!toko.Lat || !toko.Long) {
+                    tampilPicoModal('gps_jauh', 'Koordinat GPS Toko belum diatur di sistem (Sheet MASTER_TOKO kolom D & E). Hubungi Admin.');
+                    return;
+                }
+                const tLat = parseKoordinat(toko.Lat);
+                const tLng = parseKoordinat(toko.Long);
+                
+                if (isNaN(tLat) || isNaN(tLng)) {
+                    tampilPicoModal('gps_jauh', 'Format koordinat GPS toko salah. Hubungi Admin.');
+                    return;
+                }
+
+                if (state.gps.lat === null || state.gps.lng === null) {
+                    showToast('Menunggu lokasi GPS Anda... Pastikan GPS menyala.', 'error');
+                    return;
+                }
+                const jarak = hitungJarak(state.gps.lat, state.gps.lng, tLat, tLng);
+                const radius = parseKoordinat(toko.Radius_M) || 50;
+                if (jarak > radius) { 
+                    tampilPicoModal('gps_jauh', `<b>Terlalu Jauh!</b><br>Anda berjarak ${Math.round(jarak)} meter dari toko.<br>Batas toleransi adalah ${radius} meter.<br><br>Silakan mendekat ke lokasi toko.`); 
+                    return; 
+                }
             }
 
             const shiftSelect = document.getElementById('selectShift');
@@ -1296,11 +2796,13 @@
                     state.absenStatus = 'sudah_masuk'; 
                     updateButtonVisibility();
                     
-                    tampilPicoModal('sukses', `<b>Absen Masuk Berhasil!</b><br>Jam: ${localJam}<br>Status: Ontime (Local)`);
+                    tampilPicoModal('sukses', `<b>Absen Masuk Berhasil!</b><br>Jam: ${localJam}<br>Status: Ontime (Local)`, () => {
+                        switchTab('beranda');
+                    });
                     document.getElementById('statusMasuk').textContent = 'Masuk: ' + localJam;
                     document.getElementById('statusMasuk').className = 'status-masuk-capsule ok';
                     
-                    retakePhoto();
+                    tutupKameraSelesaiAbsen();
                     processOutboxQueue();
                 } catch (e) {
                     tampilPicoModal('error', 'Gagal menyimpan absen lokal: ' + e.message);
@@ -1321,13 +2823,25 @@
                 return;
             }
             
-            // Jarak ke Toko Asal Absen Masuk
+            // Jarak ke Toko Asal Absen Masuk (Atau toko yang sedang dipilih jika state.absenTokoId kosong)
             let jarakAsal = Infinity;
             let radiusAsal = 50;
-            const asalToko = state.tokoList.find(t => t.ID_Toko === state.absenTokoId);
-            if (asalToko && asalToko.Lat && asalToko.Long) {
-                jarakAsal = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(asalToko.Lat), parseFloat(asalToko.Long));
-                radiusAsal = parseFloat(asalToko.Radius_M) || 50;
+            const fallbackTokoId = document.getElementById('selectToko').value;
+            const targetTokoId = state.absenTokoId || fallbackTokoId;
+            
+            const asalToko = state.tokoList.find(t => t.ID_Toko === targetTokoId);
+            if (asalToko) {
+                if (!asalToko.Lat || !asalToko.Long) {
+                    tampilPicoModal('gps_jauh', 'Koordinat GPS Toko belum diatur di sistem. Hubungi Admin.');
+                    return;
+                }
+                const tLat = parseKoordinat(asalToko.Lat);
+                const tLng = parseKoordinat(asalToko.Long);
+                
+                if (!isNaN(tLat) && !isNaN(tLng)) {
+                    jarakAsal = hitungJarak(state.gps.lat, state.gps.lng, tLat, tLng);
+                    radiusAsal = parseKoordinat(asalToko.Radius_M) || 50;
+                }
             }
             
             // Jarak ke Toko Lembur (jika ada lembur yang DISETUJUI / Approved)
@@ -1339,8 +2853,12 @@
             if (isLemburApproved && state.lemburTokoId) {
                 lemburToko = state.tokoList.find(t => t.ID_Toko === state.lemburTokoId);
                 if (lemburToko && lemburToko.Lat && lemburToko.Long) {
-                    jarakLembur = hitungJarak(state.gps.lat, state.gps.lng, parseFloat(lemburToko.Lat), parseFloat(lemburToko.Long));
-                    radiusLembur = parseFloat(lemburToko.Radius_M) || 50;
+                    const tLatL = parseKoordinat(lemburToko.Lat);
+                    const tLngL = parseKoordinat(lemburToko.Long);
+                    if (!isNaN(tLatL) && !isNaN(tLngL)) {
+                        jarakLembur = hitungJarak(state.gps.lat, state.gps.lng, tLatL, tLngL);
+                        radiusLembur = parseKoordinat(lemburToko.Radius_M) || 50;
+                    }
                 }
             }
             
@@ -1348,14 +2866,14 @@
             const isNearLembur = isLemburApproved && (jarakLembur <= radiusLembur);
             
             if (!isNearAsal && !isNearLembur) {
-                let msg = `<b>Gagal Absen Pulang!</b><br><br>Anda berada di luar jangkauan area toko:<br>`;
+                let msg = `<b>Terlalu Jauh!</b><br><br>Anda berada di luar radius toleransi toko:<br>`;
                 if (asalToko) {
-                    msg += `- <b>${Math.round(jarakAsal)}m</b> dari Toko Asal (${asalToko.Nama_Toko}) (Max ${radiusAsal}m)<br>`;
+                    msg += `- <b>${Math.round(jarakAsal)}m</b> dari Toko Asal (Batas: ${radiusAsal}m)<br>`;
                 }
                 if (isLemburApproved && lemburToko) {
-                    msg += `- <b>${Math.round(jarakLembur)}m</b> dari Toko Lembur (${lemburToko.Nama_Toko}) (Max ${radiusLembur}m)<br>`;
+                    msg += `- <b>${Math.round(jarakLembur)}m</b> dari Toko Lembur (Batas: ${radiusLembur}m)<br>`;
                 }
-                msg += `<br><span style="color:#E53935;font-weight:800;">Silakan mendekat ke toko untuk melakukan absen pulang!</span>`;
+                msg += `<br><span style="color:#E53935;font-weight:800;">Silakan mendekat ke lokasi toko!</span>`;
                 tampilPicoModal('gps_jauh', msg);
                 return;
             }
@@ -1381,11 +2899,13 @@
                     state.absenStatus = 'sudah_pulang';
                     updateButtonVisibility();
                     
-                    tampilPicoModal('izin_pulang', `<b>Absen Pulang Berhasil!</b><br>Jam: ${localJam}`);
+                    tampilPicoModal('izin_pulang', `<b>Absen Pulang Berhasil!</b><br>Jam: ${localJam}`, () => {
+                        switchTab('beranda');
+                    });
                     document.getElementById('statusPulang').textContent = 'Pulang: ' + localJam;
                     document.getElementById('statusPulang').className = 'status-pulang-capsule ok';
                     
-                    retakePhoto();
+                    tutupKameraSelesaiAbsen();
                     processOutboxQueue();
                 } catch (e) {
                     tampilPicoModal('error', 'Gagal menyimpan absen lokal: ' + e.message);
@@ -1443,6 +2963,7 @@
                     closeModal('modalLembur');
                     tampilPicoModal('lembur_pending', 'Pengajuan lembur terkirim!<br>Tunggu approve dari Bos ya!');
                     resetLemburFoto();
+                    await checkAbsenStatus();
                 } else {
                     showToast(res.error || 'Gagal mengajukan lembur', 'error');
                 }
@@ -1566,8 +3087,7 @@
             
             container.innerHTML = '<div style="font-size:14px;color:var(--text-secondary);padding:6px 0;">Memuat kategori...</div>';
             
-            try {
-                const res = await apiCall('getJenisIzinAktif', { idKaryawan: state.user.id });
+            const handleData = (res) => {
                 if (res && res.success && res.data && res.data.length > 0) {
                     container.innerHTML = '';
                     res.data.forEach((item, index) => {
@@ -1585,6 +3105,10 @@
                 } else {
                     container.innerHTML = '<div style="font-size:14px;color:red;padding:6px 0;">Gagal memuat kategori izin</div>';
                 }
+            };
+            
+            try {
+                await cachedApiCall('getJenisIzinAktif', { idKaryawan: state.user.id }, handleData);
             } catch (e) {
                 container.innerHTML = '<div style="font-size:14px;color:red;padding:6px 0;">Error koneksi data</div>';
             }
@@ -1687,52 +3211,54 @@
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             try {
                 const now = new Date(); now.setDate(now.getDate() + state.jadwalOffset * 7);
-                const res = await apiCall('getJadwalMingguan', { idKaryawan: state.user.id, tanggalReferensi: now.toISOString() });
-                if (res.success) {
-                    const container = document.getElementById('jadwalContainer');
-                    
-                    // Mendapatkan index hari ini (Senin = 0, ..., Minggu = 6)
-                    const todayIndex = (new Date().getDay() + 6) % 7;
-                    
-                    container.innerHTML = res.minggu.map((j, index) => {
-                        const jm = formatTimeFromResponse(j.jamMasuk);
-                        const jp = formatTimeFromResponse(j.jamPulang);
+                const refDate = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+                
+                const handleData = (res) => {
+                    if (res.success) {
+                        const container = document.getElementById('jadwalContainer');
                         
-                        const isLibur = j.libur || j.toko === '—' || j.toko === '-';
-                        let isToday = false;
-                        let isPassed = false;
+                        // Mendapatkan index hari ini (Senin = 0, ..., Minggu = 6)
+                        const todayIndex = (new Date().getDay() + 6) % 7;
                         
-                        if (state.jadwalOffset < 0) {
-                            isPassed = true;
-                        } else if (state.jadwalOffset === 0) {
-                            if (index < todayIndex) isPassed = true;
-                            else if (index === todayIndex) isToday = true;
-                        }
-                        
-                        let cardStyle = '';
-                        let todayBadge = '';
-                        let statusBadge = '';
-                        
-                        if (isToday) {
-                            cardStyle = `background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%); border: 2.5px solid #10B981; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.18); transform: scale(1.01);`;
-                            todayBadge = `<span style="background: #10B981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 8px; box-shadow: 0 2px 6px rgba(16,185,129,0.2);">Hari Ini</span>`;
-                        } else if (isPassed) {
-                            cardStyle = `background: #F8FAFC; border: 1.5px solid #E2E8F0; opacity: 0.45; filter: grayscale(10%);`;
-                        } else {
-                            cardStyle = `background: white; border: 1.5px solid #E2E8F0; box-shadow: 0 4px 12px rgba(0,0,0,0.015);`;
-                        }
-                        
-                        if (isLibur) {
-                            statusBadge = `<span class="badge" style="background: #FEE2E2; color: #EF4444; border: 1px solid #FECACA; font-weight: 800; font-size: 11px; padding: 6px 12px; border-radius: 12px;">LIBUR</span>`;
-                        } else {
-                            statusBadge = `<span class="badge badge-green" style="font-weight: 800; font-size: 11px; padding: 6px 12px; border-radius: 12px;">${j.shift}</span>`;
-                        }
-                        
-                        const tglSplit = j.tanggal.split(' ');
-                        const tglHari = tglSplit[0] || '';
-                        const tglBulan = tglSplit[1] || '';
-                        
-                        return `
+                        container.innerHTML = res.minggu.map((j, index) => {
+                            const jm = formatTimeFromResponse(j.jamMasuk);
+                            const jp = formatTimeFromResponse(j.jamPulang);
+                            
+                            const isLibur = j.libur || j.toko === '—' || j.toko === '-';
+                            let isToday = false;
+                            let isPassed = false;
+                            
+                            if (state.jadwalOffset < 0) {
+                                isPassed = true;
+                            } else if (state.jadwalOffset === 0) {
+                                if (index < todayIndex) isPassed = true;
+                                else if (index === todayIndex) isToday = true;
+                            }
+                            
+                            let cardStyle = '';
+                            let todayBadge = '';
+                            let statusBadge = '';
+                            
+                            if (isToday) {
+                                cardStyle = `background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%); border: 2.5px solid #10B981; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.18); transform: scale(1.01);`;
+                                todayBadge = `<span style="background: #10B981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 8px; box-shadow: 0 2px 6px rgba(16,185,129,0.2);">Hari Ini</span>`;
+                            } else if (isPassed) {
+                                cardStyle = `background: #F8FAFC; border: 1.5px solid #E2E8F0; opacity: 0.45; filter: grayscale(10%);`;
+                            } else {
+                                cardStyle = `background: white; border: 1.5px solid #E2E8F0; box-shadow: 0 4px 12px rgba(0,0,0,0.015);`;
+                            }
+                            
+                            if (isLibur) {
+                                statusBadge = `<span class="badge" style="background: #FEE2E2; color: #EF4444; border: 1px solid #FECACA; font-weight: 800; font-size: 11px; padding: 6px 12px; border-radius: 12px;">LIBUR</span>`;
+                            } else {
+                                statusBadge = `<span class="badge badge-green" style="font-weight: 800; font-size: 11px; padding: 6px 12px; border-radius: 12px;">${j.shift}</span>`;
+                            }
+                            
+                            const tglSplit = j.tanggal.split(' ');
+                            const tglHari = tglSplit[0] || '';
+                            const tglBulan = tglSplit[1] || '';
+                            
+                            return `
 <div class="jadwal-card" style="border-radius: 20px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; transition: all 0.25s ease; ${cardStyle}">
     <div style="display: flex; align-items: center; gap: 14px;">
         <div style="text-align: center; min-width: 55px; padding-right: 12px; border-right: 2px solid ${isToday ? '#10B981' : isPassed ? '#CBD5E1' : '#0D8ABC'};">
@@ -1759,12 +3285,15 @@
     </div>
 </div>
 `;
-                    }).join('');
-                    
-                    const senin = new Date(now); senin.setDate(now.getDate() - now.getDay() + 1);
-                    const minggu = new Date(senin); minggu.setDate(senin.getDate() + 6);
-                    document.getElementById('jadwalPeriode').textContent = senin.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) + ' - ' + minggu.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-                }
+                        }).join('');
+                        
+                        const senin = new Date(now); senin.setDate(now.getDate() - now.getDay() + 1);
+                        const minggu = new Date(senin); minggu.setDate(senin.getDate() + 6);
+                        document.getElementById('jadwalPeriode').textContent = senin.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) + ' - ' + minggu.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                    }
+                };
+                
+                await cachedApiCall('getJadwalMingguan', { idKaryawan: state.user.id, tanggalReferensi: refDate }, handleData);
             } catch (e) { console.log('renderJadwal error:', e); }
         }
 
@@ -1830,176 +3359,184 @@
                 const currentMonth = now.getMonth();
                 const todayDate = now.getDate();
                 
-                const res = await apiCall('getRaportBulanan', { idKaryawan: state.user.id, bulan: currentMonth + 1, tahun: currentYear });
-                if (res.success) {
-                    document.getElementById('raportHadir').textContent = res.totalHadir;
-                    document.getElementById('raportTelat').textContent = res.totalTelat;
-                    
-                    // Generate list of dates from 1st of current month up to today
-                    const datesList = [];
-                    for (let d = 1; d <= todayDate; d++) {
-                        const dateObj = new Date(currentYear, currentMonth, d);
-                        const yyyy = dateObj.getFullYear();
-                        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-                        const dd = String(dateObj.getDate()).padStart(2, '0');
-                        const dateStr = `${yyyy}-${mm}-${dd}`;
-                        datesList.push({
-                            dateStr: dateStr,
-                            dateObj: dateObj
-                        });
-                    }
-                    // Sort descending (latest/newest dates first)
-                    datesList.sort((a, b) => b.dateObj - a.dateObj);
-                    
-                    const tbody = document.getElementById('raportTbody');
-                    tbody.innerHTML = datesList.map(item => {
-                        const dateStr = item.dateStr;
-                        const dateObj = item.dateObj;
-                        const displayDateLabel = formatIndonesianDateLabel(dateObj);
+                const handleData = (res) => {
+                    if (res.success) {
+                        document.getElementById('raportHadir').textContent = res.totalHadir;
+                        document.getElementById('raportTelat').textContent = res.totalTelat;
                         
-                        // 1. Check if attended (check-in data exists)
-                        const d = (res.detailHarian || []).find(x => isSameDay(x.tanggal, dateStr));
-                        if (d) {
-                            const hasLembur = d.durasiLembur && d.durasiLembur !== '' && d.durasiLembur !== '-';
-                            const lemburBadge = hasLembur ? `<span class="badge-lembur-tag">🔥 Lembur</span>` : '';
-                            const swapBadge = d.isSwap ? `<span class="badge-swap-tag" title="${d.swapDetail || 'Tukar Shift'}">⇆ Tukar Shift</span>` : '';
+                        // Generate list of dates from 1st of current month up to today
+                        const datesList = [];
+                        for (let d = 1; d <= todayDate; d++) {
+                            const dateObj = new Date(currentYear, currentMonth, d);
+                            const yyyy = dateObj.getFullYear();
+                            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                            const dd = String(dateObj.getDate()).padStart(2, '0');
+                            const dateStr = `${yyyy}-${mm}-${dd}`;
+                            datesList.push({
+                                dateStr: dateStr,
+                                dateObj: dateObj
+                            });
+                        }
+                        // Sort descending (latest/newest dates first)
+                        datesList.sort((a, b) => b.dateObj - a.dateObj);
+                        
+                        const tbody = document.getElementById('raportTbody');
+                        tbody.innerHTML = datesList.map(item => {
+                            const dateStr = item.dateStr;
+                            const dateObj = item.dateObj;
+                            const displayDateLabel = formatIndonesianDateLabel(dateObj);
                             
-                            const resolvedFotoMasuk = resolveFotoUrl(d.fotoMasuk);
-                            const resolvedFotoPulang = resolveFotoUrl(d.fotoPulang);
-                            
-                            const fotoMasukHtml = resolvedFotoMasuk 
-                                ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedFotoMasuk}')"><img src="${resolvedFotoMasuk}" alt="Check In"></div>`
-                                : `<div class="photo-circle-wrapper"><div class="photo-placeholder">👤</div></div>`;
+                            // 1. Check if attended (check-in data exists)
+                            const d = (res.detailHarian || []).find(x => isSameDay(x.tanggal, dateStr));
+                            if (d) {
+                                const hasLembur = d.durasiLembur && d.durasiLembur !== '' && d.durasiLembur !== '-';
+                                const lemburBadge = hasLembur ? `<span class="badge-lembur-tag">🔥 Lembur</span>` : '';
+                                const swapBadge = d.isSwap ? `<span class="badge-swap-tag" title="${d.swapDetail || 'Tukar Shift'}">⇆ Tukar Shift</span>` : '';
                                 
-                            const fotoPulangHtml = resolvedFotoPulang
-                                ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedFotoPulang}')"><img src="${resolvedFotoPulang}" alt="Check Out"></div>`
-                                : `<div class="photo-circle-wrapper"><div class="photo-placeholder">👤</div></div>`;
+                                const resolvedFotoMasuk = resolveFotoUrl(d.fotoMasuk);
+                                const resolvedFotoPulang = resolveFotoUrl(d.fotoPulang);
                                 
-                            return `
-                                <div class="raport-card animate-fade-in">
-                                    <div class="raport-card-header">
-                                        <div class="raport-card-date">${displayDateLabel}</div>
-                                        <div class="flex items-center gap-2">
-                                            ${swapBadge}
-                                            ${lemburBadge}
-                                            ${d.status === 'Ontime' 
-                                                ? '<span class="raport-card-badge badge-ontime">✅ Ontime</span>' 
-                                                : '<span class="raport-card-badge badge-telat">⏳ Telat ' + (d.menitTelat || 0) + 'm</span>'}
-                                        </div>
-                                    </div>
-                                    <div class="raport-card-meta">
-                                        <span class="raport-meta-item store">📍 ${d.toko || 'Toko Default'}</span>
-                                        <span class="raport-meta-item">⏱️ ${d.shift || 'Shift'}</span>
-                                    </div>
-                                    <div class="raport-photos-grid">
-                                        <div class="photo-column">
-                                            ${fotoMasukHtml}
-                                            <div class="photo-info">
-                                                <span class="photo-label">Check In</span>
-                                                <span class="photo-time">${d.jamMasuk || '-'}</span>
+                                const fotoMasukHtml = resolvedFotoMasuk 
+                                    ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedFotoMasuk}')"><img class="cacheable-img" data-src="${d.fotoMasuk}" alt="Check In"></div>`
+                                    : `<div class="photo-circle-wrapper"><div class="photo-placeholder">👤</div></div>`;
+                                    
+                                const fotoPulangHtml = resolvedFotoPulang
+                                    ? `<div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedFotoPulang}')"><img class="cacheable-img" data-src="${d.fotoPulang}" alt="Check Out"></div>`
+                                    : `<div class="photo-circle-wrapper"><div class="photo-placeholder">👤</div></div>`;
+                                    
+                                return `
+                                    <div class="raport-card animate-fade-in">
+                                        <div class="raport-card-header">
+                                            <div class="raport-card-date">${displayDateLabel}</div>
+                                            <div class="flex items-center gap-2">
+                                                ${swapBadge}
+                                                ${lemburBadge}
+                                                ${d.status === 'Ontime' 
+                                                    ? '<span class="raport-card-badge badge-ontime">✅ Ontime</span>' 
+                                                    : '<span class="raport-card-badge badge-telat">⏳ Telat ' + (d.menitTelat || 0) + 'm</span>'}
                                             </div>
                                         </div>
-                                        <div class="photo-column">
-                                            ${fotoPulangHtml}
-                                            <div class="photo-info">
-                                                <span class="photo-label">Check Out</span>
-                                                <span class="photo-time">${d.jamPulang || '-'}</span>
+                                        <div class="raport-card-meta">
+                                            <span class="raport-meta-item store">📍 ${d.toko || 'Toko Default'}</span>
+                                            <span class="raport-meta-item">⏱️ ${d.shift || 'Shift'}</span>
+                                        </div>
+                                        <div class="raport-photos-grid">
+                                            <div class="photo-column">
+                                                ${fotoMasukHtml}
+                                                <div class="photo-info">
+                                                    <span class="photo-label">Check In</span>
+                                                    <span class="photo-time">${d.jamMasuk || '-'}</span>
+                                                </div>
+                                            </div>
+                                            <div class="photo-column">
+                                                ${fotoPulangHtml}
+                                                <div class="photo-info">
+                                                    <span class="photo-label">Check Out</span>
+                                                    <span class="photo-time">${d.jamPulang || '-'}</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <div class="raport-durasi-section">
-                                        <div class="durasi-item">
-                                            <span>Durasi Kerja:</span>
-                                            <span class="durasi-value">${d.jamKerja || '-'}</span>
+                                        <div class="raport-durasi-section">
+                                            <div class="durasi-item">
+                                                <span>Durasi Kerja:</span>
+                                                <span class="durasi-value">${d.jamKerja || '-'}</span>
+                                            </div>
+                                            ${hasLembur ? `
+                                            <div class="durasi-item">
+                                                <span>Durasi Lembur:</span>
+                                                <span class="durasi-value" style="color:#2E7D32;">${d.durasiLembur}</span>
+                                            </div>
+                                            ` : ''}
                                         </div>
-                                        ${hasLembur ? `
-                                        <div class="durasi-item">
-                                            <span>Durasi Lembur:</span>
-                                            <span class="durasi-value" style="color:#2E7D32;">${d.durasiLembur}</span>
-                                        </div>
-                                        ` : ''}
                                     </div>
-                                </div>
-                            `;
-                        }
-                        
-                        // 2. Check if Sunday (Libur Toko)
-                        const isSunday = dateObj.getDay() === 0;
-                        if (isSunday) {
-                            return `
-                                <div class="raport-card raport-card-libur animate-fade-in">
-                                    <div class="raport-card-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
-                                        <div class="raport-card-date" style="color: #64748b;">${displayDateLabel}</div>
-                                        <span class="raport-card-badge badge-libur-status">😴 Libur Toko</span>
-                                    </div>
-                                </div>
-                            `;
-                        }
-                        
-                        // 3. Check if approved Izin / Sakit / Cuti
-                        const leave = (res.izinCuti || []).find(i => dateStr >= i.tanggalMulai && dateStr <= i.tanggalSelesai);
-                        if (leave) {
-                            const leaveType = String(leave.tipe).toLowerCase();
-                            let leaveClass = 'type-izin';
-                            let leaveBadgeIcon = '📝';
-                            if (leaveType.includes('sakit')) {
-                                leaveClass = 'type-sakit';
-                                leaveBadgeIcon = '🤒';
-                            } else if (leaveType.includes('cuti')) {
-                                leaveClass = 'type-cuti';
-                                leaveBadgeIcon = '✈️';
+                                `;
                             }
                             
-                            const resolvedLampiran = leave.lampiranUrl ? resolveFotoUrl(leave.lampiranUrl) : '';
+                            // 2. Check if Sunday (Libur Toko)
+                            const isSunday = dateObj.getDay() === 0;
+                            if (isSunday) {
+                                return `
+                                    <div class="raport-card raport-card-libur animate-fade-in">
+                                        <div class="raport-card-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                                            <div class="raport-card-date" style="color: #64748b;">${displayDateLabel}</div>
+                                            <span class="raport-card-badge badge-libur-status">😴 Libur Toko</span>
+                                        </div>
+                                    </div>
+                                `;
+                            }
                             
-                            return `
-                                <div class="raport-card raport-card-izin ${leaveClass} animate-fade-in">
-                                    <div class="raport-card-header">
-                                        <div class="raport-card-date">${displayDateLabel}</div>
-                                        <span class="raport-card-badge badge-izin-status">${leaveBadgeIcon} ${leave.tipe}</span>
-                                    </div>
-                                    <div class="raport-izin-body" style="display: flex; gap: 12px; align-items: center; margin-top: 8px;">
-                                        <div class="raport-izin-reason-section" style="flex: 1; margin-top: 0;">
-                                            <div class="izin-reason-title">Keperluan / Keterangan</div>
-                                            <div class="izin-reason-value">"${leave.alasan || 'Disetujui Admin'}"</div>
+                            // 3. Check if approved Izin / Sakit / Cuti
+                            const leave = (res.izinCuti || []).find(i => dateStr >= i.tanggalMulai && dateStr <= i.tanggalSelesai);
+                            if (leave) {
+                                const leaveType = String(leave.tipe).toLowerCase();
+                                let leaveClass = 'type-izin';
+                                let leaveBadgeIcon = '📝';
+                                if (leaveType.includes('sakit')) {
+                                    leaveClass = 'type-sakit';
+                                    leaveBadgeIcon = '🤒';
+                                } else if (leaveType.includes('cuti')) {
+                                    leaveClass = 'type-cuti';
+                                    leaveBadgeIcon = '✈️';
+                                }
+                                
+                                const resolvedLampiran = leave.lampiranUrl ? resolveFotoUrl(leave.lampiranUrl) : '';
+                                
+                                return `
+                                    <div class="raport-card raport-card-izin ${leaveClass} animate-fade-in">
+                                        <div class="raport-card-header">
+                                            <div class="raport-card-date">${displayDateLabel}</div>
+                                            <span class="raport-card-badge badge-izin-status">${leaveBadgeIcon} ${leave.tipe}</span>
                                         </div>
-                                        ${resolvedLampiran ? `
-                                        <div class="photo-column" style="flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                                            <div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedLampiran}')" style="width: 50px; height: 50px; border-color: #cbd5e1; cursor: pointer; border-radius: 50%; overflow: hidden; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                                                <img src="${resolvedLampiran}" alt="Lampiran" style="width: 100%; height: 100%; object-fit: cover;">
+                                        <div class="raport-izin-body" style="display: flex; gap: 12px; align-items: center; margin-top: 8px;">
+                                            <div class="raport-izin-reason-section" style="flex: 1; margin-top: 0;">
+                                                <div class="izin-reason-title">Keperluan / Keterangan</div>
+                                                <div class="izin-reason-value">"${leave.alasan || 'Disetujui Admin'}"</div>
                                             </div>
-                                            <span style="font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px;">Lampiran</span>
+                                            ${resolvedLampiran ? `
+                                            <div class="photo-column" style="flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                                <div class="photo-circle-wrapper" onclick="viewPhoto('${resolvedLampiran}')" style="width: 50px; height: 50px; border-color: #cbd5e1; cursor: pointer; border-radius: 50%; overflow: hidden; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                                    <img class="cacheable-img" data-src="${leave.lampiranUrl}" alt="Lampiran" style="width: 100%; height: 100%; object-fit: cover;">
+                                                </div>
+                                                <span style="font-size: 8px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px;">Lampiran</span>
+                                            </div>
+                                            ` : ''}
                                         </div>
-                                        ` : ''}
                                     </div>
-                                </div>
-                            `;
-                        }
-                        
-                        // 4. Check if today but haven't clocked in yet
-                        const isToday = dateObj.getDate() === now.getDate() && dateObj.getMonth() === now.getMonth() && dateObj.getFullYear() === now.getFullYear();
-                        if (isToday) {
+                                `;
+                            }
+                            
+                            // 4. Check if today but haven't clocked in yet
+                            const isToday = dateObj.getDate() === now.getDate() && dateObj.getMonth() === now.getMonth() && dateObj.getFullYear() === now.getFullYear();
+                            if (isToday) {
+                                return `
+                                    <div class="raport-card raport-card-belum-absen animate-fade-in">
+                                        <div class="raport-card-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                                            <div class="raport-card-date" style="color: #854d0e;">${displayDateLabel}</div>
+                                            <span class="raport-card-badge badge-belum-status">⏳ Belum Absen</span>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                            
+                            // 5. Otherwise, marked as Alpa (Absent without reason)
                             return `
-                                <div class="raport-card raport-card-belum-absen animate-fade-in">
+                                <div class="raport-card raport-card-alpa animate-fade-in">
                                     <div class="raport-card-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
-                                        <div class="raport-card-date" style="color: #854d0e;">${displayDateLabel}</div>
-                                        <span class="raport-card-badge badge-belum-status">⏳ Belum Absen</span>
+                                        <div class="raport-card-date" style="color: #c53030;">${displayDateLabel}</div>
+                                        <span class="raport-card-badge badge-alpa-status">🚨 Alpa</span>
                                     </div>
                                 </div>
                             `;
-                        }
+                        }).join('');
                         
-                        // 5. Otherwise, marked as Alpa (Absent without reason)
-                        return `
-                            <div class="raport-card raport-card-alpa animate-fade-in">
-                                <div class="raport-card-header" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
-                                    <div class="raport-card-date" style="color: #c53030;">${displayDateLabel}</div>
-                                    <span class="raport-card-badge badge-alpa-status">🚨 Alpa</span>
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                }
+                        // Caching and rendering the local images using loadImageWithCache
+                        tbody.querySelectorAll('.cacheable-img').forEach(img => {
+                            loadImageWithCache(img, img.getAttribute('data-src'));
+                        });
+                    }
+                };
+                
+                await cachedApiCall('getRaportBulanan', { idKaryawan: state.user.id, bulan: currentMonth + 1, tahun: currentYear }, handleData);
             } catch (e) { console.log('renderRaport error:', e); }
         }
 
@@ -2292,13 +3829,32 @@
             document.body.style.overflow = 'hidden';
             if (id === 'modalJadwal') renderJadwal();
             if (id === 'modalChat') { 
-                loadCachedChatMessages();
                 state.chatLastReadId = localStorage.getItem('chatLastReadId') || '';
                 state.hasShownNewMessagesDivider = false;
-                renderChat(true);
-
-                loadChatMessages(); 
-                startChatPolling(); 
+                
+                loadCachedChatMessages().then(() => {
+                    // Restore posisi scroll ke elemen spesifik jika ada
+                    if (state._chatScrollSaved && state._lastVisibleChatId) {
+                        renderChat(false);
+                        const applyScroll = () => {
+                            const msgEl = document.getElementById(state._lastVisibleChatId);
+                            const container = document.getElementById('chatMessages');
+                            if (msgEl && container) {
+                                container.scrollTop = msgEl.offsetTop - container.offsetTop;
+                                try { msgEl.scrollIntoView({ behavior: 'instant', block: 'start' }); } catch(e) {}
+                            }
+                        };
+                        setTimeout(applyScroll, 50);
+                        setTimeout(applyScroll, 350); // Setelah animasi modal selesai
+                        state._chatScrollSaved = false;
+                    } else {
+                        renderChat(true);
+                    }
+    
+                    loadChatMessages(); 
+                    startChatPolling(); 
+                });
+                
                 document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
                 const labelAbsensi = document.getElementById('labelAbsensi');
                 if (labelAbsensi) labelAbsensi.style.color = 'var(--text-secondary)';
@@ -2321,10 +3877,33 @@
                 loadDynamicJenisIzin();
             }
         }
+        function getTopVisibleChatId() {
+            const container = document.getElementById('chatMessages');
+            if (!container) return null;
+            
+            const containerRect = container.getBoundingClientRect();
+            const messages = container.querySelectorAll('[id^="chat-msg-"]');
+            
+            for (let i = 0; i < messages.length; i++) {
+                const rect = messages[i].getBoundingClientRect();
+                // Find first message that is visible at the top of the viewport
+                if (rect.top >= containerRect.top - 30) {
+                    return messages[i].id;
+                }
+            }
+            return null;
+        }
+
         function closeModal(id) {
             document.getElementById(id).classList.remove('active');
             document.body.style.overflow = '';
             if (id === 'modalChat') {
+                // Simpan elemen chat spesifik yang sedang dilihat
+                const visibleId = getTopVisibleChatId();
+                if (visibleId) {
+                    state._lastVisibleChatId = visibleId;
+                    state._chatScrollSaved = true;
+                }
                 startChatPolling(); // Transisi ke polling latar belakang lambat
                 const navChat = document.getElementById('navChat');
                 if (navChat) navChat.classList.remove('active');
@@ -2381,57 +3960,41 @@
             const headerEl = document.getElementById('chatActiveUsers');
             if (!headerEl || !state.user) return;
 
-            // Kumpulkan nama-nama yang dianggap aktif membuka obrolan:
-            // 1. Current user (selalu aktif karena sedang membuka chat)
-            const activeNames = ['Anda'];
-
-            // 2. Ambil pengirim pesan lain dalam 15 menit terakhir
+            // Hanya tampilkan orang yang kirim pesan dalam 5 menit terakhir
+            const activeNames = [];
             const now = new Date();
+            const seen = new Set();
+            
             if (chatMessages && chatMessages.length > 0) {
-                chatMessages.forEach(m => {
-                    if (m.nama && String(m.idKaryawan) !== String(state.user.id)) {
-                        const mDate = safeParseDate(m.waktu);
-                        if (mDate) {
-                            const diffMins = (now - mDate) / 60000;
-                            if (diffMins < 15) { // Aktif dalam 15 menit terakhir
-                                const shortName = m.nama.split(' ')[0];
-                                if (!activeNames.includes(shortName)) {
-                                    activeNames.push(shortName);
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            // 3. Tambahkan rekan kerja lain dari karyawanList secara realistis agar terasa ramai
-            if (state.karyawanList && state.karyawanList.length > 0) {
-                const otherEmployees = state.karyawanList.filter(k => k.Nama && String(k.ID_Karyawan) !== String(state.user.id));
-                // Pilih secara acak 1-2 orang berdasarkan menit saat ini agar dinamis namun stabil
-                const seed = now.getMinutes() + now.getHours();
-                if (otherEmployees.length > 0) {
-                    const index1 = Math.abs(seed % otherEmployees.length);
-                    const name1 = otherEmployees[index1].Nama.split(' ')[0];
-                    if (!activeNames.includes(name1)) activeNames.push(name1);
+                // Loop dari belakang untuk dapat yang terbaru
+                for (let i = chatMessages.length - 1; i >= 0; i--) {
+                    const m = chatMessages[i];
+                    if (!m.nama || !m.idKaryawan) continue;
+                    if (seen.has(m.idKaryawan)) continue;
+                    seen.add(m.idKaryawan);
                     
-                    if (otherEmployees.length > 1) {
-                        const index2 = Math.abs((seed + 3) % otherEmployees.length);
-                        if (index1 !== index2) {
-                            const name2 = otherEmployees[index2].Nama.split(' ')[0];
-                            if (!activeNames.includes(name2)) activeNames.push(name2);
+                    const mDate = safeParseDate(m.waktu);
+                    if (mDate) {
+                        const diffMins = (now - mDate) / 60000;
+                        if (diffMins < 5) {
+                            const shortName = String(m.idKaryawan) === String(state.user.id) ? 'Anda' : m.nama.split(' ')[0];
+                            if (!activeNames.includes(shortName)) {
+                                activeNames.push(shortName);
+                            }
                         }
                     }
                 }
             }
 
-            // Batasi karakter agar muat satu baris dan hanya setengah lebar popup chat (maksimal ~25 karakter)
-            let rawText = activeNames.join(', ');
-            let displayText = 'Aktif: ' + rawText;
-            if (displayText.length > 25) {
-                displayText = displayText.substring(0, 22) + '...';
+            if (activeNames.length === 0) {
+                headerEl.innerHTML = 'Obrolan Grup';
+            } else {
+                let displayText = 'Aktif: ' + activeNames.join(', ');
+                if (displayText.length > 30) {
+                    displayText = displayText.substring(0, 27) + '...';
+                }
+                headerEl.innerHTML = displayText;
             }
-
-            headerEl.innerHTML = displayText;
         }
 
         function updateFileName(input) {
@@ -2807,6 +4370,7 @@
         let chatMessages = [];
         let chatAttachment = null; // { type: 'image'|'file', data: base64, name: string }
         let chatCameraStream = null;
+        let chatCameraFacing = 'environment'; // 'user' = depan, 'environment' = belakang
 
         let chatPollTimeout = null;
 
@@ -2859,47 +4423,47 @@
 
         // HIGH COMPRESSION CACHE SYSTEM FOR CHAT (Array-of-Arrays minimizes storage by ~75%)
         function saveChatMessagesToCache(messages) {
-            if (!messages || !Array.isArray(messages)) return;
-            const listToCache = messages.slice(-150); // Keep last 150 messages
-            const compressed = listToCache.map(m => [
-                m.idPesan || '',       // 0
-                m.idKaryawan || '',    // 1
-                m.nama || '',          // 2
-                m.waktu || '',         // 3
-                m.pesan || '',         // 4
-                m.tipe || 'text',      // 5
-                m.fileUrl || '',       // 6
-                m.namaFile || '',      // 7
-                m.status || '',        // 8
-                m.tempId || ''         // 9
-            ]);
-            try {
-                localStorage.setItem('chatMessagesCache_v2', JSON.stringify(compressed));
-            } catch(e) {
-                console.error('[CHAT] Cache save error:', e);
-            }
+            // Disabled. Data disimpan langsung ke IndexedDB saat loadChatMessages atau getDeltas.
         }
 
-        function loadCachedChatMessages() {
+        async function loadCachedChatMessages() {
             try {
-                const cachedStr = localStorage.getItem('chatMessagesCache_v2');
-                if (cachedStr) {
-                    const compressed = JSON.parse(cachedStr);
-                    if (Array.isArray(compressed)) {
-                        chatMessages = compressed.map(arr => ({
-                            idPesan: arr[0],
-                            idKaryawan: arr[1],
-                            nama: arr[2],
-                            waktu: arr[3],
-                            pesan: arr[4],
-                            tipe: arr[5],
-                            fileUrl: arr[6],
-                            namaFile: arr[7],
-                            status: arr[8] || 'sent',
-                            tempId: arr[9]
-                        }));
-                    }
+                const dbMessages = await getAllLocal("CHAT");
+                
+                if (dbMessages && dbMessages.length > 0) {
+                    const mapped = dbMessages.map(m => ({
+                        idPesan: m.ID_Pesan || m.idPesan,
+                        idKaryawan: m.ID_Karyawan || m.idKaryawan,
+                        nama: m.Nama || m.nama,
+                        waktu: (m.Timestamp ? formatDateTime(new Date(m.Timestamp)) : m.waktu) || '',
+                        pesan: m.Pesan || m.pesan || '',
+                        tipe: m.Tipe || m.tipe || 'text',
+                        fileUrl: m.File_URL || m.fileUrl || '',
+                        namaFile: m.Nama_File || m.namaFile || '',
+                        status: 'sent',
+                        tempId: m.ID_Pesan || m.idPesan
+                    }));
+                    
+                    const pendingMessages = chatMessages.filter(m => m.status === 'sending' || m.status === 'failed');
+                    
+                    chatMessages = [...mapped, ...pendingMessages];
+                    
+                    // Hapus duplikat berdasarkan idPesan
+                    const seen = new Set();
+                    chatMessages = chatMessages.filter(m => {
+                        if (!m.idPesan) return true;
+                        if (seen.has(m.idPesan)) return false;
+                        seen.add(m.idPesan);
+                        return true;
+                    });
+                    
+                    chatMessages.sort((a, b) => {
+                        const ta = safeParseDate(a.waktu) || new Date(0);
+                        const tb = safeParseDate(b.waktu) || new Date(0);
+                        return ta - tb;
+                    });
                 }
+                
                 checkUnreadChatState();
             } catch(e) {
                 console.error('[CHAT] Cache load error:', e);
@@ -2908,15 +4472,43 @@
 
         async function loadChatMessages() {
             if (!state.user || !state.user.id) return;
-            try {
-                const res = await apiCall('getChatMessages', { limit: 50 });
+            
+            const handleData = (res) => {
                 if (res.success && Array.isArray(res.data)) {
                     // Simpan ID pesan lama sebelum digabung untuk mendeteksi pesan baru
                     const oldIds = new Set(chatMessages.map(m => m.idPesan).filter(Boolean));
 
-                    // Merge server data with local pending messages
+                    // Merge server data with local pending/sending messages
                     const pendingMessages = chatMessages.filter(m => m.status === 'sending' || m.status === 'failed');
-                    chatMessages = [...res.data, ...pendingMessages];
+                    
+                    // Build a set of server IDs for dedup
+                    const serverIdSet = new Set(res.data.map(m => String(m.idPesan)).filter(Boolean));
+                    
+                    // Keep local messages that are NOT yet on server (pending/failed/just-sent without idPesan match)
+                    const localOnly = chatMessages.filter(m => {
+                        if (m.status === 'sending' || m.status === 'failed' || m.status === 'uploading') return true;
+                        // Pesan 'sent' lokal yg idPesan-nya sudah ada di server → skip (server yg menang)
+                        if (m.idPesan && serverIdSet.has(String(m.idPesan))) return false;
+                        // Pesan lokal tanpa idPesan yg tempId-nya cocok dgn server → skip
+                        if (m.tempId && res.data.some(s => s.tempId === m.tempId)) return false;
+                        return true; // Keep older messages!
+                    });
+                    
+                    // Pertahankan foto lokal (base64) jika server fileUrl kosong
+                    const localFileMap = {};
+                    chatMessages.forEach(m => {
+                        const key = m.idPesan || m.tempId;
+                        if (key && (m._localFileUrl || (m.fileUrl && m.fileUrl.startsWith('data:')))) {
+                            localFileMap[key] = m._localFileUrl || m.fileUrl;
+                        }
+                    });
+                    res.data.forEach(m => {
+                        if (m.tipe === 'image' && !m.fileUrl && localFileMap[m.idPesan]) {
+                            m._localFileUrl = localFileMap[m.idPesan];
+                        }
+                    });
+                    
+                    chatMessages = [...res.data, ...localOnly];
                     
                     // Sort by timestamp
                     chatMessages.sort((a, b) => {
@@ -2925,7 +4517,28 @@
                         return ta - tb;
                     });
                     
-                    saveChatMessagesToCache(chatMessages);
+                    // saveChatMessagesToCache removed
+                    
+                    // Simpan ke IndexedDB
+                    const saveToDB = async () => {
+                        try {
+                            const tx = localDB.transaction("CHAT", "readwrite");
+                            const store = tx.objectStore("CHAT");
+                            res.data.forEach(m => {
+                                store.put({
+                                    ID_Pesan: m.idPesan,
+                                    ID_Karyawan: m.idKaryawan,
+                                    Nama: m.nama,
+                                    Pesan: m.pesan,
+                                    Tipe: m.tipe,
+                                    File_URL: m.fileUrl,
+                                    Nama_File: m.namaFile,
+                                    Timestamp: safeParseDate(m.waktu) ? safeParseDate(m.waktu).toISOString() : new Date().toISOString()
+                                });
+                            });
+                        } catch(e) { console.warn("Gagal save chat ke DB", e); }
+                    };
+                    saveToDB();
                     
                     const modal = document.getElementById('modalChat');
                     const isModalOpen = modal && modal.classList.contains('active');
@@ -2962,11 +4575,95 @@
 
                     checkUnreadChatState();
                 } else {
-                    renderChatEmpty();
+                    if (chatMessages.length === 0) renderChatEmpty();
                 }
+            };
+
+            try {
+                await cachedApiCall('getChatMessages', { limit: 50 }, handleData);
             } catch (e) {
                 console.error('[CHAT] Load failed:', e);
                 if (chatMessages.length === 0) renderChatEmpty();
+            }
+        }
+        
+        async function fetchOlderChatMessages() {
+            if (!state.user || !state.user.id || state.isLoadingOlderChat) return;
+            
+            state.isLoadingOlderChat = true;
+            
+            // Tampilkan loading spinner di loader
+            const loader = document.getElementById('chat-infinite-loader');
+            if (loader) loader.style.visibility = 'visible';
+            
+            // Simpan posisi pesan teratas saat ini untuk anchoring scroll
+            const container = document.getElementById('chatMessages');
+            let firstMsgId = null;
+            if (container) {
+                const firstMsgEl = container.querySelector('[id^="chat-msg-"]');
+                if (firstMsgEl) firstMsgId = firstMsgEl.id;
+            }
+            
+            const validOffset = chatMessages.filter(m => m.idPesan).length;
+            
+            try {
+                const res = await apiCall('getChatMessages', { limit: 50, offset: validOffset });
+                if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+                    
+                    // Simpan ke IndexedDB
+                    try {
+                        const tx = localDB.transaction("CHAT", "readwrite");
+                        const store = tx.objectStore("CHAT");
+                        res.data.forEach(m => {
+                            store.put({
+                                ID_Pesan: m.idPesan,
+                                ID_Karyawan: m.idKaryawan,
+                                Nama: m.nama,
+                                Pesan: m.pesan,
+                                Tipe: m.tipe,
+                                File_URL: m.fileUrl,
+                                Nama_File: m.namaFile,
+                                Timestamp: safeParseDate(m.waktu) ? safeParseDate(m.waktu).toISOString() : new Date().toISOString()
+                            });
+                        });
+                    } catch(e) { console.warn("Gagal save chat lama ke DB", e); }
+                    
+                    // Filter duplicates
+                    const existingIds = new Set(chatMessages.map(m => String(m.idPesan)).filter(Boolean));
+                    const newMessages = res.data.filter(m => !existingIds.has(String(m.idPesan)));
+                    
+                    if (newMessages.length > 0) {
+                        chatMessages = [...newMessages, ...chatMessages];
+                        chatMessages.sort((a, b) => {
+                            const ta = safeParseDate(a.waktu) || new Date(0);
+                            const tb = safeParseDate(b.waktu) || new Date(0);
+                            return ta - tb;
+                        });
+                        
+                        renderChat(false);
+                        
+                        // Kembalikan posisi scroll ke pesan teratas yang lama
+                        if (firstMsgId) {
+                            setTimeout(() => {
+                                const msgEl = document.getElementById(firstMsgId);
+                                if (msgEl) {
+                                    msgEl.scrollIntoView({ behavior: 'instant', block: 'start' });
+                                    // Beri sedikit offset ke bawah agar terlihat tombolnya
+                                    if (container) container.scrollTop -= 40; 
+                                }
+                            }, 50);
+                        }
+                    }
+                } else {
+                    // Sembunyikan loader jika sudah habis
+                    if (loader) loader.style.display = 'none';
+                }
+            } catch (e) {
+                console.error('[CHAT] Load older failed:', e);
+                showToast('Gagal memuat pesan lama', 'error');
+            } finally {
+                state.isLoadingOlderChat = false;
+                if (loader) loader.style.visibility = 'hidden';
             }
         }
 
@@ -2976,7 +4673,7 @@
         function initPusher() {
             try {
                 // Pusher client keys (sandbox free tier, active)
-                pusher = new Pusher('e912ab0d6c703b0d5c07', {
+                pusher = new Pusher('3c015a6e56c1e4beb0ea', {
                     cluster: 'ap1',
                     forceTLS: true
                 });
@@ -2993,6 +4690,46 @@
                     }
                 });
                 
+                // Real-time listener: Lembur di-approve/reject oleh admin
+                chatChannel.bind('lembur-alert', function(data) {
+                    if (!state.user || !state.user.id) return;
+                    // Hanya proses jika ini notifikasi approval (bukan pengajuan baru)
+                    // dan ditujukan ke karyawan yang sedang login
+                    if (data && String(data.idKaryawan) === String(state.user.id)) {
+                        console.log('[PUSHER] 🔥 Lembur update diterima:', data.status);
+                        // Refresh status absen & lembur dari server
+                        checkAbsenStatus().then(() => {
+                            updateButtonVisibility();
+                            if (data.status === 'Approved') {
+                                tampilPicoModal('sukses', '<b>Lembur Disetujui! 🔥</b><br>Pengajuan lembur Anda telah disetujui Bos.<br>Selamat bekerja lembur, tetap semangat & jaga kesehatan! 💪');
+                            } else if (data.status === 'Rejected') {
+                                tampilPicoModal('error', '<b>Lembur Ditolak ❌</b><br>Maaf, pengajuan lembur Anda ditolak oleh Bos.');
+                            }
+                        });
+                    }
+                });
+
+                // Real-time listener: Single Device Login Force Logout
+                chatChannel.bind('force-logout', function(data) {
+                    if (!state.user || !state.user.id) return;
+                    if (data && String(data.idKaryawan) === String(state.user.id)) {
+                        const currentDeviceId = getDeviceId();
+                        if (data.newDeviceId !== currentDeviceId) {
+                            console.log('[AUTH] Menerima sinyal force-logout dari perangkat lain.');
+                            Swal.fire({
+                                title: 'Sesi Berakhir',
+                                text: 'Akun Anda baru saja login di perangkat lain. Anda telah dikeluarkan dari perangkat ini.',
+                                icon: 'warning',
+                                confirmButtonText: 'OK',
+                                allowOutsideClick: false,
+                                allowEscapeKey: false
+                            }).then(() => {
+                                logout();
+                            });
+                        }
+                    }
+                });
+                
                 console.log('[PUSHER] ✅ Connected to real-time WebSocket channel');
             } catch (e) {
                 console.error('[PUSHER] ❌ Pusher init failed:', e);
@@ -3006,12 +4743,23 @@
             if (String(data.idKaryawan) === String(state.user.id)) {
                 const existing = chatMessages.find(m => (data.tempId && m.tempId === data.tempId) || (data.idPesan && String(m.idPesan) === String(data.idPesan)));
                 if (existing) {
-                    // Update status of our own sending message to sent
                     const idx = chatMessages.findIndex(m => (data.tempId && m.tempId === data.tempId) || (data.idPesan && String(m.idPesan) === String(data.idPesan)));
                     if (idx !== -1) {
+                        // JANGAN timpa jika masih uploading — biarkan await di sendChat yg handle
+                        if (chatMessages[idx].status === 'uploading') {
+                            console.log('[CHAT] Pusher echo diabaikan: masih uploading');
+                            return;
+                        }
                         chatMessages[idx].status = 'sent';
                         if (data.idPesan) chatMessages[idx].idPesan = data.idPesan;
                         chatMessages[idx].waktu = data.waktu || 'Baru saja';
+                        // Update fileUrl ke Drive URL jika ada
+                        if (data.fileUrl && data.fileUrl.startsWith('https://')) {
+                            if (chatMessages[idx].fileUrl && chatMessages[idx].fileUrl.startsWith('data:')) {
+                                chatMessages[idx]._localFileUrl = chatMessages[idx].fileUrl;
+                            }
+                            chatMessages[idx].fileUrl = data.fileUrl;
+                        }
                         renderChat();
                     }
                     return;
@@ -3181,49 +4929,35 @@
             
             const date = safeParseDate(dateStr);
             if (!date || isNaN(date.getTime())) {
-                return dateStr; // Fallback aman daripada Nan:Nan
+                return dateStr; // Fallback aman
             }
-            
-            const now = new Date();
-            const diffMs = now - date;
-            const diffMins = Math.floor(diffMs / 60000);
-            const diffHours = Math.floor(diffMs / 3600000);
             
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
             const timeStr = `${hours}:${minutes}`;
             
-            // 1. Kurang dari 1 menit -> "Baru saja"
-            if (diffMins < 1) {
-                return 'Baru saja';
-            }
-            // 2. Kurang dari 60 menit -> "X mnt lalu"
-            if (diffMins < 60) {
-                return `${diffMins} mnt lalu`;
-            }
-            
+            const now = new Date();
             const todayStr = now.toDateString();
             const yesterday = new Date(now);
             yesterday.setDate(yesterday.getDate() - 1);
             const yesterdayStr = yesterday.toDateString();
             const dateStrDate = date.toDateString();
             
-            // 3. Hari ini -> "Hari ini 14:30" (atau "X jam lalu" jika < 6 jam)
+            // Hari ini -> "14:30"
             if (dateStrDate === todayStr) {
-                if (diffHours < 6) {
-                    return `${diffHours} jam lalu`;
-                }
-                return `Hari ini ${timeStr}`;
+                return timeStr;
             }
             
-            // 4. Kemarin -> "Kemarin 14:30"
+            // Kemarin -> "Kemarin 14:30"
             if (dateStrDate === yesterdayStr) {
                 return `Kemarin ${timeStr}`;
             }
             
-            // 5. Tanggal biasa -> "17 Mei, 14:30"
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-            return `${date.getDate()} ${months[date.getMonth()]}, ${timeStr}`;
+            // Lusa atau lebih -> "dd/mm/yy 14:30"
+            const d = String(date.getDate()).padStart(2, '0');
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const y = String(date.getFullYear()).slice(-2);
+            return `${d}/${m}/${y} ${timeStr}`;
         }
 
         function renderChatEmpty() {
@@ -3415,10 +5149,11 @@
             });
         }
 
+        let _lastChatHtml = '';
         function renderChat(forceScrollToBottom = false) {
             updateChatActiveUsersHeader();
             const container = document.getElementById('chatMessages');
-            if (!chatMessages.length) { renderChatEmpty(); return; }
+            if (!chatMessages.length) { renderChatEmpty(); _lastChatHtml = ''; return; }
             
             const previousScrollTop = container.scrollTop;
             const previousScrollHeight = container.scrollHeight;
@@ -3426,7 +5161,7 @@
             
             let renderedDivider = false;
             
-            container.innerHTML = chatMessages.map((m, index) => {
+            const newHtml = chatMessages.map((m, index) => {
                 const isMe = String(m.idKaryawan) === String(state.user.id);
                 
                 // Parse reply prefix if exists
@@ -3472,11 +5207,17 @@
                     </div>`;
                 }
 
-                if (m.tipe === 'image' && m.fileUrl) {
+                if (m.tipe === 'image' && (m.fileUrl || m._localFileUrl)) {
+                    // Gunakan foto lokal (base64) jika ada, atau fallback ke server URL
+                    const displayUrl = m._localFileUrl || m.fileUrl;
+                    const isBase64 = displayUrl.startsWith('data:');
                     content = `
                     ${replyBoxHtml}
                     <div style="position:relative; border-radius:12px; overflow:hidden; max-width:260px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 2px;">
-                        <img src="${resolveFotoUrl(m.fileUrl)}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="viewPhoto('${resolveFotoUrl(m.fileUrl)}')" alt="Foto">
+                        ${isBase64 
+                            ? `<img src="${displayUrl}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="viewPhoto('${displayUrl}')" alt="Foto">`
+                            : `<img class="cacheable-img" data-src="${displayUrl}" style="width:100%; max-height:220px; object-fit:cover; display:block; cursor:pointer;" onclick="viewPhoto('${resolveFotoUrl(displayUrl)}')" alt="Foto">`
+                        }
                     </div>
                     ${captionHtml}`;
                 } else if (m.tipe === 'file' && m.fileUrl) {
@@ -3543,14 +5284,13 @@
                     // RECIPIENT BUBBLE (REKAN)
                     const karyawan = state.karyawanList.find(k => k.ID_Karyawan === m.idKaryawan);
                     const rawFotoUrl = karyawan ? (karyawan.Foto_URL || karyawan.Foto_Profil || '') : '';
-                    const resolvedFoto = resolveFotoUrl(rawFotoUrl);
                     
                     const avatarColor = getHashCodeColor(m.nama || 'Karyawan');
                     const initial = m.nama ? m.nama.charAt(0).toUpperCase() : '?';
                     
                     let avatarBadge = '';
-                    if (resolvedFoto) {
-                        avatarBadge = `<img src="${resolvedFoto}" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; box-shadow: 0 3px 6px rgba(0,0,0,0.06); flex-shrink: 0;" alt="${m.nama}">`;
+                    if (rawFotoUrl) {
+                        avatarBadge = `<img class="cacheable-img" data-src="${rawFotoUrl}" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; box-shadow: 0 3px 6px rgba(0,0,0,0.06); flex-shrink: 0;" alt="${m.nama}">`;
                     } else {
                         avatarBadge = `<div style="width: 34px; height: 34px; border-radius: 50%; background: ${avatarColor}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.06); flex-shrink: 0; text-shadow: 0 1px 2px rgba(0,0,0,0.15);">${initial}</div>`;
                     }
@@ -3603,6 +5343,23 @@
                 return dividerHtml + bubbleHtml;
             }).join('');
             
+            // Tambahkan loader infinite scroll jika jumlah pesan cukup banyak
+            let loadMoreHtml = '';
+            if (chatMessages.length >= 50) {
+                loadMoreHtml = `
+                <div id="chat-infinite-loader" style="display: flex; justify-content: center; padding: 10px 0; margin-bottom: 10px; height: 30px; align-items: center; visibility: hidden;">
+                    <span class="loading-spinner" style="width:16px;height:16px;border-width:2px;display:inline-block; border-color: rgba(59, 130, 246, 0.5) rgba(59, 130, 246, 0.1) rgba(59, 130, 246, 0.1) rgba(59, 130, 246, 0.1);"></span>
+                </div>`;
+            }
+            
+            // Anti-flicker: hanya update DOM jika konten berubah
+            const finalHtml = loadMoreHtml + newHtml;
+            if (finalHtml === _lastChatHtml && !forceScrollToBottom) {
+                return;
+            }
+            _lastChatHtml = finalHtml;
+            container.innerHTML = finalHtml;
+            
             if (renderedDivider) {
                 state.hasShownNewMessagesDivider = true;
             }
@@ -3612,6 +5369,21 @@
             } else {
                 container.scrollTop = previousScrollTop;
             }
+            
+            // Pasang scroll listener untuk infinite load
+            if (!container._hasInfiniteScroll) {
+                container._hasInfiniteScroll = true;
+                container.addEventListener('scroll', () => {
+                    if (container.scrollTop <= 10 && !state.isLoadingOlderChat && chatMessages.length >= 50) {
+                        fetchOlderChatMessages();
+                    }
+                });
+            }
+            
+            // Cache and render local images for chat messages and sender avatars
+            container.querySelectorAll('.cacheable-img').forEach(img => {
+                loadImageWithCache(img, img.getAttribute('data-src'));
+            });
         }
 
         function escapeHtml(text) {
@@ -3644,7 +5416,7 @@
         function onChatPhotoSelected(input) {
             const file = input.files[0];
             if (!file) return;
-            compressImage(file, 0.6, 1200).then(({ base64, name }) => {
+            compressImage(file, 0.5, 800).then(({ base64, name }) => {
                 chatAttachment = { type: 'image', data: base64, name: name };
                 showChatAttachmentPreview(name);
             }).catch(() => showToast('Gagal proses foto', 'error'));
@@ -3672,12 +5444,36 @@
             overlay.classList.add('active');
             try {
                 if (chatCameraStream) chatCameraStream.getTracks().forEach(t => t.stop());
-                chatCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                chatCameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: chatCameraFacing }, 
+                    audio: false 
+                });
                 video.srcObject = chatCameraStream;
+                // Mirror hanya untuk kamera depan
+                video.style.transform = chatCameraFacing === 'user' ? 'scaleX(-1)' : 'none';
                 await video.play();
             } catch (err) {
                 showToast('Gagal nyalakan kamera: ' + err.message, 'error');
                 closeChatCamera();
+            }
+        }
+
+        async function flipChatCamera() {
+            chatCameraFacing = chatCameraFacing === 'user' ? 'environment' : 'user';
+            if (chatCameraStream) {
+                chatCameraStream.getTracks().forEach(t => t.stop());
+            }
+            const video = document.getElementById('chatCameraVideo');
+            try {
+                chatCameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: chatCameraFacing }, 
+                    audio: false 
+                });
+                video.srcObject = chatCameraStream;
+                video.style.transform = chatCameraFacing === 'user' ? 'scaleX(-1)' : 'none';
+                await video.play();
+            } catch (err) {
+                showToast('Gagal ganti kamera: ' + err.message, 'error');
             }
         }
 
@@ -3696,7 +5492,7 @@
             // Kompres ukuran foto chat
             let w = video.videoWidth;
             let h = video.videoHeight;
-            const maxDimension = 640;
+            const maxDimension = 480;
             if (w > maxDimension || h > maxDimension) {
                 if (w > h) {
                     h = Math.round(h * maxDimension / w);
@@ -3708,10 +5504,15 @@
             }
             canvas.width = w; canvas.height = h;
             const ctx = canvas.getContext('2d');
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(video, 0, 0);
-            const base64 = canvas.toDataURL('image/jpeg', 0.5);
+            // Mirror hanya untuk kamera depan
+            if (chatCameraFacing === 'user') {
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+            }
+            ctx.drawImage(video, 0, 0, w, h);
+            const base64 = canvas.toDataURL('image/jpeg', 0.4);
+            const sizeKB = Math.round(base64.length * 0.75 / 1024);
+            console.log('[CHAT] Foto kamera: ' + w + 'x' + h + ', ~' + sizeKB + 'KB');
             chatAttachment = { type: 'image', data: base64, name: 'camera.jpg' };
             showChatAttachmentPreview('camera.jpg');
             closeChatCamera();
@@ -3745,19 +5546,16 @@
             if (!pesan && !chatAttachment) return;
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
 
-            // Generate temp ID for tracking
             const tempId = 'temp_' + Date.now();
+            const isFile = !!chatAttachment;
+            const now = new Date();
+            const timeStr = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 
             // Prepend reply prefix if active
-            let replyTextPlaceholder = pesan;
             if (state.replyingTo) {
-                // If it is a file/photo message, we want the placeholder to be descriptive
                 let snippet = state.replyingTo.messageText;
-                const replyRegex = /^\{\{REPLY:.*?\}\}/;
-                snippet = snippet.replace(replyRegex, '');
-                
-                const replyPrefix = `{{REPLY:${state.replyingTo.idPesan}|${state.replyingTo.senderName}|${snippet}}}`;
-                pesan = replyPrefix + pesan;
+                snippet = snippet.replace(/^\{\{REPLY:.*?\}\}/, '');
+                pesan = `{{REPLY:${state.replyingTo.idPesan}|${state.replyingTo.senderName}|${snippet}}}` + pesan;
             }
 
             // Build payload
@@ -3768,50 +5566,108 @@
                 payload.namaFile = chatAttachment.name;
             }
 
-            // Optimistic render with "sending" status
-            const msgObj = {
-                tempId: tempId,
-                idKaryawan: state.user.id,
-                nama: state.user.name,
-                pesan: pesan || (chatAttachment ? (chatAttachment.type === 'image' ? '[Foto]' : '[File]') : ''),
-                tipe: chatAttachment ? chatAttachment.type : 'text',
-                fileUrl: chatAttachment ? chatAttachment.data : null,
-                namaFile: chatAttachment ? chatAttachment.name : null,
-                waktu: 'Mengirim...',
-                status: 'sending'
-            };
-            chatMessages.push(msgObj);
-            renderChat(true);
+            // Clear input segera
             input.value = '';
+            const savedAttachment = chatAttachment;
             clearChatAttachment();
             window.clearChatReply();
 
-            try {
-                const res = await apiCall('sendChatMessage', payload);
-                if (res.success) {
-                    // Update status to sent
+            if (!isFile) {
+                // ═══════════════════════════════════════════
+                // ALUR 1: PESAN TEKS — Instan (fire-and-forget)
+                // ═══════════════════════════════════════════
+                const msgObj = {
+                    tempId, idKaryawan: state.user.id, nama: state.user.name,
+                    pesan: pesan, tipe: 'text', fileUrl: null, namaFile: null,
+                    waktu: timeStr, status: 'sent'
+                };
+                chatMessages.push(msgObj);
+                renderChat(true);
+                playSound('chatsent');
+
+                // Kirim di background — UI sudah selesai
+                const sendStart = Date.now();
+                apiCall('sendChatMessage', payload).then(res => {
+                    const elapsed = ((Date.now() - sendStart) / 1000).toFixed(1);
+                    console.log('[CHAT] Teks terkirim dalam ' + elapsed + 's');
+                    const idx = chatMessages.findIndex(m => m.tempId === tempId);
+                    if (idx === -1) return;
+                    if (res.success) {
+                        chatMessages[idx].idPesan = res.idPesan;
+                    } else {
+                        chatMessages[idx].status = 'failed';
+                        chatMessages[idx].waktu = 'Gagal ✕';
+                        renderChat();
+                    }
+                }).catch(e => {
                     const idx = chatMessages.findIndex(m => m.tempId === tempId);
                     if (idx !== -1) {
+                        chatMessages[idx].status = 'failed';
+                        chatMessages[idx].waktu = 'Gagal ✕';
+                        renderChat();
+                    }
+                });
+
+            } else {
+                // ═══════════════════════════════════════════
+                // ALUR 2: FOTO/FILE — Tunggu upload selesai
+                // ═══════════════════════════════════════════
+                const msgObj = {
+                    tempId, idKaryawan: state.user.id, nama: state.user.name,
+                    pesan: pesan || (savedAttachment.type === 'image' ? '[Foto]' : '[File]'),
+                    tipe: savedAttachment.type,
+                    fileUrl: savedAttachment.data,       // base64 lokal untuk preview
+                    _localFileUrl: savedAttachment.data,  // backup base64
+                    namaFile: savedAttachment.name,
+                    waktu: '⏳ Mengupload...',
+                    status: 'uploading'
+                };
+                chatMessages.push(msgObj);
+                renderChat(true);
+
+                const payloadKB = Math.round(JSON.stringify(payload).length / 1024);
+                console.log('[CHAT] Upload foto: ~' + payloadKB + 'KB payload');
+                const sendStart = Date.now();
+
+                try {
+                    // AWAIT — tunggu sampai server upload ke Drive selesai
+                    const res = await apiCall('sendChatMessage', payload);
+                    const elapsed = ((Date.now() - sendStart) / 1000).toFixed(1);
+                    console.log('[CHAT] Upload selesai dalam ' + elapsed + 's, fileUrl=' + (res.fileUrl || 'KOSONG'));
+
+                    const idx = chatMessages.findIndex(m => m.tempId === tempId);
+                    if (idx === -1) return;
+
+                    if (res.success) {
                         chatMessages[idx].status = 'sent';
-                        chatMessages[idx].waktu = 'Terkirim';
                         chatMessages[idx].idPesan = res.idPesan;
+                        chatMessages[idx].waktu = timeStr;
+
+                        // Update ke Drive URL (penerima akan dapat ini via Pusher)
+                        if (res.fileUrl) {
+                            chatMessages[idx].fileUrl = res.fileUrl;
+                            console.log('[CHAT] Drive URL: ' + res.fileUrl);
+                        } else {
+                            console.warn('[CHAT] WARNING: fileUrl kosong! Drive upload mungkin gagal.');
+                        }
+
                         renderChat();
                         playSound('chatsent');
+                    } else {
+                        chatMessages[idx].status = 'failed';
+                        chatMessages[idx].waktu = 'Gagal ✕ Tap untuk kirim ulang';
+                        renderChat();
+                        showToast('Gagal mengirim: ' + (res.error || 'Server error'), 'error');
                     }
-                    // Refresh messages after short delay to get server timestamp
-                    setTimeout(() => loadChatMessages(), 800);
-                } else {
-                    throw new Error(res.error || 'Server error');
+                } catch (e) {
+                    const idx = chatMessages.findIndex(m => m.tempId === tempId);
+                    if (idx !== -1) {
+                        chatMessages[idx].status = 'failed';
+                        chatMessages[idx].waktu = 'Gagal ✕ Tap untuk kirim ulang';
+                        renderChat();
+                    }
+                    showToast('Gagal upload: ' + e.message, 'error');
                 }
-            } catch (e) {
-                // Update status to failed
-                const idx = chatMessages.findIndex(m => m.tempId === tempId);
-                if (idx !== -1) {
-                    chatMessages[idx].status = 'failed';
-                    chatMessages[idx].waktu = 'Gagal dikirim';
-                    renderChat();
-                }
-                showToast('Gagal mengirim: ' + e.message, 'error');
             }
         }
 
@@ -3847,9 +5703,8 @@
             
             const saved = loadLogin();
             const fotoUrl = saved ? (saved.Foto_URL || saved.Foto_Profil || saved.fotoUrl || '') : '';
-            const resolved = resolveFotoUrl(fotoUrl);
-            if (resolved) {
-                avatarImg.src = resolved;
+            if (fotoUrl) {
+                loadImageWithCache(avatarImg, fotoUrl);
                 avatarImg.style.display = 'block';
                 avatarTxt.style.display = 'none';
             } else {
@@ -3878,6 +5733,7 @@
                     selKaryawan.innerHTML += `<option value="${k.ID_Karyawan}" data-role="${k.Jabatan || 'Karyawan'}" data-foto="${fotoUrl}">${k.Nama}</option>`;
                 });
             }
+            makeSelectCustom('tukerKaryawan');
             
             // Reset Target Card info
             document.getElementById('tukerTujuanNama').innerText = 'Pilih Rekan';
@@ -3991,9 +5847,8 @@
                 
                 const avatarTxt = document.getElementById('tukerTujuanAvatarText');
                 const avatarImg = document.getElementById('tukerTujuanAvatarImg');
-                const resolved = resolveFotoUrl(colFoto);
-                if (resolved) {
-                    avatarImg.src = resolved;
+                if (colFoto) {
+                    loadImageWithCache(avatarImg, colFoto);
                     avatarImg.style.display = 'block';
                     avatarTxt.style.display = 'none';
                 } else {
@@ -4142,17 +5997,21 @@
         async function renderDataIzin() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             const container = document.getElementById('izinHistoryList');
-            container.innerHTML = '<div class="history-empty">Memuat data...</div>';
-            try {
-                const res = await apiCall('getIzinHistory', { idKaryawan: state.user.id });
+            if (container && (container.innerHTML === '' || container.innerHTML.includes('history-empty'))) {
+                container.innerHTML = '<div class="history-empty">Memuat data...</div>';
+            }
+            const handleData = (res) => {
                 if (res.success && Array.isArray(res.data)) {
                     izinHistoryData = res.data;
                     renderIzinList();
                 } else {
-                    container.innerHTML = '<div class="history-empty">Belum ada pengajuan izin</div>';
+                    if (container) container.innerHTML = '<div class="history-empty">Belum ada pengajuan izin</div>';
                 }
+            };
+            try {
+                await cachedApiCall('getIzinHistory', { idKaryawan: state.user.id }, handleData);
             } catch (e) {
-                container.innerHTML = '<div class="history-empty">Gagal memuat data</div>';
+                if (container) container.innerHTML = '<div class="history-empty">Gagal memuat data</div>';
             }
         }
 
@@ -4187,25 +6046,30 @@
 
         function filterIzin(filter, el) {
             izinFilter = filter;
-            document.querySelectorAll('#modalDataIzin .filter-chip').forEach(c => c.classList.remove('active'));
-            el.classList.add('active');
+            const chips = document.querySelectorAll('#modalDataIzin .filter-chip');
+            if (chips) chips.forEach(c => c.classList.remove('active'));
+            if (el) el.classList.add('active');
             renderIzinList();
         }
 
         async function renderDataLembur() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             const container = document.getElementById('lemburHistoryList');
-            container.innerHTML = '<div class="history-empty">Memuat data...</div>';
-            try {
-                const res = await apiCall('getLemburHistory', { idKaryawan: state.user.id });
+            if (container && (container.innerHTML === '' || container.innerHTML.includes('history-empty'))) {
+                container.innerHTML = '<div class="history-empty">Memuat data...</div>';
+            }
+            const handleData = (res) => {
                 if (res.success && Array.isArray(res.data)) {
                     lemburHistoryData = res.data;
                     renderLemburList();
                 } else {
-                    container.innerHTML = '<div class="history-empty">Belum ada pengajuan lembur</div>';
+                    if (container) container.innerHTML = '<div class="history-empty">Belum ada pengajuan lembur</div>';
                 }
+            };
+            try {
+                await cachedApiCall('getLemburHistory', { idKaryawan: state.user.id }, handleData);
             } catch (e) {
-                container.innerHTML = '<div class="history-empty">Gagal memuat data</div>';
+                if (container) container.innerHTML = '<div class="history-empty">Gagal memuat data</div>';
             }
         }
 
@@ -4252,9 +6116,10 @@
         async function renderTugasList() {
             if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
             const container = document.getElementById('tugasList');
-            container.innerHTML = '<div class="history-empty">Memuat tugas...</div>';
-            try {
-                const res = await apiCall('getTugasList', { idKaryawan: state.user.id, idToko: state.user.tokoDefault || '' });
+            if (container && (container.innerHTML === '' || container.innerHTML.includes('history-empty'))) {
+                container.innerHTML = '<div class="history-empty">Memuat tugas...</div>';
+            }
+            const handleData = (res) => {
                 if (res.success && Array.isArray(res.data)) {
                     tugasData = res.data;
                     renderTugasItems();
@@ -4266,10 +6131,13 @@
                         badge.classList.toggle('hidden', pendingCount === 0);
                     }
                 } else {
-                    container.innerHTML = '<div class="history-empty">Belum ada tugas</div>';
+                    if (container) container.innerHTML = '<div class="history-empty">Belum ada tugas</div>';
                 }
+            };
+            try {
+                await cachedApiCall('getTugasList', { idKaryawan: state.user.id, idToko: state.user.tokoDefault || '' }, handleData);
             } catch (e) {
-                container.innerHTML = '<div class="history-empty">Gagal memuat tugas</div>';
+                if (container) container.innerHTML = '<div class="history-empty">Gagal memuat tugas</div>';
             }
         }
 
@@ -4376,9 +6244,11 @@
         // ==================== BERITA ====================
         async function renderBeritaList() {
             const container = document.getElementById('beritaList');
-            container.innerHTML = '<div class="history-empty">Memuat info...</div>';
-            try {
-                const res = await apiCall('getBeritaList', { limit: 10 });
+            if (container && (container.innerHTML === '' || container.innerHTML.includes('history-empty'))) {
+                container.innerHTML = '<div class="history-empty">Memuat info...</div>';
+            }
+            
+            const handleData = (res) => {
                 if (res.success && Array.isArray(res.data) && res.data.length > 0) {
                     container.innerHTML = res.data.map(b => {
                         const kat = b.kategori || 'Umum';
@@ -4412,7 +6282,7 @@
                         <div class="berita-card" style="background: var(--surface); border-radius: 20px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.03); margin-bottom: 16px; border: 1px solid #e2e8f0; transition: transform 0.2s, box-shadow 0.2s;">
                             ${b.gambarUrl ? `
                                 <div style="position: relative; width: 100%; height: 170px; overflow: hidden; background: #f1f5f9;">
-                                    <img src="${b.gambarUrl}" class="berita-img" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;" alt="${escapeHtml(b.judul)}">
+                                    <img class="cacheable-img berita-img" data-src="${b.gambarUrl}" style="width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s;" alt="${escapeHtml(b.judul)}">
                                     <div style="position: absolute; bottom: 12px; left: 16px;">
                                         <span class="berita-kategori" style="background: ${badgeBg}; color: ${badgeColor}; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.5px;">${kat}</span>
                                     </div>
@@ -4431,6 +6301,11 @@
                         </div>`;
                     }).join('');
                     
+                    // Caching and rendering the local images using loadImageWithCache
+                    container.querySelectorAll('.cacheable-img').forEach(img => {
+                        loadImageWithCache(img, img.getAttribute('data-src'));
+                    });
+                    
                     // Update badge
                     const badge = document.getElementById('badgeBerita');
                     if (badge) {
@@ -4438,10 +6313,14 @@
                         badge.classList.remove('hidden');
                     }
                 } else {
-                    container.innerHTML = '<div class="history-empty">Belum ada info</div>';
+                    if (container) container.innerHTML = '<div class="history-empty">Belum ada info</div>';
                 }
+            };
+
+            try {
+                await cachedApiCall('getBeritaList', { limit: 10 }, handleData);
             } catch (e) {
-                container.innerHTML = '<div class="history-empty">Gagal memuat info</div>';
+                if (container) container.innerHTML = '<div class="history-empty">Gagal memuat info</div>';
             }
         }
 
@@ -4926,3 +6805,139 @@
                 showToast('Browser Anda tidak mendukung notifikasi.', 'error');
             }
         }
+
+        // ===== HELPER: CUSTOM DROPDOWN COMPONENT =====
+        function makeSelectCustom(selectId) {
+            const selectEl = document.getElementById(selectId);
+            if (!selectEl) return;
+            
+            // Avoid double initialization
+            if (selectEl.dataset.customInitialized === "true") {
+                refreshCustomDropdown(selectId);
+                return;
+            }
+            selectEl.dataset.customInitialized = "true";
+            
+            // Hide the native select
+            selectEl.style.display = "none";
+            
+            // Create wrapper
+            const wrapper = document.createElement("div");
+            wrapper.className = "custom-select-wrapper";
+            wrapper.id = `customWrapper_${selectId}`;
+            
+            // Insert wrapper right before select
+            selectEl.parentNode.insertBefore(wrapper, selectEl);
+            wrapper.appendChild(selectEl);
+            
+            // Create trigger button
+            const trigger = document.createElement("div");
+            trigger.className = "custom-select-trigger";
+            
+            const triggerText = document.createElement("span");
+            triggerText.className = "trigger-text";
+            triggerText.textContent = selectEl.options[selectEl.selectedIndex] ? selectEl.options[selectEl.selectedIndex].text : "Pilih...";
+            
+            trigger.appendChild(triggerText);
+            
+            // Arrow SVG
+            trigger.innerHTML += `
+                <svg class="arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            `;
+            
+            wrapper.appendChild(trigger);
+            
+            // Create options panel
+            const optionsContainer = document.createElement("div");
+            optionsContainer.className = "custom-select-options";
+            wrapper.appendChild(optionsContainer);
+            
+            // Toggle open on trigger click
+            trigger.addEventListener("click", function(e) {
+                e.stopPropagation();
+                // Close all other open custom selects
+                document.querySelectorAll(".custom-select-wrapper").forEach(w => {
+                    if (w !== wrapper) w.classList.remove("open");
+                });
+                wrapper.classList.toggle("open");
+            });
+            
+            // Populate options helper
+            function populateOptions() {
+                optionsContainer.innerHTML = "";
+                Array.from(selectEl.options).forEach((opt, idx) => {
+                    const optDiv = document.createElement("div");
+                    optDiv.className = "custom-select-option";
+                    if (idx === selectEl.selectedIndex) optDiv.classList.add("selected");
+                    optDiv.textContent = opt.text;
+                    optDiv.dataset.value = opt.value;
+                    optDiv.dataset.index = idx;
+                    
+                    optDiv.addEventListener("click", function(e) {
+                        e.stopPropagation();
+                        selectEl.selectedIndex = idx;
+                        // Trigger native change event
+                        selectEl.dispatchEvent(new Event("change"));
+                        
+                        wrapper.classList.remove("open");
+                    });
+                    
+                    optionsContainer.appendChild(optDiv);
+                });
+            }
+            
+            populateOptions();
+            
+            // Watch native select for changes (updates trigger display)
+            selectEl.addEventListener("change", function() {
+                const selectedOpt = selectEl.options[selectEl.selectedIndex];
+                wrapper.querySelector(".trigger-text").textContent = selectedOpt ? selectedOpt.text : "Pilih...";
+                
+                // Update selected class
+                optionsContainer.querySelectorAll(".custom-select-option").forEach((optDiv, idx) => {
+                    if (idx === selectEl.selectedIndex) {
+                        optDiv.classList.add("selected");
+                    } else {
+                        optDiv.classList.remove("selected");
+                    }
+                });
+            });
+        }
+        
+        function refreshCustomDropdown(selectId) {
+            const selectEl = document.getElementById(selectId);
+            const wrapper = document.getElementById(`customWrapper_${selectId}`);
+            if (!selectEl || !wrapper) return;
+            
+            const optionsContainer = wrapper.querySelector(".custom-select-options");
+            if (!optionsContainer) return;
+            
+            optionsContainer.innerHTML = "";
+            Array.from(selectEl.options).forEach((opt, idx) => {
+                const optDiv = document.createElement("div");
+                optDiv.className = "custom-select-option";
+                if (idx === selectEl.selectedIndex) optDiv.classList.add("selected");
+                optDiv.textContent = opt.text;
+                optDiv.dataset.value = opt.value;
+                optDiv.dataset.index = idx;
+                
+                optDiv.addEventListener("click", function(e) {
+                    e.stopPropagation();
+                    selectEl.selectedIndex = idx;
+                    selectEl.dispatchEvent(new Event("change"));
+                    wrapper.classList.remove("open");
+                });
+                
+                optionsContainer.appendChild(optDiv);
+            });
+            
+            const selectedOpt = selectEl.options[selectEl.selectedIndex];
+            wrapper.querySelector(".trigger-text").textContent = selectedOpt ? selectedOpt.text : "Pilih...";
+        }
+        
+        // Close all dropdowns when clicking outside
+        document.addEventListener("click", function() {
+            document.querySelectorAll(".custom-select-wrapper").forEach(w => w.classList.remove("open"));
+        });
