@@ -51,11 +51,6 @@
             <div class="login-label">PIN Karyawan</div>
             <input type="password" class="login-input" id="loginPin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="PIN KARYAWAN">
             
-            <!-- Fallback input khusus mode Web / Debugging agar tidak terhambat CORS -->
-            <div id="manualLoginContainer" style="margin-top: 14px; display: none;">
-                <div class="login-label" style="margin-bottom: 6px; font-size: 11px; opacity: 0.85;">Ketik ID Karyawan (Manual Web/Debug)</div>
-                <input type="text" id="loginManualId" placeholder="Contoh: K001" style="width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 14px; font-weight: 700; color: var(--text); outline: none; box-sizing: border-box; transition: border-color 0.2s;">
-            </div>
             <button class="login-btn" id="btnLogin" onclick="doLogin()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"
                     stroke-linecap="round" stroke-linejoin="round">
