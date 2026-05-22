@@ -1465,6 +1465,31 @@
             return deviceId;
         }
 
+        async function getDeviceName() {
+            let deviceName = localStorage.getItem('absen_device_name');
+            if (!deviceName) {
+                try {
+                    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Device) {
+                        const info = await window.Capacitor.Plugins.Device.getInfo();
+                        deviceName = info.model || info.name || (info.operatingSystem + " " + info.osVersion);
+                    } else {
+                        // Web fallback
+                        const ua = navigator.userAgent;
+                        if (ua.includes('Windows')) deviceName = 'Windows PC';
+                        else if (ua.includes('Macintosh')) deviceName = 'Mac';
+                        else if (ua.includes('Linux')) deviceName = 'Linux';
+                        else if (ua.includes('Android')) deviceName = 'Android Browser';
+                        else if (ua.includes('iPhone') || ua.includes('iPad')) deviceName = 'iOS Browser';
+                        else deviceName = 'Web Browser';
+                    }
+                } catch(e) {
+                    deviceName = 'Perangkat Tidak Dikenal';
+                }
+                localStorage.setItem('absen_device_name', deviceName);
+            }
+            return deviceName;
+        }
+
         // ==================== LOGIN ====================
         async function doLogin(force = false) {
             const sel = document.getElementById('loginSelect');
@@ -1545,10 +1570,12 @@
             if (!verifiedUser && !isManualDebug) {
                 try {
                     console.log("[AUTH] Memverifikasi ke server...");
+                    const dName = await getDeviceName();
                     const res = await apiCall('login', { 
                         idKaryawan: id, 
                         pin: enteredPin,
                         deviceId: getDeviceId(),
+                        deviceName: dName,
                         force: force
                     });
                     

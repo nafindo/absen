@@ -451,13 +451,14 @@ function login(data) {
   // === SINGLE DEVICE LOGIN CHECK ===
   if (deviceId) {
     const currentDevice = user.Device_ID;
+    const currentDeviceName = user.Device_Name || 'Perangkat Lain';
     
     // Jika device ID beda dan tidak di-force, tolak dan minta konfirmasi
     if (currentDevice && currentDevice !== deviceId && !force) {
       return { 
         success: false, 
         requireDeviceConfirmation: true, 
-        message: 'Akun sedang aktif di perangkat lain. Lanjutkan login dan paksa keluar perangkat lain?' 
+        message: `Akun sedang aktif di ${currentDeviceName}. Lanjutkan login dan paksa keluar perangkat tersebut?` 
       };
     }
     
@@ -474,12 +475,26 @@ function login(data) {
           sheet.getRange(1, colDevice + 1).setValue('Device_ID');
         }
         
+        let colDeviceName = headers.indexOf('Device_Name');
+        if (colDeviceName === -1) {
+          colDeviceName = sheet.getLastColumn(); // get actual last column (1-indexed)
+          sheet.getRange(1, colDeviceName + 1).setValue('Device_Name');
+        } else {
+          colDeviceName = colDeviceName; // keep 0-indexed if found
+        }
+        
         for (let i = 1; i < allData.length; i++) {
           if (String(allData[i][0]) === String(idKaryawan)) {
             sheet.getRange(i + 1, colDevice + 1).setValue(deviceId);
+            sheet.getRange(i + 1, headers.indexOf('Device_Name') === -1 ? colDeviceName + 1 : colDeviceName + 1).setValue(data.deviceName || 'Perangkat Tidak Dikenal');
             break;
           }
         }
+        
+        // CLEAR CACHE AGAR LOGIN SELANJUTNYA BISA MEMBACA DEVICE_ID YANG BARU!
+        try {
+          CacheService.getScriptCache().remove('DATA_' + SHEET_NAMES.MASTER_KARYAWAN);
+        } catch(e) {}
       }
       
       // Jika force login dari device berbeda, kirim pusher untuk log out device lama
