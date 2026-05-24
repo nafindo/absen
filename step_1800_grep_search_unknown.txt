@@ -1,0 +1,9 @@
+{
+  "CaseInsensitive": "true",
+  "IsRegex": "false",
+  "MatchPerLine": "true",
+  "Query": "\"changePin\"",
+  "SearchPath": "\"d:\\\\absen\\\\style.css\"",
+  "toolAction": "\"Searching for changePin references in style.css\"",
+  "toolSummary": "\"Grep changePin in style.css\""
+}

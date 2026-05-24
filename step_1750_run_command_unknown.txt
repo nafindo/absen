@@ -1,0 +1,7 @@
+{
+  "CommandLine": "\"git log -p -S \\\"changePin\\\"\"",
+  "Cwd": "\"d:\\\\absen\"",
+  "WaitMsBeforeAsync": "5000",
+  "toolAction": "\"Searching git history for changePin\"",
+  "toolSummary": "\"Search git history for changePin\""
+}

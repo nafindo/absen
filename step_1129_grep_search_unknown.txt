@@ -1,0 +1,9 @@
+{
+  "CaseInsensitive": "false",
+  "IsRegex": "false",
+  "MatchPerLine": "true",
+  "Query": "\"changePin\"",
+  "SearchPath": "\"d:\\\\absen\\\\app.js\"",
+  "toolAction": "\"Searching for changePin calls in app.js\"",
+  "toolSummary": "\"Grep changePin in app.js\""
+}

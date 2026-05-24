@@ -1,0 +1,7 @@
+{
+  "CommandLine": "\"git log -S \\\"profilePopover\\\"\"",
+  "Cwd": "\"d:\\\\absen\"",
+  "WaitMsBeforeAsync": "5000",
+  "toolAction": "\"Searching all git commit history for profilePopover\"",
+  "toolSummary": "\"git log search profilePopover\""
+}

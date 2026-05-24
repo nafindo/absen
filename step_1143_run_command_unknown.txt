@@ -1,0 +1,7 @@
+{
+  "CommandLine": "\"cmd /c \\\"set JAVA_HOME=C:\\\\Program Files\\\\Android\\\\Android Studio\\\\jbr&& cd android && gradlew installDebug\\\"\"",
+  "Cwd": "\"d:\\\\absen\"",
+  "WaitMsBeforeAsync": "5000",
+  "toolAction": "\"Rebuilding debug APK with case-insensitive changePin support\"",
+  "toolSummary": "\"gradlew installDebug with JAVA_HOME\""
+}

@@ -1,0 +1,7 @@
+{
+  "AbsolutePath": "\"d:\\\\absen\\\\app.js\"",
+  "EndLine": "760",
+  "StartLine": "630",
+  "toolAction": "\"Viewing profile popover and changePin modal handlers in app.js\"",
+  "toolSummary": "\"View app.js lines 630-760\""
+}

@@ -20,7 +20,8 @@ const SHEET_NAMES = {
   CHAT: 'CHAT',
   TUKER_SHIFT: 'TUKER_SHIFT',
   TUGAS: 'TUGAS',
-  BERITA: 'BERITA'
+  BERITA: 'BERITA',
+  GAJI: 'DATA_GAJI'
 };
 
 // ==================== WEB APP ROUTING ====================
@@ -71,6 +72,9 @@ function doPost(e) {
     const action = data.action;
 
     switch (action) {
+      // === APP SYSTEM ===
+      case 'checkUpdate': return jsonResponse(checkUpdate());
+
       // === AUTH ===
       case 'login': return jsonResponse(login(data));
       case 'getUserInfo': return jsonResponse(getUserInfo(data));
@@ -170,6 +174,10 @@ function doPost(e) {
 
       // === DELTA SYNC ===
       case 'getDeltas': return jsonResponse(getDeltas(data));
+
+      // === GAJI ===
+      case 'getSlipGaji': return jsonResponse(getSlipGaji(data));
+      case 'pingOnline': return jsonResponse(pingOnline(data));
 
       default:
         return jsonResponse({ success: false, error: 'Action tidak dikenal: ' + action });
@@ -315,7 +323,7 @@ function getDefaultHeaders(sheetName) {
     'MASTER_JENIS_IZIN': ['ID_Jenis', 'Nama_Jenis', 'Kode', 'Kuota_Per_Tahun', 'Kuota_Per_Bulan', 'Maks_Hari_Sekali_Ajuan', 'Gender_Khusus', 'Potong_Cuti_Bulanan', 'Syarat_Hari_Kerja_Minimal', 'Status'],
     'SETTING_GLOBAL': ['Parameter', 'Value', 'Keterangan'],
     'LOG_ERROR': ['Timestamp', 'Error', 'Stack', 'User', 'Action', 'Payload'],
-    'CHAT': ['Timestamp', 'ID_Pesan', 'ID_Karyawan', 'Nama', 'Pesan', 'Tipe', 'File_URL', 'Nama_File', 'Size_KB'],
+    'CHAT': ['Timestamp', 'ID_Pesan', 'ID_Karyawan', 'Nama', 'Pesan', 'Tipe', 'File_URL', 'Nama_File', 'Size_KB', 'Reply_To'],
     'TUKER_SHIFT': ['Timestamp', 'ID_Tuker', 'ID_Karyawan', 'Nama', 'ID_Toko_Saya', 'ID_Toko_Tujuan', 'ID_Karyawan_Tujuan', 'Shift_Saya', 'Shift_Tujuan', 'Tanggal', 'Alasan', 'Status', 'Approved_By', 'Approved_At'],
     'TUGAS': ['Timestamp', 'ID_Tugas', 'ID_Toko', 'Judul', 'Deskripsi', 'Deadline', 'Prioritas', 'Status', 'Dibuat_Oleh', 'Ditugaskan_Ke', 'Selesai_At'],
     'BERITA': ['Timestamp', 'ID_Berita', 'Judul', 'Isi', 'Kategori', 'Gambar_URL', 'Dibuat_Oleh', 'Tgl_Publish', 'Status']
@@ -329,11 +337,14 @@ function getSheetData(sheetName) {
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return [];
   const headers = data[0];
+  const defaultHeaders = getDefaultHeaders(sheetName) || headers;
   return data.slice(1).map(row => {
     const obj = {};
-    headers.forEach((header, i) => {
-      obj[header] = row[i];
-    });
+    const maxLen = Math.max(headers.length, defaultHeaders.length, row.length);
+    for(let i=0; i<maxLen; i++) {
+      let h = headers[i] || defaultHeaders[i] || ('Col' + i);
+      obj[h] = row[i];
+    }
     return obj;
   });
 }
@@ -437,6 +448,28 @@ function getHariIni() {
   return hari[new Date().getDay()];
 }
 
+// ==================== APP SYSTEM ====================
+function checkUpdate() {
+  try {
+    const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
+    let apkVersion = "2.3";
+    let apkUrl = "";
+    
+    for (let i = 0; i < settings.length; i++) {
+      if (settings[i].Parameter === 'APK_VERSION') apkVersion = String(settings[i].Value);
+      if (settings[i].Parameter === 'APK_UPDATE_URL') apkUrl = String(settings[i].Value);
+    }
+    
+    return {
+      success: true,
+      latestVersion: apkVersion,
+      updateUrl: apkUrl
+    };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
 // ==================== AUTH ====================
 function login(data) {
   const { idKaryawan, pin } = data;
@@ -461,7 +494,8 @@ function login(data) {
       tokoDefault: user.Toko_Default || '',
       shiftDefault: user.Shift_Default || '',
       noHP: user.No_HP || '',
-      email: user.Email || ''
+      email: user.Email || '',
+      fotoProfil: user.Foto_Profil || ''
     },
     modeJadwal: mode
   };
@@ -577,8 +611,8 @@ function absenMasuk(data) {
 
   // Simpan ke sheet
   const idAbsensi = generateId('A');
-  const safeLat = lat ? (String(lat).startsWith("'") ? lat : "'" + lat) : '';
-  const safeLng = lng ? (String(lng).startsWith("'") ? lng : "'" + lng) : '';
+  const safeLat = lat !== undefined ? lat : '';
+  const safeLng = lng !== undefined ? lng : '';
 
   appendRow(SHEET_NAMES.ABSENSI, [
     formatDateTime(now),
@@ -707,8 +741,8 @@ function absenPulang(data) {
   }
 
   // Tambah record pulang agar sesuai dengan rancangan sheet awal
-  const safeLat = lat ? (String(lat).startsWith("'") ? lat : "'" + lat) : recordMasuk.Lat_Hp || '';
-  const safeLng = lng ? (String(lng).startsWith("'") ? lng : "'" + lng) : recordMasuk.Long_Hp || '';
+  const safeLat = lat !== undefined ? lat : recordMasuk.Lat_Hp || '';
+  const safeLng = lng !== undefined ? lng : recordMasuk.Long_Hp || '';
 
   appendRow(SHEET_NAMES.ABSENSI, [
     formatDateTime(now),
@@ -1248,14 +1282,15 @@ function getJadwalHariIni(data) {
       idShift: jadwal.ID_Shift,
       namaShift: shift ? shift.Nama_Shift : jadwal.Nama_Shift,
       jamMasuk: shift ? shift.Jam_Masuk : '',
-      jamPulang: shift ? shift.Jam_Pulang : ''
+      jamPulang: shift ? shift.Jam_Pulang : '',
+      fotoToko: toko ? (toko.Foto_Toko_URL || toko.Foto_URL || '') : ''
     };
   }
 
   const finalJadwal = checkSwappedJadwal(idKaryawan, todayStr, originalJadwal);
 
   if (finalJadwal.libur) {
-    return { success: false, error: 'Tidak ada jadwal hari ini' };
+    return { success: true, jadwal: null, message: 'Tidak ada jadwal hari ini' };
   }
 
   return {
@@ -1266,7 +1301,8 @@ function getJadwalHariIni(data) {
       idShift: finalJadwal.idShift,
       namaShift: finalJadwal.namaShift,
       jamMasuk: finalJadwal.jamMasuk,
-      jamPulang: finalJadwal.jamPulang
+      jamPulang: finalJadwal.jamPulang,
+      fotoToko: finalJadwal.fotoToko || ''
     }
   };
 }
@@ -2113,8 +2149,8 @@ function saveToko(data) {
   const { nama, alamat, lat, lng, radius, jamBuka, jamTutup, fotoUrl } = data;
   const idToko = generateId('T');
 
-  const safeLat = lat ? (String(lat).startsWith("'") ? lat : "'" + lat) : '';
-  const safeLng = lng ? (String(lng).startsWith("'") ? lng : "'" + lng) : '';
+  const safeLat = lat !== undefined ? lat : '';
+  const safeLng = lng !== undefined ? lng : '';
 
   appendRow(SHEET_NAMES.MASTER_TOKO, [
     idToko, nama, alamat, safeLat, safeLng, radius || 50, jamBuka || '08:00', jamTutup || '22:00', fotoUrl || '', 'Aktif'
@@ -2134,12 +2170,10 @@ function updateToko(data) {
       if (nama !== undefined) sheet.getRange(i + 1, 2).setValue(nama);
       if (alamat !== undefined) sheet.getRange(i + 1, 3).setValue(alamat);
       if (lat !== undefined) {
-          const safeLat = lat ? (String(lat).startsWith("'") ? lat : "'" + lat) : '';
-          sheet.getRange(i + 1, 4).setValue(safeLat);
+          sheet.getRange(i + 1, 4).setValue(lat);
       }
       if (lng !== undefined) {
-          const safeLng = lng ? (String(lng).startsWith("'") ? lng : "'" + lng) : '';
-          sheet.getRange(i + 1, 5).setValue(safeLng);
+          sheet.getRange(i + 1, 5).setValue(lng);
       }
       if (radius !== undefined) sheet.getRange(i + 1, 6).setValue(radius);
       if (jamBuka !== undefined) sheet.getRange(i + 1, 7).setValue(jamBuka);
@@ -2610,13 +2644,47 @@ function getChatMessages(data) {
       tipe: c.Tipe || 'text',
       fileUrl: c.File_URL || '',
       namaFile: c.Nama_File || '',
+      replyTo: c.Reply_To || c.replyTo || null,
       waktu: formatDateTime(new Date(c.Timestamp))
     }))
   };
 }
 
+// ==================== ONLINE PRESENCE ====================
+function pingOnline(data) {
+  try {
+    const { idKaryawan, nama } = data;
+    if (!idKaryawan || !nama) return { success: false, error: 'Data tidak lengkap' };
+    
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('ping_' + idKaryawan + '_' + nama, new Date().getTime().toString());
+    
+    const allProps = props.getProperties();
+    const now = new Date().getTime();
+    const activeNames = [];
+    
+    for (let key in allProps) {
+      if (key.startsWith('ping_')) {
+        const ts = parseInt(allProps[key]);
+        if (now - ts < 5 * 60 * 1000) {
+          const parts = key.split('_');
+          if (parts.length >= 3) {
+            activeNames.push(parts.slice(2).join('_'));
+          }
+        } else {
+          props.deleteProperty(key);
+        }
+      }
+    }
+    
+    return { success: true, activeUsers: activeNames };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
 function sendChatMessage(data) {
-  const { idKaryawan, nama, pesan, tipe, fileBase64, namaFile } = data;
+  const { idKaryawan, nama, pesan, tipe, fileBase64, namaFile, replyTo } = data;
   if (!idKaryawan || (!pesan && !fileBase64)) {
     return { success: false, error: 'Data tidak lengkap' };
   }
@@ -2674,7 +2742,8 @@ function sendChatMessage(data) {
     tipe || 'text',
     fileUrl,
     namaFile || '',
-    sizeKB
+    sizeKB,
+    replyTo || ''
   ]);
 
   // Broadcast real-time message via Pusher WebSockets!
@@ -2688,6 +2757,7 @@ function sendChatMessage(data) {
       tipe: tipe || 'text',
       fileUrl: fileUrl,
       namaFile: namaFile || '',
+      replyTo: replyTo || '',
       waktu: formatDateTime(new Date())
     });
   } catch (e) {
@@ -2903,9 +2973,9 @@ function checkSwappedJadwal(idKaryawan, tanggalStr, originalJadwal) {
   try {
     const formattedTargetDate = formatDate(new Date(tanggalStr));
     const swapData = getSheetData(SHEET_NAMES.TUKER_SHIFT).find(t =>
-      t.Status === 'Approved' &&
-      formatDate(new Date(t.Tanggal)) === formattedTargetDate &&
-      (t.ID_Karyawan === idKaryawan || t.ID_Karyawan_Tujuan === idKaryawan)
+      String(t.Status).trim() === 'Approved' &&
+      (formatDate(parseDateSafe(t.Tanggal)) === formattedTargetDate || String(t.Tanggal).trim() === formattedTargetDate) &&
+      (String(t.ID_Karyawan) === String(idKaryawan) || String(t.ID_Karyawan_Tujuan) === String(idKaryawan))
     );
 
     if (!swapData) return originalJadwal;
@@ -2913,7 +2983,7 @@ function checkSwappedJadwal(idKaryawan, tanggalStr, originalJadwal) {
     let targetTokoId = '';
     let targetShiftId = '';
 
-    if (swapData.ID_Karyawan === idKaryawan) {
+    if (String(swapData.ID_Karyawan) === String(idKaryawan)) {
       targetTokoId = swapData.ID_Toko_Tujuan;
       targetShiftId = swapData.Shift_Tujuan;
     } else {
@@ -2932,6 +3002,7 @@ function checkSwappedJadwal(idKaryawan, tanggalStr, originalJadwal) {
       namaShift: shift ? (shift.Nama_Shift + ' ⇆') : 'Shift ⇆',
       jamMasuk: shift ? formatTimeOnly(shift.Jam_Masuk) : '—',
       jamPulang: shift ? formatTimeOnly(shift.Jam_Pulang) : '—',
+      fotoToko: toko ? (toko.Foto_Toko_URL || toko.Foto_URL || '') : '',
       swapped: true
     };
   } catch (e) {
@@ -3124,6 +3195,13 @@ function initSpreadsheet() {
   // Ini hanya untuk inisialisasi default settings
 
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  
+  if (!ss.getSheetByName(SHEET_NAMES.GAJI)) {
+    const sh = ss.insertSheet(SHEET_NAMES.GAJI);
+    sh.appendRow(['ID_Slip', 'ID_Karyawan', 'Bulan', 'Tahun', 'Gaji_Pokok', 'Tunjangan', 'Potongan', 'Total_Bersih', 'Keterangan', 'Timestamp']);
+    sh.getRange("A1:J1").setFontWeight("bold").setBackground("#f3f3f3");
+  }
+
   const settingSheet = getSheet(SHEET_NAMES.SETTING_GLOBAL);
   const existing = settingSheet.getDataRange().getValues();
 
@@ -3145,6 +3223,30 @@ function initSpreadsheet() {
   }
 
   return 'Spreadsheet berhasil diinisialisasi! Sheet yang dibuat: ' + Object.values(SHEET_NAMES).join(', ');
+}
+
+// ==================== GAJI ====================
+function getSlipGaji(data) {
+  const idKaryawan = data.idKaryawan;
+  if (!idKaryawan) return { success: false, error: 'ID Karyawan wajib diisi' };
+  try {
+    const sheetData = getSheetData(SHEET_NAMES.GAJI) || [];
+    const slip = sheetData.filter(s => String(s.ID_Karyawan) === String(idKaryawan));
+    const formatted = slip.map(s => ({
+      idSlip: s.ID_Slip,
+      bulan: s.Bulan,
+      tahun: s.Tahun,
+      gajiPokok: s.Gaji_Pokok,
+      tunjangan: s.Tunjangan,
+      potongan: s.Potongan,
+      totalBersih: s.Total_Bersih,
+      keterangan: s.Keterangan,
+      tanggal: s.Timestamp ? formatDateTime(parseDateSafe(s.Timestamp)) : ''
+    }));
+    return { success: true, data: formatted };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
 }
 
 

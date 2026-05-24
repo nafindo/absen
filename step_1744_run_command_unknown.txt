@@ -1,0 +1,7 @@
+{
+  "CommandLine": "\"powershell -Command \\\"Select-String -Path 'd:\\\\absen\\\\recom\\\\index.html' -Pattern 'profilePopover'\\\"\"",
+  "Cwd": "\"d:\\\\absen\"",
+  "WaitMsBeforeAsync": "5000",
+  "toolAction": "\"Searching for profilePopover in compiled recom/index.html\"",
+  "toolSummary": "\"Search profilePopover in recom/index.html\""
+}

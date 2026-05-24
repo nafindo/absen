@@ -1,0 +1,9 @@
+{
+  "CaseInsensitive": "true",
+  "IsRegex": "false",
+  "MatchPerLine": "true",
+  "Query": "\"profilePopover\"",
+  "SearchPath": "\"d:\\\\absen\\\\app.js\"",
+  "toolAction": "\"Searching for profilePopover in app.js\"",
+  "toolSummary": "\"Grep profilePopover in app.js\""
+}

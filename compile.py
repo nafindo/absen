@@ -63,7 +63,7 @@ compile_file('admin.html', 'admin.css', 'admin.js', 'recom/admin.html')
 import shutil
 print("Menyalin berkas aset gambar dan konfigurasi ke folder recom...")
 for file in os.listdir('.'):
-    if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.svg', '.json', '.js', '.css', '.html')):
+    if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.svg', '.json', '.js', '.css', '.html', '.bin')) or file == 'facefinder':
         # Jangan salin file skrip Python atau file kredensial rahasia
         if file in ['compile.py', 'extract.py', 'package.json', 'package-lock.json', 'capacitor.config.json', 'google-services.json']:
             continue

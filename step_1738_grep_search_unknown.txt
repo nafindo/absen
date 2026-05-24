@@ -1,0 +1,9 @@
+{
+  "CaseInsensitive": "true",
+  "IsRegex": "false",
+  "MatchPerLine": "true",
+  "Query": "\"modalChangePin\"",
+  "SearchPath": "\"d:\\\\absen\\\\index.html\"",
+  "toolAction": "\"Searching for modalChangePin in index.html\"",
+  "toolSummary": "\"Grep modalChangePin in index.html\""
+}

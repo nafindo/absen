@@ -1,0 +1,12 @@
+=== STEP 1808 (replace_file_content) ===
+TargetFile: "d:\\absen\\app.js"
+StartLine: 511, EndLine: 758
+Instruction: "Delete the functions manualSyncRefresh, toggleProfilePopover, closePopoverOutside, openChangePinModal, and submitChangePin from app.js."
+TargetContent:
+"\n        window.manualSyncRefresh = async function() {\n            if (!navigator.onLine) {\n                tampilPicoModal('error', 'Koneksi internet terputus. Silakan hubungkan internet terlebih dahulu untuk menyelaraskan data terbaru.');\n                return;\n            }\n            \n            const btn = document.querySelector('.header-refresh');\n            const svg = document.getElementById('refreshIconSvg');\n            if (btn && svg) {\n                svg.style.transition = 'transform 1s ease';\n                svg.style.transform = 'rotate(360deg)';\n                btn.disabled = true;\n            }\n            \n            try {\n                // Bersihkan FOTO_CACHE IndexedDB agar bisa mengunduh foto terbaru secara bersih\n                if (localDB && localDB.objectStoreNames.contains(\"FOTO_CACHE\")) {\n                    try {\n                        const tx = localDB.transaction(\"FOTO_CACHE\", \"readwrite\");\n                        tx.objectStore(\"FOTO_CACHE\").clear();\n                        console.log(\"[SYNC] FOTO_CACHE berhasil dibersihkan untuk penyegaran media.\");\n                    } catch (cacheErr) {\n                        console.warn(\"[SYNC] Gagal membersihkan FOTO_CACHE:\", cacheErr);\n                    }\n                }\n\n                // Jalankan sinkronisasi penuh dengan overlay pemblokir\n                await triggerDeltaSync(true);\n                \n                // Muat ulang data UI berdasarkan tab aktif saat ini\n                const activeTab = state.activeTab || 'beranda';\n                if (activeTab === 'chat') {\n                    await loadChatMessages();\n                } else if (activeTab === 'absensi') {\n                    await checkAbsenStatus();\n                } else if (activeTab === 'raport') {\n                    await renderRaport();\n                } else if (activeTab === 'berita') {\n                    await renderBeritaList();\n                } else if (activeTab === 'tugas') {\n            
+<truncated 9790 bytes>
+ReplacementContent:
+"        // Removed profile popover, manual sync refresh, and change PIN modal handlers per user request.\n"
+
+================================================================================
+

@@ -1,0 +1,7 @@
+{
+  "AbsolutePath": "\"d:\\\\absen\\\\code.gs\"",
+  "EndLine": "645",
+  "StartLine": "610",
+  "toolAction": "\"Viewing changePin function in code.gs\"",
+  "toolSummary": "\"View changePin\""
+}

@@ -1,0 +1,9 @@
+{
+  "CaseInsensitive": "true",
+  "IsRegex": "false",
+  "MatchPerLine": "true",
+  "Query": "\"changePin\"",
+  "SearchPath": "\"d:\\\\absen\\\\code.gs\"",
+  "toolAction": "\"Searching for changePin function in code.gs\"",
+  "toolSummary": "\"Grep changePin in code.gs\""
+}

@@ -1,0 +1,7 @@
+{
+  "CommandLine": "\"powershell -Command \\\"git diff app.js | Select-String -Pattern 'profilePopover'\\\"\"",
+  "Cwd": "\"d:\\\\absen\"",
+  "WaitMsBeforeAsync": "5000",
+  "toolAction": "\"Searching for profilePopover inside app.js git diff\"",
+  "toolSummary": "\"Select-String profilePopover in git diff\""
+}

@@ -2613,7 +2613,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==================== PUSHER REAL-TIME NOTIFICATIONS ====================
   try {
     if (typeof Pusher !== 'undefined') {
-      const pusher = new Pusher('e912ab0d6c703b0d5c07', { cluster: 'ap1' });
+      const pusher = new Pusher('3c015a6e56c1e4beb0ea', { cluster: 'ap1' });
       const channel = pusher.subscribe('pinguin-chat');
 
       channel.bind('absen-alert', function(data) {

@@ -1,0 +1,9 @@
+{
+  "CaseInsensitive": "true",
+  "IsRegex": "false",
+  "MatchPerLine": "true",
+  "Query": "\"profilePopover\"",
+  "SearchPath": "\"d:\\\\absen\"",
+  "toolAction": "\"Searching for profilePopover in all files in the codebase\"",
+  "toolSummary": "\"Grep profilePopover in all files\""
+}

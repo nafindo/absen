@@ -1,0 +1,7 @@
+{
+  "CommandLine": "\"git log -p -S \\\"profilePopover\\\" index.html\"",
+  "Cwd": "\"d:\\\\absen\"",
+  "WaitMsBeforeAsync": "5000",
+  "toolAction": "\"Checking git history of index.html for profilePopover changes\"",
+  "toolSummary": "\"Search git history for profilePopover\""
+}

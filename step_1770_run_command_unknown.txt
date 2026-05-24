@@ -1,0 +1,7 @@
+{
+  "CommandLine": "\"powershell -Command \\\"Select-String -Path 'd:\\\\absen\\\\recom\\\\index.html' -Pattern 'changePin'\\\"\"",
+  "Cwd": "\"d:\\\\absen\"",
+  "WaitMsBeforeAsync": "5000",
+  "toolAction": "\"Searching for changePin string in compiled recom/index.html\"",
+  "toolSummary": "\"Search changePin in recom/index.html\""
+}

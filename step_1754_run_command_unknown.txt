@@ -1,0 +1,7 @@
+{
+  "CommandLine": "\"powershell -Command \\\"git diff app.js | Select-String -Pattern 'modalChangePin'\\\"\"",
+  "Cwd": "\"d:\\\\absen\"",
+  "WaitMsBeforeAsync": "5000",
+  "toolAction": "\"Searching for modalChangePin in app.js git diff\"",
+  "toolSummary": "\"Select-String modalChangePin in git diff\""
+}

@@ -1,0 +1,61 @@
+# ABSENSI PRO - AI CONTEXT BACKUP
+Date Backup: 2026-05-20
+Project Path: D:\absen
+
+## 1. Project Overview & Architecture
+This is a hybrid Android application built using HTML, CSS, and Vanilla Javascript. It utilizes Capacitor to compile and run on Android.
+- **Frontend Source Files**: 
+  - `index.html` (Main markup)
+  - `style.css` (All application styling)
+  - `app.js` (Core application logic, face detection, offline database, sheets API communication)
+- **Distribution Directory**: `recom/` (Build output)
+  - The script `compile.py` compiles source files into `recom/` by embedding stylesheet styles and script sources directly for distribution.
+- **Android Platform Path**: `android/`
+  - Capacitor uses the assets in `recom/` and copies them to the Android project public asset folder.
+
+## 2. Key Build & Deploy Commands
+Run these commands from the root directory `d:\absen` in order:
+1. **Compile Web Assets**:
+   `python compile.py`
+2. **Capacitor Sync**:
+   `npx cap sync android`
+3. **Build APK (Offline)**:
+   `set JAVA_HOME=C:\Program Files\Android\Android Studio\jbr&& android\gradlew.bat -p android assembleDebug`
+   - Generated APK path: `android\app\build\outputs\apk\debug\app-debug.apk`
+4. **Deploy directly to USB-connected device**:
+   `set JAVA_HOME=C:\Program Files\Android\Android Studio\jbr&& android\gradlew.bat -p android installDebug`
+
+## 3. Implemented Tasks & Refinements
+The following features were successfully completed and packaged into the latest debug build:
+
+### A. Employee PIN Login Restoration
+- Kolom input password PIN (`#loginPin` berkelas `.login-input`) diletakkan kembali pada login card di `index.html`.
+- Kolom ini diatur agar hanya muncul apabila karyawan telah memilih namanya pada dropdown select.
+- Memperbarui gaya masukan PIN agar memiliki rounded corner premium dan focus box-shadow glow.
+
+### B. Premium Custom Select Dropdowns
+- Semua elemen `<select>` bawaan browser diganti dengan sistem Custom Dropdown UI buatan sendiri untuk tampilan yang lebih profesional di Android/iOS.
+- **Lokasi Kode CSS**: Akhir file `style.css` (di bawah kelas `.custom-select-wrapper`, `.custom-select-trigger`, `.custom-select-options`, `.custom-select-option`).
+- **Lokasi Kode JS**: Akhir file `app.js` di bawah fungsi pembantu `makeSelectCustom(selectId)` dan `refreshCustomDropdown(selectId)`.
+- Menggunakan trigger click event yang menyinkronkan data balik ke native `<select>` (yang disembunyikan lewat `display: none`) untuk menjamin semua event listener `onchange` bawaan aplikasi asli tetap bekerja sempurna.
+- Diterapkan pada: `#loginSelect`, `#selectToko`, `#selectShift`, `#tukerKaryawan`, `#lemburToko`, `#lemburKeteranganType`.
+
+### C. Transisi Gelap Kamera & Anti-Glitch Tombol Play
+- **Masalah**: WebView Android memunculkan kedipan tombol play default browser memanjang sebelum stream kamera terbuka.
+- **Solusi**:
+  - Mengatur opacity awal video menjadi `0` (`.camera-container video { opacity: 0; transition: opacity 0.3s; }`).
+  - Menambahkan `#cameraLoadingOverlay` berlatar belakang hitam pekat (`#000000`) di dalam container kamera.
+  - Saat kamera diaktifkan, video akan memutar stream. Ketika event `onplaying` dipicu, kelas `.playing` ditambahkan ke video (`opacity: 1`), dan overlay hitam pekat memudar halus lalu menghilang (`display: none`).
+
+### D. Efek Kotak Merah "Bingung" (Confused Scanner)
+- **Masalah**: Efek pemindaian wajah default dirasa kurang dinamis dan kurang menggambarkan visual pencarian wajah saat pencahayaan tidak ideal.
+- **Solusi**:
+  - Mengganti 3 kotak radar putih melayang yang lama dengan **8 buah kotak merah** pemindai target (`.confused-box`).
+  - Saat wajah belum terdeteksi (`dets.length === 0`), sistem secara acak menentukan posisi (`left`/`top` dalam %), ukuran (`width`/`height` acak antara 50px hingga 110px), dan label eror simulasi (seperti `SCAN_ERR`, `NO_FACE`, `RETRYING`, dll.) pada setiap frame.
+  - Memberikan visual techy/cyberpunk keren seolah sistem sedang "bingung" mencari target.
+
+## 4. Current State & Configuration
+- Face detection threshold diatur di nilai `8.5` di `app.js` untuk memudahkan pendeteksian dari arah samping/cahaya redup.
+- Layout absensi disesuaikan agar pas satu layar tanpa scroll (dengan tinggi preview kamera statis `220px` ketika form dibuka).
+- Tombol lembur dan tombol check-in/out diatur bergantian secara dinamis tergantung status kehadiran user.
+- Status build Gradle sukses. APK terbaru tersimpan di `d:\absen\app-debug.apk`.

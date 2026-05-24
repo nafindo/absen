@@ -1,0 +1,7 @@
+{
+  "CommandLine": "\"powershell -Command \\\"Select-String -Path 'C:\\\\Users\\\\ajtna\\\\.gemini\\\\antigravity\\\\brain\\\\02962daf-7318-4d9a-bac9-cb9b4dbb8b26\\\\.system_generated\\\\logs\\\\transcript.jsonl' -Pattern 'profilePopover' | Select-Object -First 20\\\"\"",
+  "Cwd": "\"d:\\\\absen\"",
+  "WaitMsBeforeAsync": "5000",
+  "toolAction": "\"Searching transcript.jsonl using PowerShell select-string\"",
+  "toolSummary": "\"Select-String profilePopover in transcript.jsonl\""
+}

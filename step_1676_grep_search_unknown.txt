@@ -1,0 +1,9 @@
+{
+  "CaseInsensitive": "true",
+  "IsRegex": "false",
+  "MatchPerLine": "true",
+  "Query": "\"profilePopover\"",
+  "SearchPath": "\"d:\\\\absen\\\\index.html\"",
+  "toolAction": "\"Searching for profilePopover in index.html\"",
+  "toolSummary": "\"Grep profilePopover in index.html\""
+}
