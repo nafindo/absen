@@ -590,7 +590,15 @@ function absenMasuk(data) {
   // Cek toleransi keterlambatan
   const shift = getSheetData(SHEET_NAMES.SHIFT_TOKO).find(s => s.ID_Shift === idShift);
   const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-  const toleransiMenit = parseInt(settings.find(s => s.Parameter === 'TOLERANSI_KETERLAMBATAN_MENIT')?.Value || 15);
+  const toleransiGlobal = parseInt(settings.find(s => s.Parameter === 'TOLERANSI_KETERLAMBATAN_MENIT')?.Value || 15);
+  const tokoData = getSheetData(SHEET_NAMES.MASTER_TOKO).find(t => t.ID_Toko === idToko);
+  
+  let toleransiMenit = toleransiGlobal;
+  if (tokoData && (tokoData.Toleransi_Telat !== undefined || tokoData.Toleransi_Masuk_Menit !== undefined)) {
+    toleransiMenit = parseInt(tokoData.Toleransi_Telat || tokoData.Toleransi_Masuk_Menit || toleransiGlobal);
+  } else if (shift && shift.Toleransi_Masuk_Menit !== undefined && shift.Toleransi_Masuk_Menit !== '') {
+    toleransiMenit = parseInt(shift.Toleransi_Masuk_Menit);
+  }
 
   const now = new Date();
   const jamMasukShift = shift ? shift.Jam_Masuk : '08:00';
@@ -611,8 +619,8 @@ function absenMasuk(data) {
 
   // Simpan ke sheet
   const idAbsensi = generateId('A');
-  const safeLat = lat !== undefined ? lat : '';
-  const safeLng = lng !== undefined ? lng : '';
+  const safeLat = lat ? (String(lat).startsWith("'") ? lat : "'" + lat) : '';
+  const safeLng = lng ? (String(lng).startsWith("'") ? lng : "'" + lng) : '';
 
   appendRow(SHEET_NAMES.ABSENSI, [
     formatDateTime(now),
@@ -741,8 +749,8 @@ function absenPulang(data) {
   }
 
   // Tambah record pulang agar sesuai dengan rancangan sheet awal
-  const safeLat = lat !== undefined ? lat : recordMasuk.Lat_Hp || '';
-  const safeLng = lng !== undefined ? lng : recordMasuk.Long_Hp || '';
+  const safeLat = lat ? (String(lat).startsWith("'") ? lat : "'" + lat) : recordMasuk.Lat_Hp || '';
+  const safeLng = lng ? (String(lng).startsWith("'") ? lng : "'" + lng) : recordMasuk.Long_Hp || '';
 
   appendRow(SHEET_NAMES.ABSENSI, [
     formatDateTime(now),
@@ -2149,8 +2157,8 @@ function saveToko(data) {
   const { nama, alamat, lat, lng, radius, jamBuka, jamTutup, fotoUrl } = data;
   const idToko = generateId('T');
 
-  const safeLat = lat !== undefined ? lat : '';
-  const safeLng = lng !== undefined ? lng : '';
+  const safeLat = lat ? (String(lat).startsWith("'") ? lat : "'" + lat) : '';
+  const safeLng = lng ? (String(lng).startsWith("'") ? lng : "'" + lng) : '';
 
   appendRow(SHEET_NAMES.MASTER_TOKO, [
     idToko, nama, alamat, safeLat, safeLng, radius || 50, jamBuka || '08:00', jamTutup || '22:00', fotoUrl || '', 'Aktif'
@@ -2170,10 +2178,12 @@ function updateToko(data) {
       if (nama !== undefined) sheet.getRange(i + 1, 2).setValue(nama);
       if (alamat !== undefined) sheet.getRange(i + 1, 3).setValue(alamat);
       if (lat !== undefined) {
-          sheet.getRange(i + 1, 4).setValue(lat);
+          const safeLat = lat ? (String(lat).startsWith("'") ? lat : "'" + lat) : '';
+          sheet.getRange(i + 1, 4).setValue(safeLat);
       }
       if (lng !== undefined) {
-          sheet.getRange(i + 1, 5).setValue(lng);
+          const safeLng = lng ? (String(lng).startsWith("'") ? lng : "'" + lng) : '';
+          sheet.getRange(i + 1, 5).setValue(safeLng);
       }
       if (radius !== undefined) sheet.getRange(i + 1, 6).setValue(radius);
       if (jamBuka !== undefined) sheet.getRange(i + 1, 7).setValue(jamBuka);
