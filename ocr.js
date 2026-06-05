@@ -1,7 +1,7 @@
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDyDhOWjdbi1dO9HBbcSEZumOkBGlg2Z4UzJ-YqcirnX7u487kUUOYota52PV-5BlN/exec';
 
 let idKaryawan = '';
-let videoStream = null;
+
 let isLocked = false;
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -39,77 +39,40 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 // === OCR CAMERA ===
-const video = document.getElementById('camera-feed');
-const canvas = document.getElementById('canvas-foto');
-const btnStartCamera = document.getElementById('btn-start-camera');
-const cameraWrapper = document.getElementById('camera-wrapper');
-const btnCapture = document.getElementById('btn-capture');
-const previewImg = document.getElementById('foto-ktp-preview');
 
-btnStartCamera.addEventListener('click', async () => {
-    try {
-        videoStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
-        });
-        video.srcObject = videoStream;
-        cameraWrapper.style.display = 'block';
-        btnStartCamera.style.display = 'none';
-        previewImg.style.display = 'none';
-    } catch (e) {
-        alert("Gagal mengakses kamera. Mohon izinkan akses kamera di browser Anda.");
-    }
-});
 
-btnCapture.addEventListener('click', () => {
-    if (!videoStream) return;
-    
-    // Draw canvas
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    // Stop camera
-    videoStream.getTracks().forEach(track => track.stop());
-    videoStream = null;
-    
-    const base64Img = canvas.toDataURL('image/jpeg', 0.8);
-    previewImg.src = base64Img;
-    document.getElementById('inp-foto-base64').value = base64Img;
-    
-    cameraWrapper.style.display = 'none';
-    previewImg.style.display = 'block';
-    btnStartCamera.style.display = 'block';
-    btnStartCamera.textContent = '📸 Ulangi Pindai KTP';
 
-    // Start OCR
-    runOCR(base64Img);
-});
 
-async function runOCR(base64Img) {
-    const loader = document.getElementById('ocr-loading');
-    const statusText = document.getElementById('ocr-status-text');
-    loader.style.display = 'block';
-    statusText.textContent = "Menghubungkan ke Mesin OCR (1/3)...";
 
-    try {
-        const worker = await Tesseract.createWorker('ind');
-        statusText.textContent = "Membaca teks dari gambar KTP (2/3)...";
+
+async function previewAndOcrKtp() {
+    const file = document.getElementById('inp-ktp-file').files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const base64data = e.target.result;
+        const preview = document.getElementById('foto-ktp-preview');
+        preview.src = base64data;
+        document.getElementById('ktp-preview-container').style.display = 'block';
+        document.getElementById('inp-foto-base64').value = base64data;
+
+        const loader = document.getElementById('ocr-loading');
+        loader.style.display = 'block';
         
-        const ret = await worker.recognize(base64Img);
-        const text = ret.data.text;
-        
-        statusText.textContent = "Memproses teks (3/3)...";
-        await worker.terminate();
-
-        parseKtpText(text);
-
-        loader.style.display = 'none';
-    } catch (e) {
-        loader.style.display = 'none';
-        alert("Gagal membaca teks dari gambar. Anda bisa mengetik manual.");
-        console.error(e);
-    }
+        try {
+            const { data: { text } } = await worker.recognize(base64data);
+            console.log("Raw OCR:", text);
+            parseKtpText(text);
+            loader.style.display = 'none';
+            alert("Berhasil memindai! Mohon KOREKSI dan pastikan data (NIK, Nama, dll) sudah benar.");
+        } catch (err) {
+            loader.style.display = 'none';
+            alert("Gagal membaca teks dari gambar. Anda bisa mengetik manual.");
+            console.error(err);
+        }
+    };
+    reader.readAsDataURL(file);
 }
 
 function parseKtpText(text) {
@@ -171,7 +134,7 @@ function parseKtpText(text) {
     });
 
     // Alert user to check
-    alert("Berhasil memindai! Mohon KOREKSI dan pastikan data (NIK, Nama, dll) sudah benar. Komputer bisa saja salah membaca.");
+    
 }
 
 function extractValue(line) {

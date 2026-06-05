@@ -261,27 +261,20 @@
             <div class="card">
                 <h3 style="margin-top: 0; font-size: 16px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">Data E-KTP (Wajib)</h3>
                 <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 15px;">
-                    Kami akan membaca data KTP Anda secara otomatis. Pastikan KTP difoto dengan jelas, tidak silau, dan tulisan terbaca tajam.
+                    Silakan ambil foto KTP asli Anda. Pastikan KTP difoto dengan lurus, tidak silau, dan tulisan terbaca sangat tajam agar terbaca sistem otomatis.
                 </p>
 
-                <button type="button" class="btn-primary" id="btn-start-camera" style="background: #10b981; margin-bottom: 15px;">
-                    📷 Buka Kamera & Pindai KTP
-                </button>
-
-                <!-- Camera UI -->
-                <div class="camera-container" id="camera-container">
-                    <video id="camera-stream" autoplay playsinline muted style="width:100%; border-radius: 8px; display: none;"></video>
-                    <img id="img-preview" style="width:100%; border-radius: 8px; display: none;" />
-                    <div class="ktp-overlay"></div>
-                    <div class="ktp-guide-text">Posisikan KTP pas di dalam garis putus-putus</div>
-                    <button class="btn-capture" id="btn-capture"></button>
+                <div class="form-group">
+                    <label>Ambil Foto KTP</label>
+                    <input type="file" id="inp-ktp-file" accept="image/*" capture="environment" class="form-control" onchange="previewAndOcrKtp()">
                 </div>
 
-                <canvas id="canvas-foto" style="display: none;"></canvas>
-                <img id="foto-ktp-preview" src="">
+                <div id="ktp-preview-container" style="display: none; position: relative; margin-top: 10px;">
+                    <img id="foto-ktp-preview" src="" style="width:100%; border-radius: 12px; border: 1px solid #e2e8f0;">
+                </div>
                 <input type="hidden" id="inp-foto-base64">
 
-                <div id="ocr-loading" style="display: none; text-align: center; padding: 15px; margin-bottom: 15px; background: #f1f5f9; border-radius: 12px;">
+                <div id="ocr-loading" style="display: none; text-align: center; padding: 15px; margin-bottom: 15px; background: #f1f5f9; border-radius: 12px; margin-top: 15px;">
                     <div class="spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto 10px;"></div>
                     <div style="font-size: 12px; color: #64748b; font-weight: 600;" id="ocr-status-text">Sedang membaca teks dari KTP...</div>
                 </div>
@@ -364,6 +357,6 @@
     </div>
 
     <!-- Tesseract Worker Load -->
-    <script src="ocr.js?v=1780632164317"></script>
+    <script src="ocr.js?v=1780632568733"></script>
 </body>
 </html>
