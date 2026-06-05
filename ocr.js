@@ -174,21 +174,74 @@ function parseKtpText(text) {
     // Line-by-line parsing
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
 
+    // Smart Name Parsing
+    let namaParsed = "";
+    
+    // Method 1: Look for "NAMA" header and grab value after colon
+    for (let line of lines) {
+        let upperLine = line.toUpperCase();
+        let noSpace = upperLine.replace(/\s+/g, '');
+        if (noSpace.includes('NAMA') && !noSpace.includes('KONTUR') && !noSpace.includes('DARURAT') && !noSpace.includes('IBU') && !noSpace.includes('KAPULAGA')) {
+            let val = extractAfterColon(line);
+            if (val && val.length > 2 && !val.includes('PROVINSI') && !val.includes('KABUPATEN') && !val.includes('KOTA')) {
+                namaParsed = val;
+                break;
+            }
+        }
+    }
+    
+    // Method 2: Look for line between NIK (16 digit) and Tempat/Tgl Lahir
+    if (!namaParsed) {
+        let nikLineIdx = -1;
+        let tempatLahirLineIdx = -1;
+        
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i];
+            if (line.match(/\b\d{16}\b/) || (line.includes(':') && line.replace(/[^0-9]/g, '').length >= 15)) {
+                nikLineIdx = i;
+            }
+            if (line.toUpperCase().includes('TEMPAT') || line.toUpperCase().includes('LAHIR') || line.toUpperCase().includes('TGL')) {
+                tempatLahirLineIdx = i;
+            }
+        }
+        
+        if (nikLineIdx !== -1 && tempatLahirLineIdx !== -1 && tempatLahirLineIdx > nikLineIdx + 1) {
+            for (let idx = nikLineIdx + 1; idx < tempatLahirLineIdx; idx++) {
+                let candidate = lines[idx].trim().replace(/^[:\s\-]+/g, '').trim();
+                if (candidate.length > 2 && !candidate.toUpperCase().includes('PROVINSI') && !candidate.toUpperCase().includes('KABUPATEN') && !candidate.toUpperCase().includes('KOTA') && !candidate.toUpperCase().includes('NIK') && !candidate.toUpperCase().includes('NAMA')) {
+                    namaParsed = candidate;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Method 3: Line immediately after single-word "NAMA" line
+    if (!namaParsed) {
+        for (let i = 0; i < lines.length - 1; i++) {
+            let cleanLine = lines[i].toUpperCase().replace(/[^A-Z]/g, '');
+            if (cleanLine === 'NAMA') {
+                let candidate = lines[i+1].trim().replace(/^[:\s\-]+/g, '').trim();
+                if (candidate.length > 2 && !candidate.toUpperCase().includes('PROVINSI') && !candidate.toUpperCase().includes('KABUPATEN')) {
+                    namaParsed = candidate;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (namaParsed) {
+        document.getElementById('inp-nama').value = namaParsed.toUpperCase();
+    }
+
+    // Regular field parsing from lines
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
         let upperLine = line.toUpperCase();
         let noSpace = upperLine.replace(/\s+/g, '');
 
-        // Nama
-        if ((noSpace.startsWith('NAMA') || noSpace.includes(':NAMA') || upperLine.match(/^Nama\b/i)) 
-            && !noSpace.includes('PROVINSI') && !noSpace.includes('KOTA') && !noSpace.includes('KABUPATEN')) {
-            let val = extractAfterColon(line);
-            if (val && val.length > 1) {
-                document.getElementById('inp-nama').value = val;
-            }
-        }
         // Tempat/Tgl Lahir
-        else if (noSpace.includes('TEMPAT') || noSpace.includes('TGLLAHIR') || noSpace.includes('TGLLHR')) {
+        if (noSpace.includes('TEMPAT') || noSpace.includes('TGLLAHIR') || noSpace.includes('TGLLHR')) {
             let val = extractAfterColon(line);
             if (val) {
                 // Remove date portion to get city name
@@ -247,20 +300,22 @@ async function submitProfil() {
     }
 
     const fields = [
-        { id: 'inp-nama', name: 'Nama' },
-        { id: 'inp-nohp', name: 'No HP' },
+        { id: 'inp-nama', name: 'Nama Lengkap' },
+        { id: 'inp-nohp', name: 'Nomor HP / WA' },
+        { id: 'inp-email', name: 'Email' },
         { id: 'inp-nik', name: 'NIK' },
         { id: 'inp-tempat-lahir', name: 'Tempat Lahir' },
         { id: 'inp-tgl-lahir', name: 'Tgl Lahir' },
         { id: 'inp-jk', name: 'Jenis Kelamin' },
-        { id: 'inp-alamat', name: 'Alamat' },
+        { id: 'inp-alamat', name: 'Alamat Lengkap' },
         { id: 'inp-rtrw', name: 'RT/RW' },
         { id: 'inp-desa', name: 'Kel/Desa' },
         { id: 'inp-kecamatan', name: 'Kecamatan' },
         { id: 'inp-agama', name: 'Agama' },
-        { id: 'inp-kawin', name: 'Status Kawin' },
+        { id: 'inp-kawin', name: 'Status Perkawinan' },
+        { id: 'inp-kwn', name: 'Kewarganegaraan' },
         { id: 'inp-nama-darurat', name: 'Nama Kontak Darurat' },
-        { id: 'inp-hp-darurat', name: 'HP Kontak Darurat' }
+        { id: 'inp-hp-darurat', name: 'No. HP Darurat' }
     ];
 
     for (let f of fields) {
@@ -270,9 +325,15 @@ async function submitProfil() {
         }
     }
 
+    const fotoProfil = document.getElementById('inp-foto-profil-base64').value;
+    if (!fotoProfil) {
+        alert("Anda wajib mengambil atau memilih Foto Profil terlebih dahulu.");
+        return;
+    }
+
     const fotoBase64 = document.getElementById('inp-foto-base64').value;
     if (!fotoBase64) {
-        alert("Anda wajib memindai KTP terlebih dahulu.");
+        alert("Anda wajib mengambil atau memilih Foto KTP terlebih dahulu.");
         return;
     }
 
