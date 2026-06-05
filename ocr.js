@@ -115,64 +115,63 @@ async function previewAndOcrKtp() {
 
 function parseKtpText(text) {
     console.log("OCR Result:", text);
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
-
-    // Regex for NIK
-    const nikMatch = text.match(/\b\d{16}\b/);
+    
+    // Fix common OCR mistakes for numbers before extracting NIK
+    let cleanTextForNik = text.toUpperCase().replace(/I/g, '1').replace(/L/g, '1').replace(/O/g, '0').replace(/B/g, '8').replace(/S/g, '5');
+    const nikMatch = cleanTextForNik.match(/\d{16}/);
     if (nikMatch) document.getElementById('inp-nik').value = nikMatch[0];
 
     // LAKI-LAKI or PEREMPUAN
     if (text.toUpperCase().includes('LAKI')) document.getElementById('inp-jk').value = 'LAKI-LAKI';
     if (text.toUpperCase().includes('PEREMPUAN')) document.getElementById('inp-jk').value = 'PEREMPUAN';
 
-    // Parse specific lines loosely based on Keywords
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+
     lines.forEach(line => {
         let upperLine = line.toUpperCase();
+        let noSpace = upperLine.replace(/\s+/g, '');
         
-        if (upperLine.includes('NAMA') && !upperLine.includes('PROVINSI') && !upperLine.includes('KOTA')) {
+        if (noSpace.includes('NAMA') && !noSpace.includes('PROVINSI') && !noSpace.includes('KOTA')) {
             const val = extractValue(line);
             if(val) document.getElementById('inp-nama').value = val;
         }
-        else if (upperLine.includes('TEMPAT') || upperLine.includes('TGL LHR')) {
+        else if (noSpace.includes('TEMPAT') || noSpace.includes('TGLLHR') || noSpace.includes('LAHIR')) {
             const val = extractValue(line);
             if (val) {
                 const parts = val.split(',');
                 if (parts.length > 1) {
                     document.getElementById('inp-tempat-lahir').value = parts[0].trim();
-                    document.getElementById('inp-tgl-lahir').value = parts[1].trim();
+                    document.getElementById('inp-tgl-lahir').value = parts[1].replace(/[^0-9-]/g, '').trim();
                 } else {
                     document.getElementById('inp-tempat-lahir').value = val;
                 }
             }
         }
-        else if (upperLine.includes('ALAMAT')) {
+        else if (noSpace.includes('ALAMAT')) {
             const val = extractValue(line);
             if (val) document.getElementById('inp-alamat').value = val;
         }
-        else if (upperLine.includes('RT/RW') || upperLine.includes('RT')) {
+        else if (noSpace.includes('RT/RW') || noSpace.includes('RT:')) {
             const val = extractValue(line);
             if (val) document.getElementById('inp-rtrw').value = val;
         }
-        else if (upperLine.includes('KEL') || upperLine.includes('DESA')) {
+        else if (noSpace.includes('KEL') || noSpace.includes('DESA')) {
             const val = extractValue(line);
             if (val) document.getElementById('inp-desa').value = val;
         }
-        else if (upperLine.includes('KECAMATAN') || upperLine.includes('KEC')) {
+        else if (noSpace.includes('KECAMATAN') || noSpace.includes('KEC')) {
             const val = extractValue(line);
             if (val) document.getElementById('inp-kecamatan').value = val;
         }
-        else if (upperLine.includes('AGAMA')) {
+        else if (noSpace.includes('AGAMA')) {
             const val = extractValue(line);
             if (val) document.getElementById('inp-agama').value = val;
         }
-        else if (upperLine.includes('STATUS')) {
+        else if (noSpace.includes('STATUS') || noSpace.includes('KAWIN')) {
             const val = extractValue(line);
             if (val) document.getElementById('inp-kawin').value = val;
         }
     });
-
-    // Alert user to check
-    
 }
 
 function extractValue(line) {
