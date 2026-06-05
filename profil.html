@@ -259,8 +259,9 @@
                 </button>
 
                 <!-- Camera UI -->
-                <div class="camera-wrapper" id="camera-wrapper">
-                    <video id="camera-feed" autoplay playsinline></video>
+                <div class="camera-container" id="camera-container">
+                    <video id="camera-stream" autoplay playsinline muted style="width:100%; border-radius: 8px; display: none;"></video>
+                    <img id="img-preview" style="width:100%; border-radius: 8px; display: none;" />
                     <div class="ktp-overlay"></div>
                     <div class="ktp-guide-text">Posisikan KTP pas di dalam garis putus-putus</div>
                     <button class="btn-capture" id="btn-capture"></button>
@@ -353,6 +354,6 @@
     </div>
 
     <!-- Tesseract Worker Load -->
-    <script src="ocr.js?v=1780631157300"></script>
+    <script src="ocr.js?v=1780631559013"></script>
 </body>
 </html>
