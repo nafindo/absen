@@ -50,27 +50,60 @@ async function previewAndOcrKtp() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async function(e) {
+    reader.onload = function(e) {
         const base64data = e.target.result;
-        const preview = document.getElementById('foto-ktp-preview');
-        preview.src = base64data;
-        document.getElementById('ktp-preview-container').style.display = 'block';
-        document.getElementById('inp-foto-base64').value = base64data;
-
-        const loader = document.getElementById('ocr-loading');
-        loader.style.display = 'block';
         
-        try {
-            const { data: { text } } = await worker.recognize(base64data);
-            console.log("Raw OCR:", text);
-            parseKtpText(text);
-            loader.style.display = 'none';
-            alert("Berhasil memindai! Mohon KOREKSI dan pastikan data (NIK, Nama, dll) sudah benar.");
-        } catch (err) {
-            loader.style.display = 'none';
-            alert("Gagal membaca teks dari gambar. Anda bisa mengetik manual.");
-            console.error(err);
-        }
+        // Load original image
+        const img = new Image();
+        img.onload = async function() {
+            // Compress image using Canvas to prevent Tesseract Out Of Memory crash on mobile
+            const MAX_WIDTH = 1200;
+            const MAX_HEIGHT = 1200;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+            } else {
+                if (height > MAX_HEIGHT) {
+                    width *= MAX_HEIGHT / height;
+                    height = MAX_HEIGHT;
+                }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+            // Update UI
+            const preview = document.getElementById('foto-ktp-preview');
+            preview.src = compressedBase64;
+            document.getElementById('ktp-preview-container').style.display = 'block';
+            document.getElementById('inp-foto-base64').value = compressedBase64;
+
+            const loader = document.getElementById('ocr-loading');
+            loader.style.display = 'block';
+            
+            try {
+                const { data: { text } } = await worker.recognize(compressedBase64);
+                console.log("Raw OCR:", text);
+                parseKtpText(text);
+                loader.style.display = 'none';
+                alert("Berhasil memindai! Mohon KOREKSI dan pastikan data (NIK, Nama, dll) sudah benar.");
+            } catch (err) {
+                loader.style.display = 'none';
+                alert("Gagal membaca teks dari gambar. Anda bisa mengetik manual.");
+                console.error(err);
+            }
+        };
+        img.src = base64data;
     };
     reader.readAsDataURL(file);
 }
