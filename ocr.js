@@ -57,8 +57,9 @@ async function previewAndOcrKtp() {
         const img = new Image();
         img.onload = async function() {
             // Compress image using Canvas to prevent Tesseract Out Of Memory crash on mobile
-            const MAX_WIDTH = 1200;
-            const MAX_HEIGHT = 1200;
+            // INCREASED MAX_WIDTH and using PNG for lossless text quality!
+            const MAX_WIDTH = 2500;
+            const MAX_HEIGHT = 2500;
             let width = img.width;
             let height = img.height;
 
@@ -78,9 +79,25 @@ async function previewAndOcrKtp() {
             canvas.width = width;
             canvas.height = height;
             const ctx = canvas.getContext('2d');
+            
+            // Grayscale filter to dramatically improve Tesseract accuracy on patterned backgrounds (KTP)
             ctx.drawImage(img, 0, 0, width, height);
+            let imgData = ctx.getImageData(0, 0, width, height);
+            let data = imgData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                let brightness = 0.34 * data[i] + 0.5 * data[i + 1] + 0.16 * data[i + 2];
+                // Increase contrast
+                brightness = brightness < 128 ? brightness * 0.7 : brightness * 1.3;
+                if(brightness > 255) brightness = 255;
+                
+                data[i] = brightness;
+                data[i + 1] = brightness;
+                data[i + 2] = brightness;
+            }
+            ctx.putImageData(imgData, 0, 0);
 
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            // Use PNG (Lossless) so text doesn't get artifacted
+            const compressedBase64 = canvas.toDataURL('image/png');
 
             // Update UI
             const preview = document.getElementById('foto-ktp-preview');
