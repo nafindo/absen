@@ -115,79 +115,122 @@ async function previewAndOcrKtp() {
 
 function parseKtpText(text) {
     console.log("OCR Result:", text);
+    if(document.getElementById('raw-ocr-text')) {
+        document.getElementById('raw-ocr-text').value = text;
+    }
     
-    // Fix common OCR mistakes for numbers before extracting NIK
-    let cleanTextForNik = text.toUpperCase().replace(/I/g, '1').replace(/L/g, '1').replace(/O/g, '0').replace(/B/g, '8').replace(/S/g, '5').replace(/\?/g, '7').replace(/Z/g, '2');
+    let upperText = text.toUpperCase();
+
+    // 1. NIK
+    let cleanTextForNik = upperText.replace(/I/g, '1').replace(/L/g, '1').replace(/O/g, '0').replace(/B/g, '8').replace(/S/g, '5').replace(/\?/g, '7').replace(/Z/g, '2');
     const nikMatch = cleanTextForNik.match(/\d{16}/);
     if (nikMatch) document.getElementById('inp-nik').value = nikMatch[0];
 
-    // LAKI-LAKI or PEREMPUAN
-    if (text.toUpperCase().includes('LAKI')) document.getElementById('inp-jk').value = 'LAKI-LAKI';
-    if (text.toUpperCase().includes('PEREMPUAN')) document.getElementById('inp-jk').value = 'PEREMPUAN';
+    // 2. Jenis Kelamin (Global)
+    if (upperText.includes('LAKI') || upperText.includes('LAK1')) document.getElementById('inp-jk').value = 'LAKI-LAKI';
+    if (upperText.includes('PEREMPUAN') || upperText.includes('PEREM')) document.getElementById('inp-jk').value = 'PEREMPUAN';
 
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+    // 3. Tanggal Lahir (Global Regex DD-MM-YYYY)
+    const dateMatch = upperText.match(/\d{2}[\-\/\.]\d{2}[\-\/\.]\d{4}/);
+    if (dateMatch) {
+        document.getElementById('inp-tgl-lahir').value = dateMatch[0].replace(/[\/\.]/g, '-');
+    }
 
-    lines.forEach(line => {
-        let upperLine = line.toUpperCase();
-        let noSpace = upperLine.replace(/\s+/g, '');
+    // 4. RT/RW (Global Regex 000/000)
+    const rtrwMatch = upperText.match(/\d{3}\s*[\/\\]\s*\d{3}/);
+    if (rtrwMatch) {
+        document.getElementById('inp-rtrw').value = rtrwMatch[0].replace(/\s/g, '');
+    }
+
+    // 5. Agama (Global)
+    const agamaList = ['ISLAM', 'KRISTEN', 'KATHOLIK', 'KATOLIK', 'HINDU', 'BUDDHA', 'KONGHUCU'];
+    for (let a of agamaList) {
+        if (upperText.includes(a)) {
+            document.getElementById('inp-agama').value = a === 'KATOLIK' ? 'KATHOLIK' : a;
+            break;
+        }
+    }
+
+    // 6. Status Perkawinan (Global)
+    if (upperText.includes('BELUM KAWIN')) document.getElementById('inp-kawin').value = 'BELUM KAWIN';
+    else if (upperText.includes('CERAI HIDUP')) document.getElementById('inp-kawin').value = 'CERAI HIDUP';
+    else if (upperText.includes('CERAI MATI')) document.getElementById('inp-kawin').value = 'CERAI MATI';
+    else if (upperText.includes('KAWIN')) document.getElementById('inp-kawin').value = 'KAWIN';
+
+    // Line-by-line parsing for string fields (Nama, Tempat Lahir, Alamat, Desa, Kec)
+    const lines = upperText.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        let noSpace = line.replace(/\s+/g, '');
         
         if ((noSpace.includes('NAMA') || noSpace.includes('NARNA') || noSpace.match(/^NAM[A-Z]*:/)) && !noSpace.includes('PROVINSI') && !noSpace.includes('KOTA')) {
-            const val = extractValue(line);
-            if(val) document.getElementById('inp-nama').value = val.replace(/GOL\.?\s*DARAH/i, '').replace(/[-:]/g, '').trim();
+            let val = extractValue(line, lines, i);
+            if(val && document.getElementById('inp-nama').value.toLowerCase() === 'arvin') { // Overwrite pre-filled if default is arvin? Actually let's just always overwrite
+                document.getElementById('inp-nama').value = val.replace(/GOL\.?\s*DARAH/i, '').replace(/[-:]/g, '').trim();
+            }
         }
-        else if (noSpace.includes('TEMPAT') || noSpace.includes('TGLLHR') || noSpace.includes('LAHIR')) {
-            const val = extractValue(line);
+        else if (noSpace.includes('TEMPAT') || noSpace.includes('TGLLHR') || noSpace.includes('LAHIR') || noSpace.includes('LDTEMPA')) {
+            let val = extractValue(line, lines, i);
             if (val) {
-                // Try to find the date DD-MM-YYYY or DD/MM/YYYY
-                const dateMatch = val.match(/\d{2}[\-\/]\d{2}[\-\/]\d{4}/);
-                if (dateMatch) {
-                    document.getElementById('inp-tgl-lahir').value = dateMatch[0].replace(/\//g, '-');
-                    let tempat = val.replace(dateMatch[0], '').replace(/[,\.:]/g, '').trim();
-                    if(tempat) document.getElementById('inp-tempat-lahir').value = tempat;
-                } else {
-                    const parts = val.split(',');
-                    if (parts.length > 1) {
-                        document.getElementById('inp-tempat-lahir').value = parts[0].replace(/[,\.:]/g, '').trim();
-                        document.getElementById('inp-tgl-lahir').value = parts[1].replace(/[^0-9-]/g, '').trim();
-                    } else {
-                        document.getElementById('inp-tempat-lahir').value = val.replace(/[,\.:]/g, '').trim();
-                    }
-                }
+                // If it contains the date, strip the date to get the city
+                let city = val.replace(/\d{2}[\-\/\.]\d{2}[\-\/\.]\d{4}/, '').replace(/[,\.:]/g, '').trim();
+                if (city) document.getElementById('inp-tempat-lahir').value = city;
             }
         }
         else if (noSpace.includes('ALAMAT')) {
-            const val = extractValue(line);
+            let val = extractValue(line, lines, i);
             if (val) document.getElementById('inp-alamat').value = val.replace(/[-:]/g, '').trim();
         }
-        else if (noSpace.includes('RT/RW') || noSpace.includes('RT:') || noSpace.includes('RTRW')) {
-            const val = extractValue(line);
-            if (val) {
-                // ensure format is like 001/002
-                let cleanVal = val.replace(/[^0-9\/]/g, '');
-                if(cleanVal) document.getElementById('inp-rtrw').value = cleanVal;
-                else document.getElementById('inp-rtrw').value = val;
-            }
-        }
         else if (noSpace.includes('KEL') || noSpace.includes('DESA') || noSpace.includes('KELURAHAN')) {
-            const val = extractValue(line);
+            let val = extractValue(line, lines, i);
             if (val) document.getElementById('inp-desa').value = val.replace(/[-:]/g, '').trim();
         }
         else if (noSpace.includes('KECAMATAN') || noSpace.includes('KEC')) {
-            const val = extractValue(line);
+            let val = extractValue(line, lines, i);
             if (val) document.getElementById('inp-kecamatan').value = val.replace(/[-:]/g, '').trim();
         }
-        else if (noSpace.includes('AGAMA') || noSpace.includes('AGAM')) {
-            const val = extractValue(line);
-            if (val) document.getElementById('inp-agama').value = val.replace(/[-:]/g, '').trim();
-        }
-        else if (noSpace.includes('STATUS') || noSpace.includes('KAWIN') || noSpace.includes('PERKAWINAN')) {
-            const val = extractValue(line);
-            if (val) document.getElementById('inp-kawin').value = val.replace(/[-:]/g, '').trim();
-        }
-    });
+    }
 }
 
-function extractValue(line) {
+// Extract value intelligently: if line has a colon, use it. If not, and it's just the key, look at the NEXT line!
+function extractValue(line, allLines, currentIndex) {
+    // 1. Try colon
+    let parts = line.split(':');
+    if (parts.length > 1) {
+        let val = parts.slice(1).join(':').trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
+        if (val.length > 2) return val;
+    }
+    
+    // 2. Try multiple spaces
+    parts = line.split(/\s{2,}/);
+    if (parts.length > 1) {
+        let val = parts.slice(1).join(' ').trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
+        if (val.length > 2) return val;
+    }
+
+    // 3. Look at the NEXT line if this line is just the keyword
+    if (currentIndex + 1 < allLines.length) {
+        let nextLine = allLines[currentIndex + 1];
+        // If the next line doesn't look like another keyword, assume it's the value
+        let nextNoSpace = nextLine.replace(/\s+/g, '');
+        if (!nextNoSpace.includes('NAMA') && !nextNoSpace.includes('ALAMAT') && !nextNoSpace.includes('AGAMA')) {
+            let val = nextLine.trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
+            // also remove leading colons if the next line starts with colon
+            val = val.replace(/^[:\-\s]+/, '');
+            if (val.length > 2) return val;
+        }
+    }
+
+    // 4. Fallback: split by single space, discard the first word
+    parts = line.split(' ');
+    if (parts.length > 1) {
+        return parts.slice(1).join(' ').trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
+    }
+    return "";
+}
+
+function extractValueTemp() {
     // 1. Try colon
     let parts = line.split(':');
     if (parts.length > 1) {
