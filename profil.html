@@ -242,13 +242,16 @@
                     <input type="tel" id="inp-nohp" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Email (Opsional)</label>
-                    <input type="email" id="inp-email" class="form-control">
+                    <label>Email</label>
+                    <input type="email" id="inp-email" class="form-control" required>
                 </div>
                 <div class="form-group">
                     <label>PIN Aplikasi (Maksimal 4 Digit)</label>
                     <input type="number" id="inp-pin" class="form-control" placeholder="Contoh: 1234" required>
-                    <small id="pin-error" style="font-size: 11px; color: #ef4444; display: none; margin-top: 4px;">PIN harus 4 digit and tidak boleh berawalan 0.</small>
+                    <small style="font-size: 11px; color: #475569; display: block; margin-top: 4px; line-height: 1.4;">
+                        💡 Contoh: <strong>1234</strong>. PIN wajib bernilai 4 digit dan <strong>dilarang diawali dengan angka 0</strong>.
+                    </small>
+                    <small id="pin-error" style="font-size: 11px; color: #ef4444; display: none; margin-top: 4px;">PIN harus 4 digit dan tidak boleh berawalan 0.</small>
                 </div>
             </div>
 
@@ -275,9 +278,16 @@
 
             <div class="card">
                 <h3 style="margin-top: 0; font-size: 16px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">Data E-KTP (Wajib)</h3>
-                <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 15px;">
+                <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 10px;">
                     Silakan ambil foto KTP asli Anda. Pastikan KTP difoto dengan lurus, tidak silau, dan tulisan terbaca sangat tajam agar terbaca sistem otomatis.
                 </p>
+                
+                <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 10px; margin-bottom: 15px; display: flex; align-items: flex-start; gap: 8px;">
+                    <span style="font-size: 14px;">📷</span>
+                    <p style="font-size: 11px; color: #b45309; margin: 0; font-weight: 700; line-height: 1.4;">
+                        PENTING: Ambil foto dengan posisi HP HORIZONTAL / MENDATAR (Landscape) mengikuti panjang kartu KTP agar pembacaan teks otomatis (OCR) jauh lebih akurat.
+                    </p>
+                </div>
 
                 <div class="form-group">
                     <label>Ambil Foto KTP</label>
@@ -376,7 +386,7 @@
             </div>
 
             <button type="button" class="btn-primary" id="btn-submit" onclick="submitProfil()">
-                Simpan & Kunci Profil
+                Simpan
             </button>
         </div>
     </div>

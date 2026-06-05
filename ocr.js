@@ -387,7 +387,7 @@ async function submitProfil() {
         if (!uploadRes.success || !uploadRes.fotoUrl) {
             alert("Gagal mengupload KTP: " + uploadRes.error);
             btnSubmit.disabled = false;
-            btnSubmit.textContent = 'Simpan & Kunci Profil';
+            btnSubmit.textContent = 'Simpan';
             return;
         }
 
@@ -401,13 +401,13 @@ async function submitProfil() {
         } else {
             alert("Gagal menyimpan profil: " + submitRes.error);
             btnSubmit.disabled = false;
-            btnSubmit.textContent = 'Simpan & Kunci Profil';
+            btnSubmit.textContent = 'Simpan';
         }
 
     } catch (e) {
         alert("Gagal menghubungi server.");
         btnSubmit.disabled = false;
-        btnSubmit.textContent = 'Simpan & Kunci Profil';
+        btnSubmit.textContent = 'Simpan';
     }
 }
 
