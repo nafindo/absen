@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lengkapi Profil - Absensi Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Tesseract.js -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <style>
+        body {
+            background-color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #0f172a;
+        }
+        .header-profil {
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border-bottom-left-radius: 24px;
+            border-bottom-right-radius: 24px;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+            margin-bottom: 20px;
+        }
+        .header-profil h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 800;
+        }
+        .header-profil p {
+            margin: 5px 0 0 0;
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        .container {
+            padding: 0 20px 30px 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+        .form-control {
+            width: 100%;
+            padding: 14px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 15px;
+            font-family: inherit;
+            box-sizing: border-box;
+            background: #f8fafc;
+            transition: all 0.2s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .form-control:read-only {
+            background: #f1f5f9;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 16px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+            transition: all 0.2s;
+        }
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+        .btn-primary:disabled {
+            background: #cbd5e1;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        /* Camera UI */
+        .camera-wrapper {
+            position: relative;
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 4/3;
+            margin-bottom: 10px;
+            display: none;
+        }
+        #camera-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .ktp-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85%;
+            height: 55%;
+            border: 2px dashed #34d399;
+            border-radius: 8px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+        }
+        .ktp-guide-text {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        .btn-capture {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: white;
+            border: 4px solid #e2e8f0;
+            cursor: pointer;
+            z-index: 20;
+        }
+        #foto-ktp-preview {
+            width: 100%;
+            border-radius: 12px;
+            display: none;
+            margin-top: 10px;
+            border: 1px solid #e2e8f0;
+        }
+        .loading-screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.95);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        .error-state {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .error-state svg {
+            color: #ef4444;
+            width: 60px;
+            height: 60px;
+            margin-bottom: 20px;
+        }
+        .error-state h2 {
+            margin: 0 0 10px 0;
+            color: #0f172a;
+        }
+        .error-state p {
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading" class="loading-screen">
+        <div class="spinner"></div>
+        <h3 style="margin-top: 20px; color: #1e293b;">Memuat data...</h3>
+        <p id="loading-text" style="color: #64748b; font-size: 13px; margin-top: 5px;">Mohon tunggu sebentar</p>
+    </div>
+
+    <!-- Tampilan Error / Terkunci -->
+    <div id="locked-state" class="error-state" style="display: none;">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+        <h2 id="locked-title">Akses Ditolak</h2>
+        <p id="locked-desc">Link ini tidak valid atau profil Anda sudah lengkap dan tidak bisa diubah lagi.</p>
+    </div>
+
+    <div id="main-content" style="display: none;">
+        <div class="header-profil">
+            <h1>Lengkapi Profil</h1>
+            <p>Halo, <span id="lbl-nama" style="font-weight: 700;">-</span>! Silakan lengkapi data Anda.</p>
+        </div>
+
+        <div class="container">
+            <div class="card">
+                <h3 style="margin-top: 0; font-size: 16px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">Informasi Dasar</h3>
+                
+                <div class="form-group">
+                    <label>Nama Lengkap</label>
+                    <input type="text" id="inp-nama" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Jabatan</label>
+                    <input type="text" id="inp-jabatan" class="form-control" readonly>
+                    <small style="font-size: 11px; color: #94a3b8; display: block; margin-top: 4px;">Jabatan tidak dapat diubah sendiri.</small>
+                </div>
+                <div class="form-group">
+                    <label>Nomor HP / WA</label>
+                    <input type="tel" id="inp-nohp" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Email (Opsional)</label>
+                    <input type="email" id="inp-email" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>PIN Aplikasi (Maksimal 4 Digit)</label>
+                    <input type="number" id="inp-pin" class="form-control" placeholder="Contoh: 1234" required>
+                    <small id="pin-error" style="font-size: 11px; color: #ef4444; display: none; margin-top: 4px;">PIN harus 4 digit dan tidak boleh berawalan 0.</small>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-top: 0; font-size: 16px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">Data E-KTP (Wajib)</h3>
+                <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 15px;">
+                    Kami akan membaca data KTP Anda secara otomatis. Pastikan KTP difoto dengan jelas, tidak silau, dan tulisan terbaca tajam.
+                </p>
+
+                <button type="button" class="btn-primary" id="btn-start-camera" style="background: #10b981; margin-bottom: 15px;">
+                    📷 Buka Kamera & Pindai KTP
+                </button>
+
+                <!-- Camera UI -->
+                <div class="camera-wrapper" id="camera-wrapper">
+                    <video id="camera-feed" autoplay playsinline></video>
+                    <div class="ktp-overlay"></div>
+                    <div class="ktp-guide-text">Posisikan KTP pas di dalam garis putus-putus</div>
+                    <button class="btn-capture" id="btn-capture"></button>
+                </div>
+
+                <canvas id="canvas-foto" style="display: none;"></canvas>
+                <img id="foto-ktp-preview" src="">
+                <input type="hidden" id="inp-foto-base64">
+
+                <div id="ocr-loading" style="display: none; text-align: center; padding: 15px; margin-bottom: 15px; background: #f1f5f9; border-radius: 12px;">
+                    <div class="spinner" style="width: 24px; height: 24px; border-width: 3px; margin: 0 auto 10px;"></div>
+                    <div style="font-size: 12px; color: #64748b; font-weight: 600;" id="ocr-status-text">Sedang membaca teks dari KTP...</div>
+                </div>
+
+                <div style="height: 1px; background: #e2e8f0; margin: 20px 0;"></div>
+                <p style="font-size: 12px; color: #ef4444; font-weight: 700; margin-bottom: 15px;">* Cek kembali hasil pembacaan. Koreksi jika ada yang salah ketik.</p>
+
+                <div class="form-group">
+                    <label>NIK (16 Digit)</label>
+                    <input type="number" id="inp-nik" class="form-control" required>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Tempat Lahir</label>
+                        <input type="text" id="inp-tempat-lahir" class="form-control" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Tgl Lahir</label>
+                        <input type="text" id="inp-tgl-lahir" class="form-control" placeholder="DD-MM-YYYY" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Jenis Kelamin</label>
+                    <select id="inp-jk" class="form-control" required>
+                        <option value="">Pilih...</option>
+                        <option value="LAKI-LAKI">Laki-Laki</option>
+                        <option value="PEREMPUAN">Perempuan</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Alamat Lengkap</label>
+                    <textarea id="inp-alamat" class="form-control" rows="2" required></textarea>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>RT/RW</label>
+                        <input type="text" id="inp-rtrw" class="form-control" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Kel/Desa</label>
+                        <input type="text" id="inp-desa" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Kecamatan</label>
+                    <input type="text" id="inp-kecamatan" class="form-control" required>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Agama</label>
+                        <input type="text" id="inp-agama" class="form-control" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Status Perkawinan</label>
+                        <input type="text" id="inp-kawin" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Kewarganegaraan</label>
+                    <input type="text" id="inp-kwn" class="form-control" value="WNI" required>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-top: 0; font-size: 16px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">Kontak Darurat</h3>
+                <div class="form-group">
+                    <label>Nama Kontak Darurat</label>
+                    <input type="text" id="inp-nama-darurat" class="form-control" placeholder="Contoh: Budi (Ayah)" required>
+                </div>
+                <div class="form-group">
+                    <label>No. HP Darurat</label>
+                    <input type="tel" id="inp-hp-darurat" class="form-control" required>
+                </div>
+            </div>
+
+            <button type="button" class="btn-primary" id="btn-submit" onclick="submitProfil()">
+                Simpan & Kunci Profil
+            </button>
+        </div>
+    </div>
+
+    <!-- Tesseract Worker Load -->
+    <script src="ocr.js"></script>
+</body>
+</html>
