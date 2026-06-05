@@ -249,6 +249,16 @@
             </div>
 
             <div class="card">
+                <h3 style="margin-top: 0; font-size: 16px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">Foto Profil</h3>
+                <div class="form-group">
+                    <label>Unggah Foto Profil (Selfie / Bebas Rapi)</label>
+                    <input type="file" id="inp-foto-profil-file" accept="image/*" class="form-control" onchange="previewFotoProfil()">
+                    <img id="img-profil-preview" style="width: 150px; height: 150px; object-fit: cover; border-radius: 75px; display: none; margin-top: 10px; margin-left: auto; margin-right: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1);" />
+                    <input type="hidden" id="inp-foto-profil-base64">
+                </div>
+            </div>
+
+            <div class="card">
                 <h3 style="margin-top: 0; font-size: 16px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">Data E-KTP (Wajib)</h3>
                 <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 15px;">
                     Kami akan membaca data KTP Anda secara otomatis. Pastikan KTP difoto dengan jelas, tidak silau, dan tulisan terbaca tajam.
@@ -354,6 +364,6 @@
     </div>
 
     <!-- Tesseract Worker Load -->
-    <script src="ocr.js?v=1780631559013"></script>
+    <script src="ocr.js?v=1780632164317"></script>
 </body>
 </html>
