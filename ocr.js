@@ -92,7 +92,12 @@ async function previewAndOcrKtp() {
             loader.style.display = 'block';
             
             try {
-                const { data: { text } } = await worker.recognize(compressedBase64);
+                if (!window.worker) {
+                    document.getElementById('ocr-status-text').textContent = "Menyiapkan sistem OCR (mungkin butuh beberapa detik)...";
+                    window.worker = await Tesseract.createWorker('ind');
+                    document.getElementById('ocr-status-text').textContent = "Sedang membaca teks dari KTP...";
+                }
+                const { data: { text } } = await window.worker.recognize(compressedBase64);
                 console.log("Raw OCR:", text);
                 parseKtpText(text);
                 loader.style.display = 'none';
