@@ -33,133 +33,96 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById('inp-nama').value = res.nama || '';
         document.getElementById('inp-jabatan').value = res.jabatan || '';
 
+        // Display existing Foto Profil if available
+        if (res.fotoProfil) {
+            const img = document.getElementById('img-profil-preview');
+            img.src = res.fotoProfil;
+            img.style.display = 'block';
+        }
+
     } catch (e) {
         showError("Koneksi Gagal", "Gagal menghubungi server. Pastikan internet Anda aktif.");
     }
 });
 
-// === OCR CAMERA ===
-
-
-
-
-
+// === OCR via Google Drive (Server-Side) ===
 
 async function previewAndOcrKtp() {
     const file = document.getElementById('inp-ktp-file').files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = async function(e) {
         const base64data = e.target.result;
-        
-        // Load original image
-        const img = new Image();
-        img.onload = async function() {
-            // Compress image using Canvas to prevent Tesseract Out Of Memory crash on mobile
-            // INCREASED MAX_WIDTH and using PNG for lossless text quality!
-            const MAX_WIDTH = 2500;
-            const MAX_HEIGHT = 2500;
-            let width = img.width;
-            let height = img.height;
 
-            if (width > height) {
-                if (width > MAX_WIDTH) {
-                    height *= MAX_WIDTH / width;
-                    width = MAX_WIDTH;
-                }
-            } else {
-                if (height > MAX_HEIGHT) {
-                    width *= MAX_HEIGHT / height;
-                    height = MAX_HEIGHT;
-                }
-            }
+        // Show preview
+        const preview = document.getElementById('foto-ktp-preview');
+        preview.src = base64data;
+        document.getElementById('ktp-preview-container').style.display = 'block';
+        document.getElementById('inp-foto-base64').value = base64data;
 
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            
-            // Grayscale filter to dramatically improve Tesseract accuracy on patterned backgrounds (KTP)
-            ctx.drawImage(img, 0, 0, width, height);
-            let imgData = ctx.getImageData(0, 0, width, height);
-            let data = imgData.data;
-            for (let i = 0; i < data.length; i += 4) {
-                let brightness = 0.34 * data[i] + 0.5 * data[i + 1] + 0.16 * data[i + 2];
-                // Increase contrast
-                brightness = brightness < 128 ? brightness * 0.7 : brightness * 1.3;
-                if(brightness > 255) brightness = 255;
+        // Show loading
+        const loader = document.getElementById('ocr-loading');
+        loader.style.display = 'block';
+        document.getElementById('ocr-status-text').textContent = "Mengirim foto ke server Google untuk dibaca (10-20 detik)...";
+
+        try {
+            // Send to server for OCR via Google Drive
+            const res = await apiRequest('ocrKtp', { fotoBase64: base64data });
+
+            if (res.success && res.text) {
+                console.log("Server OCR Result:", res.text);
                 
-                data[i] = brightness;
-                data[i + 1] = brightness;
-                data[i + 2] = brightness;
-            }
-            ctx.putImageData(imgData, 0, 0);
-
-            // Use PNG (Lossless) so text doesn't get artifacted
-            const compressedBase64 = canvas.toDataURL('image/png');
-
-            // Update UI
-            const preview = document.getElementById('foto-ktp-preview');
-            preview.src = compressedBase64;
-            document.getElementById('ktp-preview-container').style.display = 'block';
-            document.getElementById('inp-foto-base64').value = compressedBase64;
-
-            const loader = document.getElementById('ocr-loading');
-            loader.style.display = 'block';
-            
-            try {
-                if (!window.worker) {
-                    document.getElementById('ocr-status-text').textContent = "Menyiapkan sistem OCR (mungkin butuh beberapa detik)...";
-                    window.worker = await Tesseract.createWorker('ind');
-                    document.getElementById('ocr-status-text').textContent = "Sedang membaca teks dari KTP...";
+                // Show raw text for debugging
+                if(document.getElementById('raw-ocr-text')) {
+                    document.getElementById('raw-ocr-text').value = res.text;
                 }
-                const { data: { text } } = await window.worker.recognize(compressedBase64);
-                console.log("Raw OCR:", text);
-                parseKtpText(text);
+                
+                parseKtpText(res.text);
                 loader.style.display = 'none';
-                alert("Berhasil memindai! Mohon KOREKSI dan pastikan data (NIK, Nama, dll) sudah benar.");
-            } catch (err) {
+                alert("Berhasil memindai! Mohon KOREKSI dan pastikan data sudah benar.");
+            } else {
                 loader.style.display = 'none';
-                alert("Gagal membaca teks dari gambar. Anda bisa mengetik manual.");
-                console.error(err);
+                alert("Gagal membaca KTP: " + (res.error || "Tidak diketahui") + ". Silakan ketik manual.");
             }
-        };
-        img.src = base64data;
+        } catch (err) {
+            loader.style.display = 'none';
+            alert("Gagal menghubungi server OCR. Silakan ketik manual.");
+            console.error(err);
+        }
     };
     reader.readAsDataURL(file);
 }
 
 function parseKtpText(text) {
-    console.log("OCR Result:", text);
-    if(document.getElementById('raw-ocr-text')) {
-        document.getElementById('raw-ocr-text').value = text;
-    }
+    console.log("Parsing OCR text:", text);
     
     let upperText = text.toUpperCase();
 
-    // 1. NIK
-    let cleanTextForNik = upperText.replace(/I/g, '1').replace(/L/g, '1').replace(/O/g, '0').replace(/B/g, '8').replace(/S/g, '5').replace(/\?/g, '7').replace(/Z/g, '2');
-    const nikMatch = cleanTextForNik.match(/\d{16}/);
+    // 1. NIK - find 16-digit number
+    const nikMatch = text.match(/\b\d{16}\b/);
     if (nikMatch) document.getElementById('inp-nik').value = nikMatch[0];
 
-    // 2. Jenis Kelamin (Global)
-    if (upperText.includes('LAKI') || upperText.includes('LAK1')) document.getElementById('inp-jk').value = 'LAKI-LAKI';
-    if (upperText.includes('PEREMPUAN') || upperText.includes('PEREM')) document.getElementById('inp-jk').value = 'PEREMPUAN';
+    // 2. Jenis Kelamin
+    if (upperText.includes('LAKI-LAKI') || upperText.includes('LAKI - LAKI')) {
+        document.getElementById('inp-jk').value = 'LAKI-LAKI';
+    } else if (upperText.includes('PEREMPUAN')) {
+        document.getElementById('inp-jk').value = 'PEREMPUAN';
+    }
 
-    // 3. Tanggal Lahir (Global Regex DD-MM-YYYY)
-    const dateMatch = upperText.match(/\d{2}[\-\/\.]\d{2}[\-\/\.]\d{4}/);
+    // 3. Tanggal Lahir (DD-MM-YYYY)
+    const dateMatch = text.match(/\d{2}[\-\/\.]\d{2}[\-\/\.]\d{4}/);
     if (dateMatch) {
         document.getElementById('inp-tgl-lahir').value = dateMatch[0].replace(/[\/\.]/g, '-');
     }
 
-    // 4. RT/RW (Global Regex 000/000)
-    const rtrwMatch = upperText.match(/\d{3}\s*[\/\\]\s*\d{3}/);
+    // 4. RT/RW (000/000)
+    const rtrwMatch = text.match(/\d{3}\s*\/\s*\d{3}/);
     if (rtrwMatch) {
         document.getElementById('inp-rtrw').value = rtrwMatch[0].replace(/\s/g, '');
     }
 
-    // 5. Agama (Global)
+    // 5. Agama
     const agamaList = ['ISLAM', 'KRISTEN', 'KATHOLIK', 'KATOLIK', 'HINDU', 'BUDDHA', 'KONGHUCU'];
     for (let a of agamaList) {
         if (upperText.includes(a)) {
@@ -168,115 +131,76 @@ function parseKtpText(text) {
         }
     }
 
-    // 6. Status Perkawinan (Global)
+    // 6. Status Perkawinan
     if (upperText.includes('BELUM KAWIN')) document.getElementById('inp-kawin').value = 'BELUM KAWIN';
     else if (upperText.includes('CERAI HIDUP')) document.getElementById('inp-kawin').value = 'CERAI HIDUP';
     else if (upperText.includes('CERAI MATI')) document.getElementById('inp-kawin').value = 'CERAI MATI';
     else if (upperText.includes('KAWIN')) document.getElementById('inp-kawin').value = 'KAWIN';
 
-    // Line-by-line parsing for string fields (Nama, Tempat Lahir, Alamat, Desa, Kec)
-    const lines = upperText.split('\n').map(l => l.trim()).filter(l => l.length > 2);
+    // 7. Kewarganegaraan
+    if (upperText.includes('WNI')) document.getElementById('inp-kwn').value = 'WNI';
+
+    // Line-by-line parsing
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
 
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
-        let noSpace = line.replace(/\s+/g, '');
-        
-        if ((noSpace.includes('NAMA') || noSpace.includes('NARNA') || noSpace.match(/^NAM[A-Z]*:/)) && !noSpace.includes('PROVINSI') && !noSpace.includes('KOTA')) {
-            let val = extractValue(line, lines, i);
-            if(val && document.getElementById('inp-nama').value.toLowerCase() === 'arvin') { // Overwrite pre-filled if default is arvin? Actually let's just always overwrite
-                document.getElementById('inp-nama').value = val.replace(/GOL\.?\s*DARAH/i, '').replace(/[-:]/g, '').trim();
+        let upperLine = line.toUpperCase();
+        let noSpace = upperLine.replace(/\s+/g, '');
+
+        // Nama
+        if ((noSpace.startsWith('NAMA') || noSpace.includes(':NAMA') || upperLine.match(/^Nama\b/i)) 
+            && !noSpace.includes('PROVINSI') && !noSpace.includes('KOTA') && !noSpace.includes('KABUPATEN')) {
+            let val = extractAfterColon(line);
+            if (val && val.length > 1) {
+                document.getElementById('inp-nama').value = val;
             }
         }
-        else if (noSpace.includes('TEMPAT') || noSpace.includes('TGLLHR') || noSpace.includes('LAHIR') || noSpace.includes('LDTEMPA')) {
-            let val = extractValue(line, lines, i);
+        // Tempat/Tgl Lahir
+        else if (noSpace.includes('TEMPAT') || noSpace.includes('TGLLAHIR') || noSpace.includes('TGLLHR')) {
+            let val = extractAfterColon(line);
             if (val) {
-                // If it contains the date, strip the date to get the city
-                let city = val.replace(/\d{2}[\-\/\.]\d{2}[\-\/\.]\d{4}/, '').replace(/[,\.:]/g, '').trim();
+                // Remove date portion to get city name
+                let city = val.replace(/\d{2}[\-\/\.]\d{2}[\-\/\.]\d{4}/, '').replace(/[,\.]/g, '').trim();
                 if (city) document.getElementById('inp-tempat-lahir').value = city;
             }
         }
-        else if (noSpace.includes('ALAMAT')) {
-            let val = extractValue(line, lines, i);
-            if (val) document.getElementById('inp-alamat').value = val.replace(/[-:]/g, '').trim();
+        // Alamat
+        else if (noSpace.startsWith('ALAMAT') || upperLine.match(/^Alamat\b/i)) {
+            let val = extractAfterColon(line);
+            // Also grab following lines that are NOT keywords (multi-line address)
+            let fullAddr = val || '';
+            for (let j = i + 1; j < lines.length && j <= i + 2; j++) {
+                let nextUpper = lines[j].toUpperCase().replace(/\s+/g, '');
+                if (nextUpper.startsWith('RT') || nextUpper.startsWith('KEL') || nextUpper.startsWith('DESA') || nextUpper.startsWith('KEC') || nextUpper.includes('AGAMA')) break;
+                fullAddr += ' ' + lines[j].trim();
+            }
+            if (fullAddr.trim()) document.getElementById('inp-alamat').value = fullAddr.trim();
         }
-        else if (noSpace.includes('KEL') || noSpace.includes('DESA') || noSpace.includes('KELURAHAN')) {
-            let val = extractValue(line, lines, i);
-            if (val) document.getElementById('inp-desa').value = val.replace(/[-:]/g, '').trim();
+        // Kel/Desa
+        else if (noSpace.startsWith('KEL') || noSpace.startsWith('DESA') || noSpace.includes('KELURAHAN')) {
+            let val = extractAfterColon(line);
+            if (val) document.getElementById('inp-desa').value = val;
         }
-        else if (noSpace.includes('KECAMATAN') || noSpace.includes('KEC')) {
-            let val = extractValue(line, lines, i);
-            if (val) document.getElementById('inp-kecamatan').value = val.replace(/[-:]/g, '').trim();
+        // Kecamatan
+        else if (noSpace.startsWith('KECAMATAN') || noSpace.startsWith('KEC')) {
+            let val = extractAfterColon(line);
+            if (val) document.getElementById('inp-kecamatan').value = val;
         }
     }
 }
 
-// Extract value intelligently: if line has a colon, use it. If not, and it's just the key, look at the NEXT line!
-function extractValue(line, allLines, currentIndex) {
-    // 1. Try colon
-    let parts = line.split(':');
-    if (parts.length > 1) {
-        let val = parts.slice(1).join(':').trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
-        if (val.length > 2) return val;
-    }
-    
-    // 2. Try multiple spaces
-    parts = line.split(/\s{2,}/);
-    if (parts.length > 1) {
-        let val = parts.slice(1).join(' ').trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
-        if (val.length > 2) return val;
-    }
-
-    // 3. Look at the NEXT line if this line is just the keyword
-    if (currentIndex + 1 < allLines.length) {
-        let nextLine = allLines[currentIndex + 1];
-        // If the next line doesn't look like another keyword, assume it's the value
-        let nextNoSpace = nextLine.replace(/\s+/g, '');
-        if (!nextNoSpace.includes('NAMA') && !nextNoSpace.includes('ALAMAT') && !nextNoSpace.includes('AGAMA')) {
-            let val = nextLine.trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
-            // also remove leading colons if the next line starts with colon
-            val = val.replace(/^[:\-\s]+/, '');
-            if (val.length > 2) return val;
-        }
-    }
-
-    // 4. Fallback: split by single space, discard the first word
-    parts = line.split(' ');
-    if (parts.length > 1) {
-        return parts.slice(1).join(' ').trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
-    }
-    return "";
-}
-
-function extractValueTemp() {
-    // 1. Try colon
-    let parts = line.split(':');
-    if (parts.length > 1) {
-        return parts.slice(1).join(':').trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
-    }
-    // 2. Try multiple spaces (Tesseract often uses multiple spaces for gaps)
-    parts = line.split(/\s{2,}/);
-    if (parts.length > 1) {
-        return parts.slice(1).join(' ').trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
-    }
-    // 3. Fallback: split by single space, discard the first word (the key)
-    parts = line.split(' ');
-    if (parts.length > 1) {
-        return parts.slice(1).join(' ').trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
-    }
-    return "";
-}
-
-function extractValueTemp() {
+function extractAfterColon(line) {
     const idx = line.indexOf(':');
     if (idx !== -1) {
-        return line.substring(idx + 1).trim().replace(/[^a-zA-Z0-9 \\-\\/]/g, '');
+        return line.substring(idx + 1).trim();
     }
-    // Kadang titik dua tidak terbaca
-    const words = line.split(' ');
-    if (words.length > 1) {
-        return words.slice(1).join(' ').replace(/[^a-zA-Z0-9 \\-\\/]/g, '');
+    // Try splitting by multiple spaces
+    const parts = line.split(/\s{2,}/);
+    if (parts.length > 1) {
+        return parts.slice(1).join(' ').trim();
     }
-    return "";
+    return '';
 }
 
 // === FORM SUBMIT ===

@@ -197,6 +197,9 @@ function doPost(e) {
       case 'updateSalary': return jsonResponse(updateSalary(data));
       case 'pingOnline': return jsonResponse(pingOnline(data));
 
+      // === OCR KTP (Server-Side via Google Drive) ===
+      case 'ocrKtp': return jsonResponse(ocrKtp(data));
+
       default:
         return jsonResponse({ success: false, error: 'Action tidak dikenal: ' + action });
     }
@@ -5036,5 +5039,58 @@ function submitKaryawanProfil(data) {
   } catch (e) {
     logError('submitKaryawanProfil', e, data);
     return { success: false, error: 'Gagal submit profil: ' + e.toString() };
+  }
+}
+
+// ==================== OCR KTP via Google Drive ====================
+// Menggunakan Google Drive OCR (mesin yang sama dengan Google Lens)
+// PENTING: Aktifkan "Drive API" di Services (menu + di sidebar Apps Script Editor)
+function ocrKtp(data) {
+  try {
+    const { fotoBase64 } = data;
+    if (!fotoBase64 || !fotoBase64.startsWith('data:image')) {
+      return { success: false, error: 'Foto tidak valid' };
+    }
+
+    const base64Data = fotoBase64.split(',')[1];
+    const mimeType = fotoBase64.split(';')[0].split(':')[1] || 'image/jpeg';
+    const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, 'ktp_ocr_temp.jpg');
+
+    // Upload gambar ke Google Drive dan konversi ke Google Doc dengan OCR
+    var resource = {
+      title: 'OCR_KTP_TEMP_' + new Date().getTime(),
+      mimeType: mimeType
+    };
+
+    var file = Drive.Files.insert(resource, blob, {
+      ocr: true,
+      ocrLanguage: 'id'
+    });
+
+    // Baca teks dari Google Doc yang dihasilkan
+    var doc = DocumentApp.openById(file.id);
+    var text = doc.getBody().getText();
+
+    // Hapus file temporary
+    DriveApp.getFileById(file.id).setTrashed(true);
+
+    if (!text || text.trim().length < 5) {
+      return { success: false, error: 'Tidak ada teks yang terbaca dari gambar. Pastikan foto KTP jelas dan tidak buram.' };
+    }
+
+    return {
+      success: true,
+      text: text.trim()
+    };
+
+  } catch (e) {
+    logError('ocrKtp', e, { hasPhoto: !!data.fotoBase64 });
+    
+    // Pesan khusus jika Drive API belum diaktifkan
+    if (e.toString().includes('Drive is not defined') || e.toString().includes('Drive')) {
+      return { success: false, error: 'Drive API belum diaktifkan. Admin harus mengaktifkan "Drive API" di Services pada Apps Script Editor.' };
+    }
+    
+    return { success: false, error: 'OCR gagal: ' + e.toString() };
   }
 }

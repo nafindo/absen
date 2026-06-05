@@ -3,6 +3,22 @@ node_modules/
 *.log
 /recom/
 
+# Large binary files
+*.exe
+*.apk
+*.zip
+*.mp4
+*.json
+!package.json
+!package-lock.json
+!capacitor.config.json
+!google-services.json
+
+# Build/scratch folders
+/scratch/
+/absen-native/
+/absen-admin/
+
 # Credentials & Secrets (Sangat Rahasia - Tidak boleh masuk GitHub)
 pinguinabsen-*.json
 google-services.json
