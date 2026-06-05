@@ -114,10 +114,10 @@ async function runOCR(base64Img) {
 
 function parseKtpText(text) {
     console.log("OCR Result:", text);
-    const lines = text.split('\\n').map(l => l.trim()).filter(l => l.length > 2);
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
 
     // Regex for NIK
-    const nikMatch = text.match(/\\b\\d{16}\\b/);
+    const nikMatch = text.match(/\b\d{16}\b/);
     if (nikMatch) document.getElementById('inp-nik').value = nikMatch[0];
 
     // LAKI-LAKI or PEREMPUAN
@@ -218,7 +218,7 @@ async function submitProfil() {
 
     for (let f of fields) {
         if (!document.getElementById(f.id).value.trim()) {
-            alert(\`Kolom \${f.name} wajib diisi!\`);
+            alert(`Kolom ${f.name} wajib diisi!`);
             return;
         }
     }
@@ -301,6 +301,7 @@ function apiRequest(action, data = {}) {
     return new Promise((resolve, reject) => {
         fetch(APPS_SCRIPT_URL, {
             method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({ action: action, data: data }),
         })
         .then(res => res.json())

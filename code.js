@@ -165,6 +165,7 @@ function doPost(e) {
       case 'getchatmessages': return jsonResponse(getChatMessages(data));
       case 'sendChatMessage':
       case 'sendchatmessage': return jsonResponse(sendChatMessage(data));
+      case 'sendManualPushNotification': return jsonResponse(sendManualPushNotification(data));
 
       // === TUGAS & BERITA ===
       case 'getTugasList': return jsonResponse(getTugasList(data));
@@ -174,6 +175,24 @@ function doPost(e) {
 
       // === DELTA SYNC ===
       case 'getDeltas': return jsonResponse(getDeltas(data));
+
+      // === ADMIN MANAGEMENT ===
+      case 'getStores': return jsonResponse(getStores(data));
+      case 'addStore': return jsonResponse(addStore(data));
+      case 'editStore': return jsonResponse(editStore(data));
+      case 'deleteStore': return jsonResponse(deleteStore(data));
+      case 'getSalaries': return jsonResponse(getSalaries(data));
+      case 'updateSalary': return jsonResponse(updateSalary(data));
+      case 'getShifts': return jsonResponse(getShifts(data));
+      case 'updateShiftTemplate': return jsonResponse(updateShiftTemplate(data));
+      case 'getSchedules': return jsonResponse(getSchedules(data));
+      case 'assignSchedule': return jsonResponse(assignSchedule(data));
+      case 'getTasks': return jsonResponse(getTasks(data));
+      case 'createTask': return jsonResponse(createTask(data));
+      case 'updateTaskStatus': return jsonResponse(updateTaskStatus(data));
+      case 'getNews': return jsonResponse(getNews(data));
+      case 'createNews': return jsonResponse(createNews(data));
+      case 'deleteNews': return jsonResponse(deleteNews(data));
 
       // === GAJI ===
       case 'getSlipGaji': return jsonResponse(getSlipGaji(data));
@@ -313,7 +332,7 @@ function uploadFotoToko(data) {
 }
 function getDefaultHeaders(sheetName) {
   const headers = {
-    'MASTER_KARYAWAN': ['ID_Karyawan', 'Nama', 'PIN', 'Jabatan', 'Tanggal_Masuk', 'Status', 'No_HP', 'Email', 'Toko_Default', 'Shift_Default', 'Foto_Profil'],
+    'MASTER_KARYAWAN': ['ID_Karyawan', 'Nama', 'PIN', 'Jabatan', 'Tanggal_Masuk', 'Status', 'No_HP', 'Email', 'Toko_Default', 'Shift_Default', 'Foto_Profil', 'FCM_Token', 'Device_ID', 'Device_Name'],
     'MASTER_TOKO': ['ID_Toko', 'Nama_Toko', 'Alamat', 'Lat', 'Long', 'Radius_M', 'Jam_Buka', 'Jam_Tutup', 'Foto_Toko_URL', 'Status'],
     'SHIFT_TOKO': ['ID_Shift', 'ID_Toko', 'Nama_Toko', 'Nama_Shift', 'Jam_Masuk', 'Jam_Pulang', 'Toleransi_Masuk_Menit', 'Status'],
     'JADWAL_KARYAWAN': ['ID_Jadwal', 'ID_Karyawan', 'Nama', 'ID_Toko', 'Nama_Toko', 'ID_Shift', 'Nama_Shift', 'Hari_Berjalan', 'Tanggal_Mulai', 'Tanggal_Selesai', 'Status'],
@@ -326,7 +345,8 @@ function getDefaultHeaders(sheetName) {
     'CHAT': ['Timestamp', 'ID_Pesan', 'ID_Karyawan', 'Nama', 'Pesan', 'Tipe', 'File_URL', 'Nama_File', 'Size_KB', 'Reply_To'],
     'TUKER_SHIFT': ['Timestamp', 'ID_Tuker', 'ID_Karyawan', 'Nama', 'ID_Toko_Saya', 'ID_Toko_Tujuan', 'ID_Karyawan_Tujuan', 'Shift_Saya', 'Shift_Tujuan', 'Tanggal', 'Alasan', 'Status', 'Approved_By', 'Approved_At'],
     'TUGAS': ['Timestamp', 'ID_Tugas', 'ID_Toko', 'Judul', 'Deskripsi', 'Deadline', 'Prioritas', 'Status', 'Dibuat_Oleh', 'Ditugaskan_Ke', 'Selesai_At'],
-    'BERITA': ['Timestamp', 'ID_Berita', 'Judul', 'Isi', 'Kategori', 'Gambar_URL', 'Dibuat_Oleh', 'Tgl_Publish', 'Status']
+    'BERITA': ['Timestamp', 'ID_Berita', 'Judul', 'Isi', 'Kategori', 'Gambar_URL', 'Dibuat_Oleh', 'Tgl_Publish', 'Status'],
+    'DATA_GAJI': ['ID_Karyawan', 'Gaji_Pokok', 'Tunjangan', 'Potongan', 'Periode', 'Status']
   };
   return headers[sheetName];
 }
@@ -472,13 +492,53 @@ function checkUpdate() {
 
 // ==================== AUTH ====================
 function login(data) {
-  const { idKaryawan, pin } = data;
-  const karyawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
-  const user = karyawan.find(k => k.ID_Karyawan === idKaryawan && k.PIN === pin && k.Status === 'Aktif');
+  const { idKaryawan, pin, deviceId, deviceName, force } = data;
+  
+  const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
+  const allData = sheet.getDataRange().getValues();
+  const headers = allData[0];
+  
+  const colId = headers.indexOf('ID_Karyawan');
+  const colPin = headers.indexOf('PIN');
+  const colStatus = headers.indexOf('Status');
+  const colDeviceId = headers.indexOf('Device_ID');
+  const colDeviceName = headers.indexOf('Device_Name');
 
-  if (!user) {
+  let rowIndex = -1;
+  for (let i = 1; i < allData.length; i++) {
+    if (allData[i][colId] === idKaryawan && String(allData[i][colPin]) === String(pin) && allData[i][colStatus] === 'Aktif') {
+      rowIndex = i;
+      break;
+    }
+  }
+
+  if (rowIndex === -1) {
     return { success: false, error: 'Nama atau PIN salah' };
   }
+
+  // Fitur 1 Device 1 Akun
+  if (deviceId && colDeviceId !== -1 && colDeviceName !== -1) {
+    const savedDeviceId = String(allData[rowIndex][colDeviceId] || '').trim();
+    const savedDeviceName = String(allData[rowIndex][colDeviceName] || '').trim();
+    
+    // Jika sudah ada device terdaftar dan beda dengan device yg mau login
+    if (savedDeviceId !== '' && savedDeviceId !== deviceId && !force) {
+      return { 
+        success: false, 
+        requireDeviceConfirmation: true, 
+        message: 'Akun Anda sudah login di perangkat: ' + (savedDeviceName || 'Unknown') + '. Apakah Anda ingin memindahkan akses ke perangkat ini?'
+      };
+    }
+    
+    // Update / Simpan device info baru
+    if (savedDeviceId !== deviceId || savedDeviceName !== deviceName) {
+      sheet.getRange(rowIndex + 1, colDeviceId + 1).setValue(deviceId);
+      sheet.getRange(rowIndex + 1, colDeviceName + 1).setValue(deviceName || 'Unknown Device');
+    }
+  }
+
+  const karyawanList = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+  const user = karyawanList.find(k => k.ID_Karyawan === idKaryawan);
 
   const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
   const kunciJadwal = settings.find(s => s.Parameter === 'KUNCI_JADWAL_KARYAWAN');
@@ -667,6 +727,25 @@ function absenMasuk(data) {
     Logger.log("Pusher broadcast failed in absenMasuk: " + e.toString());
   }
 
+  // Kirim FCM notifikasi absen masuk ke karyawan
+  try {
+    sendPushNotification(idKaryawan, 'Absen Masuk ' + statusMasuk, 'Anda telah absen masuk di ' + namaToko + ', Shift ' + namaShift, 'absensi_channel');
+  } catch(e) {
+    Logger.log('FCM absen masuk error: ' + e.toString());
+  }
+
+  // Kirim notifikasi ke semua admin
+  try {
+    sendPushNotificationToAllAdmin(
+      '📍 Absen Masuk',
+      nama + ' absen masuk di ' + namaToko,
+      'absensi_channel',
+      { type: 'absen_masuk', idKaryawan: idKaryawan, toko: namaToko }
+    );
+  } catch(e) {
+    Logger.log('FCM broadcast absen masuk ke admin error: ' + e.toString());
+  }
+
   return {
     success: true,
     idAbsensi: idAbsensi,
@@ -789,6 +868,25 @@ function absenPulang(data) {
     });
   } catch (e) {
     Logger.log("Pusher broadcast failed in absenPulang: " + e.toString());
+  }
+
+  // Kirim FCM notifikasi absen pulang ke karyawan
+  try {
+    sendPushNotification(idKaryawan, 'Absen Pulang', 'Anda telah absen pulang. Durasi kerja: ' + durasiKerja, 'absensi_channel');
+  } catch(e) {
+    Logger.log('FCM absen pulang error: ' + e.toString());
+  }
+
+  // Kirim notifikasi ke semua admin
+  try {
+    sendPushNotificationToAllAdmin(
+      '🏠 Absen Pulang',
+      nama + ' absen pulang',
+      'absensi_channel',
+      { type: 'absen_pulang', idKaryawan: idKaryawan }
+    );
+  } catch(e) {
+    Logger.log('FCM broadcast absen pulang ke admin error: ' + e.toString());
   }
 
   // SISTEM GANDA: Hitung ulang lembur yang sudah Approved saat karyawan pulang
@@ -996,6 +1094,26 @@ function ajukanLembur(data) {
     Logger.log("Pusher broadcast failed in ajukanLembur: " + e.toString());
   }
 
+  // Kirim FCM notifikasi pengajuan lembur
+  try {
+    sendPushNotification(idKaryawan, 'Pengajuan Lembur Terkirim', 'Pengajuan lembur Anda pada ' + today + ' berhasil dikirim.', 'aktivitas_umum_channel');
+  } catch(e) {
+    Logger.log('FCM ajukan lembur error: ' + e.toString());
+  }
+
+  // Kirim notifikasi ke semua admin
+  try {
+    const tanggal = today;
+    sendPushNotificationToAllAdmin(
+      '⏰ Pengajuan Lembur',
+      nama + ' mengajukan lembur',
+      'lembur_channel',
+      { type: 'lembur', idKaryawan: idKaryawan, tanggal: tanggal }
+    );
+  } catch(e) {
+    Logger.log('FCM broadcast ajukan lembur ke admin error: ' + e.toString());
+  }
+
   return { success: true, idLembur: idLembur, message: 'Pengajuan lembur berhasil dikirim' };
 }
 
@@ -1076,6 +1194,26 @@ function ajukanIzin(data) {
     });
   } catch (e) {
     Logger.log("Pusher broadcast failed in ajukanIzin: " + e.toString());
+  }
+
+  // Kirim FCM notifikasi pengajuan izin
+  try {
+    sendPushNotification(idKaryawan, 'Pengajuan Izin Terkirim', 'Pengajuan ' + namaJenis + ' Anda berhasil dikirim.', 'aktivitas_umum_channel');
+  } catch(e) {
+    Logger.log('FCM ajukan izin error: ' + e.toString());
+  }
+
+  // Kirim notifikasi ke semua admin
+  try {
+    const jenisIzin = namaJenis;
+    sendPushNotificationToAllAdmin(
+      '📋 Pengajuan Izin',
+      nama + ' mengajukan ' + jenisIzin,
+      'izin_channel',
+      { type: 'izin', idKaryawan: idKaryawan, jenis: jenisIzin }
+    );
+  } catch(e) {
+    Logger.log('FCM broadcast ajukan izin ke admin error: ' + e.toString());
   }
 
   return { success: true, idIzin: idIzin, message: 'Pengajuan izin berhasil dikirim' };
@@ -2039,6 +2177,13 @@ function approveLembur(data) {
         Logger.log('Gagal mengirim push lembur: ' + e.message);
       }
 
+      // Kirim FCM notifikasi lembur disetujui
+      try {
+        sendPushNotification(allData[i][1], 'Lembur Disetujui ✅', 'Pengajuan lembur Anda telah disetujui.', 'aktivitas_umum_channel');
+      } catch(e) {
+        Logger.log('FCM approve lembur error: ' + e.toString());
+      }
+
       return { success: true, message: 'Lembur ' + status.toLowerCase() };
     }
   }
@@ -2071,6 +2216,13 @@ function approveIzin(data) {
         });
       } catch (e) {
         Logger.log('Gagal mengirim push izin: ' + e.message);
+      }
+
+      // Kirim FCM notifikasi izin disetujui
+      try {
+        sendPushNotification(allData[i][1], 'Izin/Cuti Disetujui ✅', 'Pengajuan izin/cuti Anda telah disetujui.', 'aktivitas_umum_channel');
+      } catch(e) {
+        Logger.log('FCM approve izin error: ' + e.toString());
       }
 
       return { success: true, message: 'Izin ' + status.toLowerCase() };
@@ -2757,21 +2909,35 @@ function sendChatMessage(data) {
   ]);
 
   // Broadcast real-time message via Pusher WebSockets!
+  // Removed Pusher overhead
+
+  // Kirim FCM ke semua karyawan kecuali pengirim
   try {
-    triggerPusher('pinguin-chat', 'new-message', {
-      tempId: data.tempId || '',
-      idPesan: idPesan,
-      idKaryawan: idKaryawan,
-      nama: nama,
-      pesan: pesan,
-      tipe: tipe || 'text',
-      fileUrl: fileUrl,
-      namaFile: namaFile || '',
-      replyTo: replyTo || '',
-      waktu: formatDateTime(new Date())
+    const allKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+    // Cari foto profil pengirim
+    const sender = allKaryawan.find(k => String(k.ID_Karyawan) === String(idKaryawan));
+    const senderFoto = sender ? (sender.Foto_Profil || '') : '';
+
+    const targetKaryawan = allKaryawan.filter(k => k.Status === 'Aktif' && String(k.ID_Karyawan) !== String(idKaryawan));
+    
+    targetKaryawan.forEach(k => {
+      try {
+        sendPushNotification(
+            k.ID_Karyawan, 
+            'Pesan dari ' + nama, 
+            pesan || 'Mengirim file', 
+            'pesan_chat_channel',
+            { 
+                sender_id: idKaryawan,
+                sender_name: nama,
+                sender_foto: senderFoto,
+                pesan: pesan || 'Mengirim file'
+            }
+        );
+      } catch(e) { Logger.log("FCM send error for " + k.ID_Karyawan + ": " + e.toString()); }
     });
-  } catch (e) {
-    Logger.log("Pusher broadcast failed in sendChatMessage: " + e.toString());
+  } catch(e) {
+    Logger.log('FCM chat broadcast error: ' + e.toString());
   }
 
   return { success: true, idPesan: idPesan, fileUrl: fileUrl };
@@ -2811,6 +2977,37 @@ function ajukanTukerShift(data) {
     });
   } catch (e) {
     Logger.log('Pusher trigger failed in ajukanTukerShift: ' + e.toString());
+  }
+
+  // Kirim FCM notifikasi ke target tukar shift
+  try {
+    sendPushNotification(idKaryawanTujuan, 'Permintaan Tukar Shift', nama + ' mengajukan tukar shift dengan Anda pada tanggal ' + tanggal, 'aktivitas_umum_channel');
+  } catch(e) {
+    Logger.log('FCM ajukan tukar shift error: ' + e.toString());
+  }
+
+  // Kirim notifikasi ke semua admin
+  try {
+    let namaTarget = idKaryawanTujuan;
+    try {
+      const targetKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN).find(k => k.ID_Karyawan === idKaryawanTujuan);
+      if (targetKaryawan) {
+        namaTarget = targetKaryawan.Nama || targetKaryawan.nama || idKaryawanTujuan;
+      }
+    } catch(err) {
+      Logger.log('Gagal mencari nama target: ' + err.toString());
+    }
+
+    const idTarget = idKaryawanTujuan;
+
+    sendPushNotificationToAllAdmin(
+      '⇆ Pengajuan Tukar Shift',
+      nama + ' mengajukan tukar shift dengan ' + namaTarget,
+      'shift_channel',
+      { type: 'tukar_shift', idKaryawan: idKaryawan, idTarget: idTarget }
+    );
+  } catch(e) {
+    Logger.log('FCM broadcast ajukan tukar shift ke admin error: ' + e.toString());
   }
 
   return { success: true, idTuker: idTuker, message: 'Pengajuan tukar shift berhasil' };
@@ -3338,17 +3535,42 @@ function getFCMToken(idKaryawan) {
 }
 
 /**
+ * Hapus token FCM karyawan dari sheet MASTER_KARYAWAN jika tidak valid/expired
+ */
+function clearFCMTokenFromSheet(idKaryawan) {
+  try {
+    const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
+    if (sheet) {
+      const allData = sheet.getDataRange().getValues();
+      const headers = allData[0];
+      const colFCM = headers.indexOf('FCM_Token');
+      if (colFCM >= 0) {
+        for (let i = 1; i < allData.length; i++) {
+          if (String(allData[i][0]) === String(idKaryawan)) {
+            sheet.getRange(i + 1, colFCM + 1).setValue('');
+            Logger.log('[FCM] Token dikosongkan di sheet untuk ' + idKaryawan);
+            break;
+          }
+        }
+      }
+    }
+  } catch(e) {
+    Logger.log('Gagal mengosongkan token FCM di sheet: ' + e.toString());
+  }
+}
+
+/**
  * Kirim notifikasi ke karyawan.
  * Prioritas: FCM v1 API (untuk APK) → Webpushr (untuk Web) 
  */
-function sendPushNotification(idKaryawan, title, message, channelId) {
+function sendPushNotification(idKaryawan, title, message, channelId, extraData = {}) {
   channelId = channelId || 'general';
   
   // 1. Coba kirim via FCM v1 API (untuk APK Android)
   const fcmToken = getFCMToken(idKaryawan);
   if (fcmToken) {
     try {
-      const fcmResult = sendFCMv1(fcmToken, title, message, channelId);
+      const fcmResult = sendFCMv1(fcmToken, title, message, channelId, extraData);
       if (fcmResult.success) {
         Logger.log('[FCM] ✅ Notifikasi berhasil dikirim ke ' + idKaryawan);
         return; // Sukses, tidak perlu fallback
@@ -3358,6 +3580,11 @@ function sendPushNotification(idKaryawan, title, message, channelId) {
         if (fcmResult.error && (fcmResult.error.includes('NOT_FOUND') || fcmResult.error.includes('UNREGISTERED'))) {
           PropertiesService.getScriptProperties().deleteProperty('FCM_' + idKaryawan);
           Logger.log('[FCM] Token expired dihapus untuk ' + idKaryawan);
+          try {
+            clearFCMTokenFromSheet(idKaryawan);
+          } catch(e) {
+            Logger.log('Gagal hapus token dari sheet: ' + e.message);
+          }
         }
       }
     } catch (e) {
@@ -3373,36 +3600,37 @@ function sendPushNotification(idKaryawan, title, message, channelId) {
  * Kirim notifikasi via Firebase Cloud Messaging HTTP v1 API
  * Menggunakan ScriptApp.getOAuthToken() untuk autentikasi
  */
-function sendFCMv1(fcmToken, title, body, channelId) {
+function sendFCMv1(fcmToken, title, body, channelId, extraData = {}) {
   const projectId = 'nafindo-group'; // Firebase project ID
   
   try {
     const accessToken = ScriptApp.getOAuthToken();
     
+    // Gabungkan data bawaan dengan extraData
+    const dataPayload = {
+      title: title,
+      body: body,
+      channel_id: channelId,
+      click_action: 'FCM_PLUGIN_ACTIVITY',
+      ...extraData
+    };
+    
+    // Konversi semua value di dataPayload menjadi string (FCM mensyaratkan data payload value berupa string)
+    for (let key in dataPayload) {
+        if (dataPayload[key] !== null && dataPayload[key] !== undefined) {
+            dataPayload[key] = String(dataPayload[key]);
+        } else {
+            delete dataPayload[key];
+        }
+    }
+    
     const payload = {
       message: {
         token: fcmToken,
-        notification: {
-          title: title,
-          body: body
-        },
         android: {
-          priority: 'high',
-          notification: {
-            channel_id: channelId,
-            sound: 'default',
-            default_vibrate_timings: true,
-            default_light_settings: true,
-            visibility: 'PUBLIC',
-            notification_priority: 'PRIORITY_HIGH'
-          }
+          priority: 'high'
         },
-        data: {
-          title: title,
-          body: body,
-          channel_id: channelId,
-          click_action: 'FCM_PLUGIN_ACTIVITY'
-        }
+        data: dataPayload
       }
     };
     
@@ -3534,3 +3762,246 @@ function bytesToHex(bytes) {
   }
   return hex;
 }
+
+// ==================== NEW ADMIN CONTROL CENTER ENDPOINTS ====================
+
+// 1. Store Management
+function getStores(data) { return getTokoList(); }
+function addStore(data) { return saveToko(data); }
+function editStore(data) { return updateToko(data); }
+function deleteStore(data) { return deleteToko(data); }
+
+// 2. Salary Management
+function getSalaries(data) {
+  try {
+    const list = getSheetData(SHEET_NAMES.GAJI);
+    return { success: true, data: list };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+function updateSalary(data) {
+  try {
+    const sheet = getSheet(SHEET_NAMES.GAJI);
+    const allData = sheet.getDataRange().getValues();
+    const headers = allData.length > 0 ? allData[0] : getDefaultHeaders(SHEET_NAMES.GAJI);
+    const idIndex = headers.indexOf('ID_Karyawan');
+    
+    if (idIndex === -1 && allData.length <= 1) {
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      return updateSalary(data); // retry after setting headers
+    }
+
+    const { idKaryawan, gajiPokok, tunjangan, potongan, periode, status } = data;
+    
+    for (let i = 1; i < allData.length; i++) {
+      if (allData[i][idIndex] == idKaryawan) {
+        if(gajiPokok !== undefined) sheet.getRange(i + 1, headers.indexOf('Gaji_Pokok') + 1).setValue(gajiPokok);
+        if(tunjangan !== undefined) sheet.getRange(i + 1, headers.indexOf('Tunjangan') + 1).setValue(tunjangan);
+        if(potongan !== undefined) sheet.getRange(i + 1, headers.indexOf('Potongan') + 1).setValue(potongan);
+        if(periode !== undefined) sheet.getRange(i + 1, headers.indexOf('Periode') + 1).setValue(periode);
+        if(status !== undefined) sheet.getRange(i + 1, headers.indexOf('Status') + 1).setValue(status);
+        return { success: true, message: 'Salary updated' };
+      }
+    }
+    
+    appendRow(SHEET_NAMES.GAJI, [idKaryawan, gajiPokok || 0, tunjangan || 0, potongan || 0, periode || '', status || 'Aktif']);
+    return { success: true, message: 'Salary added' };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+// 3. Shift Management
+function getShifts(data) { return { success: true, data: getSheetData(SHEET_NAMES.SHIFT_TOKO) }; }
+function updateShiftTemplate(data) { return updateShift(data); }
+
+// 4. Schedule Management
+function getSchedules(data) { return { success: true, data: getSheetData(SHEET_NAMES.JADWAL_KARYAWAN) }; }
+function assignSchedule(data) { return saveJadwalKaryawan(data); }
+
+// 5. Task Management
+function getTasks(data) { return getTugasList(data); }
+function createTask(data) {
+  try {
+    const { idToko, judul, deskripsi, deadline, prioritas, dibuatOleh, ditugaskanKe } = data;
+    const idTugas = generateId('TGS');
+    const now = new Date();
+    appendRow(SHEET_NAMES.TUGAS, [
+      formatDateTime(now),
+      idTugas,
+      idToko || '',
+      judul,
+      deskripsi,
+      deadline || '',
+      prioritas || 'Medium',
+      'Pending',
+      dibuatOleh || 'Admin',
+      ditugaskanKe || '',
+      ''
+    ]);
+    return { success: true, message: 'Tugas berhasil dibuat', idTugas };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+function updateTaskStatus(data) { return updateTugasStatus(data); }
+
+// 6. News Management
+function getNews(data) { return getBeritaList(data); }
+function createNews(data) { return createBerita(data); }
+function deleteNews(data) {
+  try {
+    const { idBerita } = data;
+    const sheet = getSheet(SHEET_NAMES.BERITA);
+    const allData = sheet.getDataRange().getValues();
+    
+    for (let i = 1; i < allData.length; i++) {
+      if (allData[i][1] === idBerita) {
+        sheet.deleteRow(i + 1);
+        return { success: true, message: 'Berita berhasil dihapus' };
+      }
+    }
+    return { success: false, error: 'Berita tidak ditemukan' };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Mengirim notifikasi push ke seluruh Admin dan Owner yang aktif.
+ */
+function sendPushNotificationToAllAdmin(title, message, channelId, extraData) {
+  channelId = channelId || 'general';
+  extraData = extraData || {};
+
+  try {
+    if (extraData.idKaryawan && !extraData.sender_foto) {
+      const karyawanInfo = getSheetData(SHEET_NAMES.MASTER_KARYAWAN).find(k => k.ID_Karyawan === extraData.idKaryawan);
+      if (karyawanInfo && (karyawanInfo.Foto_Profil || karyawanInfo.Foto_URL)) {
+        extraData.sender_foto = karyawanInfo.Foto_Profil || karyawanInfo.Foto_URL;
+      }
+    }
+  } catch(e) {
+    Logger.log('[FCM Admin] Gagal melampirkan foto profil: ' + e.toString());
+  }
+
+  try {
+    const allKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+    
+    // 1. Kirim ke semua Admin / Owner aktif di MASTER_KARYAWAN
+    allKaryawan.forEach(k => {
+      const jabatan = String(k.Jabatan || '').trim().toLowerCase();
+      const status = String(k.Status || '').trim().toLowerCase();
+      
+      if ((jabatan === 'admin' || jabatan === 'owner') && status === 'aktif') {
+        try {
+          sendPushNotification(k.ID_Karyawan, title, message, channelId, extraData);
+          Logger.log('[FCM Admin] Berhasil memicu notifikasi untuk admin: ' + k.Nama + ' (' + k.ID_Karyawan + ')');
+        } catch (e) {
+          Logger.log('[FCM Admin] Gagal memicu notifikasi untuk admin ' + k.Nama + ': ' + e.toString());
+        }
+      }
+    });
+  } catch (e) {
+    Logger.log('[FCM Admin] Gagal membaca data MASTER_KARYAWAN: ' + e.toString());
+  }
+
+  // 2. Fallback: kirim juga ke PropertiesService 'FCM_admin' jika ada
+  try {
+    const adminToken = PropertiesService.getScriptProperties().getProperty('FCM_admin');
+    if (adminToken) {
+      try {
+        sendFCMv1(adminToken, title, message, channelId, extraData);
+        Logger.log('[FCM Admin] Berhasil mengirim notifikasi fallback ke token FCM_admin');
+      } catch (e) {
+        Logger.log('[FCM Admin] Gagal mengirim notifikasi fallback ke token FCM_admin: ' + e.toString());
+      }
+    }
+  } catch (e) {
+    Logger.log('[FCM Admin] Gagal membaca fallback token FCM_admin: ' + e.toString());
+  }
+}
+
+/**
+ * Mengirim notifikasi push manual ke satu karyawan atau melakukan broadcast.
+ */
+function sendManualPushNotification(data) {
+  const { targetId, targetRole, title, message, channelId } = data;
+  
+  if (!title || !message) {
+    return { success: false, error: 'Title dan message wajib diisi' };
+  }
+
+  const chanId = channelId || 'general';
+  let sentCount = 0;
+
+  // Kasus 1: Kirim ke satu karyawan spesifik
+  if (targetId && targetId !== 'ALL') {
+    try {
+      sendPushNotification(targetId, title, message, chanId);
+      sentCount = 1;
+      return { success: true, message: 'Notifikasi berhasil dikirim ke karyawan ' + targetId, sentCount: sentCount };
+    } catch (e) {
+      return { success: false, error: 'Gagal mengirim notifikasi ke ' + targetId + ': ' + e.toString() };
+    }
+  }
+
+  // Kasus 2: Broadcast ke banyak karyawan (ALL atau tidak ada targetId)
+  try {
+    const allKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+    
+    allKaryawan.forEach(k => {
+      const status = String(k.Status || '').trim().toLowerCase();
+      const role = String(k.Jabatan || '').trim().toLowerCase();
+      
+      // Cek keaktifan
+      if (status === 'aktif') {
+        // Jika ada filter role (jabatan), pastikan cocok
+        if (targetRole && targetRole !== 'ALL') {
+          const filterRole = String(targetRole).trim().toLowerCase();
+          if (role !== filterRole) {
+            return; // Skip jika jabatan tidak sesuai
+          }
+        }
+        
+        try {
+          sendPushNotification(k.ID_Karyawan, title, message, chanId);
+          sentCount++;
+        } catch (e) {
+          Logger.log('Gagal broadcast notifikasi ke ' + k.Nama + ': ' + e.toString());
+        }
+      }
+    });
+
+    return { 
+      success: true, 
+      message: 'Broadcast notifikasi berhasil dikirim ke ' + sentCount + ' karyawan', 
+      sentCount: sentCount 
+    };
+  } catch (e) {
+    return { success: false, error: 'Gagal melakukan broadcast: ' + e.toString() };
+  }
+}
+
+// ==================== TEST FCM ====================
+function testFCM() {
+  const token = 'cXnL0hUVRs-nS48tgyHXUk:APA91bFhUsimmIiV1GaclnB2tLqG5OTyVnO1N5AUfVmZe5jPmq_De4nBuNP2VhDjmPizSkD85RYE7YQTdiO4NoameVwrD4hYD9ZS_a6U3oDe7KfLQZqJ4NU';
+  const result = sendFCMv1(
+    token,
+    'Test Notifikasi',
+    'Ini test dari Apps Script',
+    'pesan_chat_channel',
+    { sender_name: 'Test', pesan: 'Halo dari test' }
+  );
+  Logger.log('Result testFCM: ' + JSON.stringify(result));
+}
+
+function testListFCMTokens() {
+  const fcmTokens = getSheetData(SHEET_NAMES.FCM_TOKENS);
+  Logger.log("Total tokens in database: " + fcmTokens.length);
+  fcmTokens.forEach(t => {
+    Logger.log("Karyawan: " + t.ID_Karyawan + " | Token: " + t.FCM_Token);
+  });
+}
