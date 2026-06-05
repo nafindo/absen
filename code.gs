@@ -5074,8 +5074,12 @@ function ocrKtp(data) {
         var file = Drive.Files.create(resource, blob);
         fileId = file.id;
         
-        var textBlob = Drive.Files.export(fileId, 'text/plain', {alt: 'media'});
-        text = textBlob.getDataAsString();
+        var exportUrl = 'https://www.googleapis.com/drive/v3/files/' + fileId + '/export?mimeType=text/plain';
+        var response = UrlFetchApp.fetch(exportUrl, {
+          headers: { 'Authorization': 'Bearer ' + ScriptApp.getOAuthToken() },
+          muteHttpExceptions: true
+        });
+        text = response.getContentText();
       } catch (e3) {
         if (fileId) {
           try { DriveApp.getFileById(fileId).setTrashed(true); } catch(err){}
