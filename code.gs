@@ -5059,9 +5059,14 @@ function ocrKtp(data) {
     let text = "";
     let fileId = "";
 
-    // Coba Drive API v3 terlebih dahulu (Lebih modern dan seringkali terhindar dari rate limit OCR v2)
-    try {
-      if (typeof Drive !== 'undefined' && Drive.Files && typeof Drive.Files.create === 'function') {
+    if (typeof Drive === 'undefined') {
+      return { success: false, error: 'Drive API belum diaktifkan. Admin harus mengaktifkan "Drive API" di Services pada Apps Script Editor.' };
+    }
+
+    // Cek versi Drive API yang aktif di Services Apps Script
+    if (Drive.Files && typeof Drive.Files.create === 'function') {
+      // === JIKA MENGGUNAKAN DRIVE API V3 ===
+      try {
         var resource = {
           name: 'OCR_KTP_TEMP_' + new Date().getTime(),
           mimeType: 'application/vnd.google-apps.document' // Memicu OCR otomatis di v3
@@ -5071,13 +5076,14 @@ function ocrKtp(data) {
         
         var textBlob = Drive.Files.export(fileId, 'text/plain');
         text = textBlob.getDataAsString();
+      } catch (e3) {
+        if (fileId) {
+          try { DriveApp.getFileById(fileId).setTrashed(true); } catch(err){}
+        }
+        return { success: false, error: 'OCR v3 gagal: ' + e3.toString() };
       }
-    } catch (e3) {
-      console.log("Drive API v3 failed, falling back to v2: " + e3.toString());
-    }
-
-    // Fallback ke Drive API v2 jika v3 tidak berhasil/tidak terdefinisi
-    if (!text && typeof Drive !== 'undefined') {
+    } else if (Drive.Files && typeof Drive.Files.insert === 'function') {
+      // === JIKA MENGGUNAKAN DRIVE API V2 (LAMA) ===
       try {
         var resource = {
           title: 'OCR_KTP_TEMP_' + new Date().getTime(),
@@ -5097,14 +5103,20 @@ function ocrKtp(data) {
             muteHttpExceptions: true
           });
           text = response.getContentText();
+        } else {
+          throw new Error("Tidak ada link export text/plain");
         }
       } catch (e2) {
-        console.log("Drive API v2 failed: " + e2.toString());
-        throw e2;
+        if (fileId) {
+          try { DriveApp.getFileById(fileId).setTrashed(true); } catch(err){}
+        }
+        return { success: false, error: 'OCR v2 gagal: ' + e2.toString() };
       }
+    } else {
+      return { success: false, error: 'Drive API terdeteksi, tetapi format tidak dikenali.' };
     }
 
-    // Hapus file temporary
+    // Hapus file temporary jika sukses
     if (fileId) {
       try {
         DriveApp.getFileById(fileId).setTrashed(true);
@@ -5124,12 +5136,6 @@ function ocrKtp(data) {
 
   } catch (e) {
     logError('ocrKtp', e, { hasPhoto: !!data.fotoBase64 });
-    
-    // Pesan khusus jika Drive API belum diaktifkan
-    if (typeof Drive === 'undefined') {
-      return { success: false, error: 'Drive API belum diaktifkan. Admin harus mengaktifkan "Drive API" di Services pada Apps Script Editor.' };
-    }
-    
-    return { success: false, error: 'OCR gagal: ' + e.toString() };
+    return { success: false, error: 'OCR gagal sistem: ' + e.toString() };
   }
 }
