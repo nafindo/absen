@@ -5074,7 +5074,7 @@ function ocrKtp(data) {
         var file = Drive.Files.create(resource, blob);
         fileId = file.id;
         
-        var textBlob = Drive.Files.export(fileId, 'text/plain');
+        var textBlob = Drive.Files.export(fileId, 'text/plain', {alt: 'media'});
         text = textBlob.getDataAsString();
       } catch (e3) {
         if (fileId) {
