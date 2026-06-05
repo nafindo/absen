@@ -117,7 +117,7 @@ function parseKtpText(text) {
     console.log("OCR Result:", text);
     
     // Fix common OCR mistakes for numbers before extracting NIK
-    let cleanTextForNik = text.toUpperCase().replace(/I/g, '1').replace(/L/g, '1').replace(/O/g, '0').replace(/B/g, '8').replace(/S/g, '5');
+    let cleanTextForNik = text.toUpperCase().replace(/I/g, '1').replace(/L/g, '1').replace(/O/g, '0').replace(/B/g, '8').replace(/S/g, '5').replace(/\?/g, '7').replace(/Z/g, '2');
     const nikMatch = cleanTextForNik.match(/\d{16}/);
     if (nikMatch) document.getElementById('inp-nik').value = nikMatch[0];
 
@@ -131,50 +131,82 @@ function parseKtpText(text) {
         let upperLine = line.toUpperCase();
         let noSpace = upperLine.replace(/\s+/g, '');
         
-        if (noSpace.includes('NAMA') && !noSpace.includes('PROVINSI') && !noSpace.includes('KOTA')) {
+        if ((noSpace.includes('NAMA') || noSpace.includes('NARNA') || noSpace.match(/^NAM[A-Z]*:/)) && !noSpace.includes('PROVINSI') && !noSpace.includes('KOTA')) {
             const val = extractValue(line);
-            if(val) document.getElementById('inp-nama').value = val;
+            if(val) document.getElementById('inp-nama').value = val.replace(/GOL\.?\s*DARAH/i, '').replace(/[-:]/g, '').trim();
         }
         else if (noSpace.includes('TEMPAT') || noSpace.includes('TGLLHR') || noSpace.includes('LAHIR')) {
             const val = extractValue(line);
             if (val) {
-                const parts = val.split(',');
-                if (parts.length > 1) {
-                    document.getElementById('inp-tempat-lahir').value = parts[0].trim();
-                    document.getElementById('inp-tgl-lahir').value = parts[1].replace(/[^0-9-]/g, '').trim();
+                // Try to find the date DD-MM-YYYY or DD/MM/YYYY
+                const dateMatch = val.match(/\d{2}[\-\/]\d{2}[\-\/]\d{4}/);
+                if (dateMatch) {
+                    document.getElementById('inp-tgl-lahir').value = dateMatch[0].replace(/\//g, '-');
+                    let tempat = val.replace(dateMatch[0], '').replace(/[,\.:]/g, '').trim();
+                    if(tempat) document.getElementById('inp-tempat-lahir').value = tempat;
                 } else {
-                    document.getElementById('inp-tempat-lahir').value = val;
+                    const parts = val.split(',');
+                    if (parts.length > 1) {
+                        document.getElementById('inp-tempat-lahir').value = parts[0].replace(/[,\.:]/g, '').trim();
+                        document.getElementById('inp-tgl-lahir').value = parts[1].replace(/[^0-9-]/g, '').trim();
+                    } else {
+                        document.getElementById('inp-tempat-lahir').value = val.replace(/[,\.:]/g, '').trim();
+                    }
                 }
             }
         }
         else if (noSpace.includes('ALAMAT')) {
             const val = extractValue(line);
-            if (val) document.getElementById('inp-alamat').value = val;
+            if (val) document.getElementById('inp-alamat').value = val.replace(/[-:]/g, '').trim();
         }
-        else if (noSpace.includes('RT/RW') || noSpace.includes('RT:')) {
+        else if (noSpace.includes('RT/RW') || noSpace.includes('RT:') || noSpace.includes('RTRW')) {
             const val = extractValue(line);
-            if (val) document.getElementById('inp-rtrw').value = val;
+            if (val) {
+                // ensure format is like 001/002
+                let cleanVal = val.replace(/[^0-9\/]/g, '');
+                if(cleanVal) document.getElementById('inp-rtrw').value = cleanVal;
+                else document.getElementById('inp-rtrw').value = val;
+            }
         }
-        else if (noSpace.includes('KEL') || noSpace.includes('DESA')) {
+        else if (noSpace.includes('KEL') || noSpace.includes('DESA') || noSpace.includes('KELURAHAN')) {
             const val = extractValue(line);
-            if (val) document.getElementById('inp-desa').value = val;
+            if (val) document.getElementById('inp-desa').value = val.replace(/[-:]/g, '').trim();
         }
         else if (noSpace.includes('KECAMATAN') || noSpace.includes('KEC')) {
             const val = extractValue(line);
-            if (val) document.getElementById('inp-kecamatan').value = val;
+            if (val) document.getElementById('inp-kecamatan').value = val.replace(/[-:]/g, '').trim();
         }
-        else if (noSpace.includes('AGAMA')) {
+        else if (noSpace.includes('AGAMA') || noSpace.includes('AGAM')) {
             const val = extractValue(line);
-            if (val) document.getElementById('inp-agama').value = val;
+            if (val) document.getElementById('inp-agama').value = val.replace(/[-:]/g, '').trim();
         }
-        else if (noSpace.includes('STATUS') || noSpace.includes('KAWIN')) {
+        else if (noSpace.includes('STATUS') || noSpace.includes('KAWIN') || noSpace.includes('PERKAWINAN')) {
             const val = extractValue(line);
-            if (val) document.getElementById('inp-kawin').value = val;
+            if (val) document.getElementById('inp-kawin').value = val.replace(/[-:]/g, '').trim();
         }
     });
 }
 
 function extractValue(line) {
+    // 1. Try colon
+    let parts = line.split(':');
+    if (parts.length > 1) {
+        return parts.slice(1).join(':').trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
+    }
+    // 2. Try multiple spaces (Tesseract often uses multiple spaces for gaps)
+    parts = line.split(/\s{2,}/);
+    if (parts.length > 1) {
+        return parts.slice(1).join(' ').trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
+    }
+    // 3. Fallback: split by single space, discard the first word (the key)
+    parts = line.split(' ');
+    if (parts.length > 1) {
+        return parts.slice(1).join(' ').trim().replace(/[^a-zA-Z0-9 \-\/\.,]/g, '');
+    }
+    return "";
+}
+
+function extractValueTemp() {
     const idx = line.indexOf(':');
     if (idx !== -1) {
         return line.substring(idx + 1).trim().replace(/[^a-zA-Z0-9 \\-\\/]/g, '');
