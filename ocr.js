@@ -231,6 +231,7 @@ async function submitProfil() {
 
     const payload = {
         idKaryawan: idKaryawan,
+        fotoProfilBase64: document.getElementById('inp-foto-profil-base64').value,
         nama: document.getElementById('inp-nama').value.trim(),
         pin: pin,
         noHP: document.getElementById('inp-nohp').value.trim(),
@@ -255,7 +256,21 @@ async function submitProfil() {
     btnSubmit.textContent = 'Menyimpan & Mengupload...';
 
     try {
+        // Upload Foto Profil
+        if (payload.fotoProfilBase64) {
+            btnSubmit.textContent = 'Mengupload Foto Profil...';
+            const uploadProf = await apiRequest('uploadFotoProfil', {
+                fotoBase64: payload.fotoProfilBase64,
+                idKaryawan: idKaryawan
+            });
+            if (uploadProf.success && uploadProf.fotoUrl) {
+                payload.fotoProfilUrl = uploadProf.fotoUrl;
+            }
+        }
+        delete payload.fotoProfilBase64;
+
         // Upload Foto KTP
+        btnSubmit.textContent = 'Mengupload KTP...';
         const uploadRes = await apiRequest('uploadFotoKtp', {
             fotoBase64: fotoBase64,
             namaKaryawan: payload.nama
@@ -308,4 +323,18 @@ function apiRequest(action, data = {}) {
         .then(res => resolve(res))
         .catch(err => reject(err));
     });
+}
+
+function previewFotoProfil() {
+    const file = document.getElementById('inp-foto-profil-file').files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.getElementById('img-profil-preview');
+            img.src = e.target.result;
+            img.style.display = 'block';
+            document.getElementById('inp-foto-profil-base64').value = e.target.result;
+        }
+        reader.readAsDataURL(file);
+    }
 }

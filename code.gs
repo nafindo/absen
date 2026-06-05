@@ -4951,27 +4951,25 @@ function getProfilStatus(data) {
   const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
   if (!sheet) return { success: false, error: 'Sheet tidak ditemukan' };
 
+  ensureKaryawanExtraColumns();
   const allData = sheet.getDataRange().getValues();
   const headers = allData[0];
   
   const idIdx = headers.indexOf('ID_Karyawan');
-  const profilIdx = headers.indexOf('Profil_Lengkap');
-  const namaIdx = headers.indexOf('Nama');
-  const jabatanIdx = headers.indexOf('Jabatan');
-  
-  if (idIdx === -1 || profilIdx === -1) {
-    ensureKaryawanExtraColumns();
-    return { success: true, isComplete: false };
-  }
+  if (idIdx === -1) return { success: false, error: 'Kolom ID_Karyawan tidak ditemukan' };
 
   for (let i = 1; i < allData.length; i++) {
     if (allData[i][idIdx] === idKaryawan) {
-      const isComplete = allData[i][profilIdx] === true || allData[i][profilIdx] === 'TRUE';
+      let rowObj = {};
+      headers.forEach((h, idx) => {
+        rowObj[h] = allData[i][idx] || '';
+      });
+      
+      const isComplete = rowObj['Profil_Lengkap'] === true || rowObj['Profil_Lengkap'] === 'TRUE';
       return { 
         success: true, 
         isComplete: isComplete, 
-        nama: namaIdx !== -1 ? allData[i][namaIdx] : '',
-        jabatan: jabatanIdx !== -1 ? allData[i][jabatanIdx] : ''
+        employeeData: rowObj
       };
     }
   }
