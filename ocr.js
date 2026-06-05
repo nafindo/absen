@@ -29,15 +29,45 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('main-content').style.display = 'block';
         
-        document.getElementById('lbl-nama').textContent = res.nama || 'Karyawan';
-        document.getElementById('inp-nama').value = res.nama || '';
-        document.getElementById('inp-jabatan').value = res.jabatan || '';
+        const emp = res.employeeData || {};
+        
+        document.getElementById('lbl-nama').textContent = emp.Nama || 'Karyawan';
+        document.getElementById('inp-nama').value = emp.Nama || '';
+        document.getElementById('inp-jabatan').value = emp.Jabatan || '';
+        document.getElementById('inp-tgl-masuk').value = emp.Tanggal_Masuk || '';
+        document.getElementById('inp-nohp').value = emp.No_HP || '';
+        document.getElementById('inp-email').value = emp.Email || '';
+        document.getElementById('inp-pin').value = emp.PIN || '';
+
+        // Populate previous profile data if available
+        if (emp.NIK) document.getElementById('inp-nik').value = emp.NIK;
+        if (emp.Tempat_Lahir) document.getElementById('inp-tempat-lahir').value = emp.Tempat_Lahir;
+        if (emp.Tanggal_Lahir) document.getElementById('inp-tgl-lahir').value = emp.Tanggal_Lahir;
+        if (emp.Jenis_Kelamin) document.getElementById('inp-jk').value = emp.Jenis_Kelamin;
+        if (emp.Alamat_Lengkap) document.getElementById('inp-alamat').value = emp.Alamat_Lengkap;
+        if (emp.RT_RW) document.getElementById('inp-rtrw').value = emp.RT_RW;
+        if (emp.Desa) document.getElementById('inp-desa').value = emp.Desa;
+        if (emp.Kecamatan) document.getElementById('inp-kecamatan').value = emp.Kecamatan;
+        if (emp.Agama) document.getElementById('inp-agama').value = emp.Agama;
+        if (emp.Status_Kawin) document.getElementById('inp-kawin').value = emp.Status_Kawin;
+        if (emp.Kewarganegaraan) document.getElementById('inp-kwn').value = emp.Kewarganegaraan;
+        if (emp.Nama_Kontak_Darurat) document.getElementById('inp-nama-darurat').value = emp.Nama_Kontak_Darurat;
+        if (emp.Kontak_Darurat) document.getElementById('inp-hp-darurat').value = emp.Kontak_Darurat;
 
         // Display existing Foto Profil if available
-        if (res.fotoProfil) {
+        if (emp.Foto_Profil) {
             const img = document.getElementById('img-profil-preview');
-            img.src = res.fotoProfil;
+            img.src = emp.Foto_Profil;
             img.style.display = 'block';
+            document.getElementById('inp-foto-profil-base64').value = emp.Foto_Profil;
+        }
+
+        // Display existing Foto KTP if available
+        if (emp.Foto_KTP) {
+            const img = document.getElementById('foto-ktp-preview');
+            img.src = emp.Foto_KTP;
+            document.getElementById('ktp-preview-container').style.display = 'block';
+            document.getElementById('inp-foto-base64').value = emp.Foto_KTP;
         }
 
     } catch (e) {

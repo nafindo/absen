@@ -233,6 +233,11 @@
                     <small style="font-size: 11px; color: #94a3b8; display: block; margin-top: 4px;">Jabatan tidak dapat diubah sendiri.</small>
                 </div>
                 <div class="form-group">
+                    <label>Tanggal Masuk Karyawan</label>
+                    <input type="text" id="inp-tgl-masuk" class="form-control" readonly>
+                    <small style="font-size: 11px; color: #94a3b8; display: block; margin-top: 4px;">Tanggal masuk tidak dapat diubah sendiri.</small>
+                </div>
+                <div class="form-group">
                     <label>Nomor HP / WA</label>
                     <input type="tel" id="inp-nohp" class="form-control" required>
                 </div>
@@ -243,7 +248,7 @@
                 <div class="form-group">
                     <label>PIN Aplikasi (Maksimal 4 Digit)</label>
                     <input type="number" id="inp-pin" class="form-control" placeholder="Contoh: 1234" required>
-                    <small id="pin-error" style="font-size: 11px; color: #ef4444; display: none; margin-top: 4px;">PIN harus 4 digit dan tidak boleh berawalan 0.</small>
+                    <small id="pin-error" style="font-size: 11px; color: #ef4444; display: none; margin-top: 4px;">PIN harus 4 digit and tidak boleh berawalan 0.</small>
                 </div>
             </div>
 
@@ -300,10 +305,6 @@
                 </div>
 
                 <div style="height: 1px; background: #e2e8f0; margin: 20px 0;"></div>
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label>Raw OCR Text (Untuk Debugging):</label>
-                    <textarea id="raw-ocr-text" class="form-control" rows="5" readonly style="font-size:10px; background:#f1f5f9;"></textarea>
-                </div>
                 <p style="font-size: 12px; color: #ef4444; font-weight: 700; margin-bottom: 15px;">* Cek kembali hasil pembacaan. Koreksi jika ada yang salah ketik.</p>
 
                 <div class="form-group">
@@ -380,6 +381,6 @@
         </div>
     </div>
 
-    <script src="ocr.js?v=1780639352000"></script>
+    <script src="ocr.js?v=1780641200000"></script>
 </body>
 </html>

@@ -4986,7 +4986,8 @@ function submitKaryawanProfil(data) {
       idKaryawan, nama, pin, noHP, email,
       alamatLengkap, kontakDarurat, namaKontakDarurat, 
       fotoKtpUrl, nik, tempatLahir, tglLahir, jenisKelamin, 
-      rtrw, desa, kecamatan, agama, statusKawin, kewarganegaraan 
+      rtrw, desa, kecamatan, agama, statusKawin, kewarganegaraan,
+      fotoProfilUrl
     } = data;
 
     ensureKaryawanExtraColumns();
@@ -5016,6 +5017,7 @@ function submitKaryawanProfil(data) {
         updateField('Kontak_Darurat', kontakDarurat);
         updateField('Nama_Kontak_Darurat', namaKontakDarurat);
         updateField('Foto_KTP', fotoKtpUrl);
+        updateField('Foto_Profil', fotoProfilUrl);
         updateField('NIK', nik);
         updateField('Tempat_Lahir', tempatLahir);
         updateField('Tanggal_Lahir', tglLahir);
