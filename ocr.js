@@ -302,7 +302,7 @@ function apiRequest(action, data = {}) {
         fetch(APPS_SCRIPT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: action, data: data }),
+            body: JSON.stringify({ action: action, ...data }),
         })
         .then(res => res.json())
         .then(res => resolve(res))
