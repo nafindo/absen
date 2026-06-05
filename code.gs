@@ -5067,9 +5067,13 @@ function ocrKtp(data) {
       ocrLanguage: 'id'
     });
 
-    // Baca teks dari Google Doc yang dihasilkan
-    var doc = DocumentApp.openById(file.id);
-    var text = doc.getBody().getText();
+    // Baca teks dari Google Doc menggunakan export link (TANPA DocumentApp)
+    var exportUrl = file.exportLinks['text/plain'];
+    var response = UrlFetchApp.fetch(exportUrl, {
+      headers: { 'Authorization': 'Bearer ' + ScriptApp.getOAuthToken() },
+      muteHttpExceptions: true
+    });
+    var text = response.getContentText();
 
     // Hapus file temporary
     DriveApp.getFileById(file.id).setTrashed(true);
@@ -5087,7 +5091,7 @@ function ocrKtp(data) {
     logError('ocrKtp', e, { hasPhoto: !!data.fotoBase64 });
     
     // Pesan khusus jika Drive API belum diaktifkan
-    if (e.toString().includes('Drive is not defined') || e.toString().includes('Drive')) {
+    if (e.toString().includes('Drive is not defined')) {
       return { success: false, error: 'Drive API belum diaktifkan. Admin harus mengaktifkan "Drive API" di Services pada Apps Script Editor.' };
     }
     
