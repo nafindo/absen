@@ -251,7 +251,18 @@
                 <h3 style="margin-top: 0; font-size: 16px; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px;">Foto Profil</h3>
                 <div class="form-group">
                     <label>Unggah Foto Profil (Selfie / Bebas Rapi)</label>
-                    <input type="file" id="inp-foto-profil-file" accept="image/*" capture="user" class="form-control" onchange="previewFotoProfil()">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button type="button" class="btn-primary" style="flex: 1; padding: 12px; font-size: 14px; background: #059669; box-shadow: 0 4px 6px rgba(5, 150, 105, 0.2); display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="document.getElementById('inp-foto-profil-camera').click()">
+                            📷 Kamera (Selfie)
+                        </button>
+                        <button type="button" class="btn-primary" style="flex: 1; padding: 12px; font-size: 14px; background: #4f46e5; box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2); display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="document.getElementById('inp-foto-profil-gallery').click()">
+                            🖼️ Pilih Galeri
+                        </button>
+                    </div>
+                    <!-- Hidden inputs for profile photo -->
+                    <input type="file" id="inp-foto-profil-camera" accept="image/*" capture="user" style="display: none;" onchange="previewFotoProfil(this)">
+                    <input type="file" id="inp-foto-profil-gallery" accept="image/*" style="display: none;" onchange="previewFotoProfil(this)">
+                    
                     <img id="img-profil-preview" style="width: 150px; height: 150px; object-fit: cover; border-radius: 75px; display: none; margin-top: 10px; margin-left: auto; margin-right: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1);" />
                     <input type="hidden" id="inp-foto-profil-base64">
                 </div>
@@ -265,7 +276,17 @@
 
                 <div class="form-group">
                     <label>Ambil Foto KTP</label>
-                    <input type="file" id="inp-ktp-file" accept="image/*" capture="environment" class="form-control" onchange="previewAndOcrKtp()">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button type="button" class="btn-primary" style="flex: 1; padding: 12px; font-size: 14px; background: #059669; box-shadow: 0 4px 6px rgba(5, 150, 105, 0.2); display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="document.getElementById('inp-ktp-camera').click()">
+                            📷 Foto KTP
+                        </button>
+                        <button type="button" class="btn-primary" style="flex: 1; padding: 12px; font-size: 14px; background: #4f46e5; box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2); display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="document.getElementById('inp-ktp-gallery').click()">
+                            🖼️ Pilih Galeri
+                        </button>
+                    </div>
+                    <!-- Hidden inputs for KTP -->
+                    <input type="file" id="inp-ktp-camera" accept="image/*" capture="environment" style="display: none;" onchange="previewAndOcrKtp(this)">
+                    <input type="file" id="inp-ktp-gallery" accept="image/*" style="display: none;" onchange="previewAndOcrKtp(this)">
                 </div>
 
                 <div id="ktp-preview-container" style="display: none; position: relative; margin-top: 10px;">
@@ -359,7 +380,6 @@
         </div>
     </div>
 
-    <!-- Tesseract Worker Load -->
-    <script src="ocr.js?v=1780637348803"></script>
+    <script src="ocr.js?v=1780639352000"></script>
 </body>
 </html>

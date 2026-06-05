@@ -5056,30 +5056,65 @@ function ocrKtp(data) {
     const mimeType = fotoBase64.split(';')[0].split(':')[1] || 'image/jpeg';
     const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, 'ktp_ocr_temp.jpg');
 
-    // Upload gambar ke Google Drive dan konversi ke Google Doc dengan OCR
-    var resource = {
-      title: 'OCR_KTP_TEMP_' + new Date().getTime(),
-      mimeType: mimeType
-    };
+    let text = "";
+    let fileId = "";
 
-    var file = Drive.Files.insert(resource, blob, {
-      ocr: true,
-      ocrLanguage: 'id'
-    });
+    // Coba Drive API v3 terlebih dahulu (Lebih modern dan seringkali terhindar dari rate limit OCR v2)
+    try {
+      if (typeof Drive !== 'undefined' && Drive.Files && typeof Drive.Files.create === 'function') {
+        var resource = {
+          name: 'OCR_KTP_TEMP_' + new Date().getTime(),
+          mimeType: 'application/vnd.google-apps.document' // Memicu OCR otomatis di v3
+        };
+        var file = Drive.Files.create(resource, blob);
+        fileId = file.id;
+        
+        var textBlob = Drive.Files.export(fileId, 'text/plain');
+        text = textBlob.getDataAsString();
+      }
+    } catch (e3) {
+      console.log("Drive API v3 failed, falling back to v2: " + e3.toString());
+    }
 
-    // Baca teks dari Google Doc menggunakan export link (TANPA DocumentApp)
-    var exportUrl = file.exportLinks['text/plain'];
-    var response = UrlFetchApp.fetch(exportUrl, {
-      headers: { 'Authorization': 'Bearer ' + ScriptApp.getOAuthToken() },
-      muteHttpExceptions: true
-    });
-    var text = response.getContentText();
+    // Fallback ke Drive API v2 jika v3 tidak berhasil/tidak terdefinisi
+    if (!text && typeof Drive !== 'undefined') {
+      try {
+        var resource = {
+          title: 'OCR_KTP_TEMP_' + new Date().getTime(),
+          mimeType: mimeType
+        };
+
+        var file = Drive.Files.insert(resource, blob, {
+          ocr: true,
+          ocrLanguage: 'id'
+        });
+        fileId = file.id;
+
+        var exportUrl = file.exportLinks && file.exportLinks['text/plain'];
+        if (exportUrl) {
+          var response = UrlFetchApp.fetch(exportUrl, {
+            headers: { 'Authorization': 'Bearer ' + ScriptApp.getOAuthToken() },
+            muteHttpExceptions: true
+          });
+          text = response.getContentText();
+        }
+      } catch (e2) {
+        console.log("Drive API v2 failed: " + e2.toString());
+        throw e2;
+      }
+    }
 
     // Hapus file temporary
-    DriveApp.getFileById(file.id).setTrashed(true);
+    if (fileId) {
+      try {
+        DriveApp.getFileById(fileId).setTrashed(true);
+      } catch (cleanupError) {
+        console.log("Gagal menghapus file temp: " + cleanupError.toString());
+      }
+    }
 
     if (!text || text.trim().length < 5) {
-      return { success: false, error: 'Tidak ada teks yang terbaca dari gambar. Pastikan foto KTP jelas dan tidak buram.' };
+      return { success: false, error: 'Tidak ada teks yang terbaca dari gambar. Pastikan foto KTP jelas, tegak, dan tidak buram.' };
     }
 
     return {
@@ -5091,7 +5126,7 @@ function ocrKtp(data) {
     logError('ocrKtp', e, { hasPhoto: !!data.fotoBase64 });
     
     // Pesan khusus jika Drive API belum diaktifkan
-    if (e.toString().includes('Drive is not defined')) {
+    if (typeof Drive === 'undefined') {
       return { success: false, error: 'Drive API belum diaktifkan. Admin harus mengaktifkan "Drive API" di Services pada Apps Script Editor.' };
     }
     

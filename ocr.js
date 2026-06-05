@@ -47,8 +47,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // === OCR via Google Drive (Server-Side) ===
 
-async function previewAndOcrKtp() {
-    const file = document.getElementById('inp-ktp-file').files[0];
+async function previewAndOcrKtp(inputElement) {
+    const el = inputElement || document.getElementById('inp-ktp-file');
+    const file = el.files[0];
     if (!file) return;
 
     const reader = new FileReader();
