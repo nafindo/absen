@@ -20,9 +20,11 @@ const SHEET_NAMES = {
   CHAT: 'CHAT',
   TUKAR_SHIFT: 'TUKAR_SHIFT',
   TUGAS: 'TUGAS',
+  LOG_TUGAS: 'LOG_TUGAS',
   BERITA: 'BERITA',
   GAJI: 'DATA_GAJI',
-  TEMPLATE_JADWAL: 'TEMPLATE_JADWAL'
+  TEMPLATE_JADWAL: 'TEMPLATE_JADWAL',
+  KASBON: 'DATA_KASBON'
 };
 
 // ==================== WEB APP ROUTING ====================
@@ -124,6 +126,7 @@ function doPost(e) {
       // === APPROVAL ===
       case 'approveLembur': return jsonResponse(approveLembur(data));
       case 'approveIzin': return jsonResponse(approveIzin(data));
+      case 'approveKasbon': return jsonResponse(approveKasbon(data));
       case 'getMyApprovals': return jsonResponse(getMyApprovals(data));
 
       // === CRUD TOKO ===
@@ -160,6 +163,7 @@ function doPost(e) {
       case 'uploadFotoKtp': return jsonResponse(uploadFotoKtp(data));
       case 'getProfilStatus': return jsonResponse(getProfilStatus(data));
       case 'submitKaryawanProfil': return jsonResponse(submitKaryawanProfil(data));
+      case 'generateProfileToken': return jsonResponse(generateProfileToken(data));
 
       // === CRUD JENIS IZIN ===
       case 'getJenisIzinList': return jsonResponse(getJenisIzinList());
@@ -187,6 +191,11 @@ function doPost(e) {
       case 'updateTugasStatus': return jsonResponse(updateTugasStatus(data));
       case 'getBeritaList': return jsonResponse(getBeritaList(data));
       case 'createBerita': return jsonResponse(createBerita(data));
+      case 'deleteBerita': return jsonResponse(deleteBerita(data));
+      case 'createTugas': return jsonResponse(createTugas(data));
+      case 'deleteTugas': return jsonResponse(deleteTugas(data));
+      case 'submitTugasLog': return jsonResponse(submitTugasLog(data));
+      case 'getTugasLogs': return jsonResponse(getTugasLogs(data));
 
       // === DELTA SYNC ===
       case 'getDeltas': return jsonResponse(getDeltas(data));
@@ -194,8 +203,11 @@ function doPost(e) {
       // === GAJI ===
       case 'getSlipGaji': return jsonResponse(getSlipGaji(data));
       case 'getSalaries': return jsonResponse(getSalaries());
+      case 'generateDummyGaji': return jsonResponse(generateDummyGaji(data));
       case 'updateSalary': return jsonResponse(updateSalary(data));
       case 'pingOnline': return jsonResponse(pingOnline(data));
+      case 'ajukanKasbon': return jsonResponse(ajukanKasbon(data));
+      case 'getKasbonHistory': return jsonResponse(getKasbonHistory(data));
 
       // === OCR KTP (Server-Side via Google Drive) ===
       case 'ocrKtp': return jsonResponse(ocrKtp(data));
@@ -346,8 +358,8 @@ function getDefaultHeaders(sheetName) {
     'LOG_ERROR': ['Timestamp', 'Error', 'Stack', 'User', 'Action', 'Payload'],
     'CHAT': ['Timestamp', 'ID_Pesan', 'ID_Karyawan', 'Nama', 'Pesan', 'Tipe', 'File_URL', 'Nama_File', 'Size_KB', 'Reply_To'],
     'TUKAR_SHIFT': ['Timestamp', 'ID_Tukar', 'ID_Karyawan', 'Nama', 'ID_Toko_Saya', 'ID_Toko_Tujuan', 'ID_Karyawan_Tujuan', 'Shift_Saya', 'Shift_Tujuan', 'Tanggal', 'Alasan', 'Status', 'Approved_By', 'Approved_At'],
-    'TUGAS': ['Timestamp', 'ID_Tugas', 'ID_Toko', 'Judul', 'Deskripsi', 'Deadline', 'Prioritas', 'Status', 'Dibuat_Oleh', 'Ditugaskan_Ke', 'Selesai_At'],
-    'BERITA': ['Timestamp', 'ID_Berita', 'Judul', 'Isi', 'Kategori', 'Gambar_URL', 'Dibuat_Oleh', 'Tgl_Publish', 'Status'],
+    'TUGAS': ['Timestamp', 'ID_Tugas', 'Kategori_Tugas', 'ID_Toko', 'Ditugaskan_Ke', 'Judul', 'Deskripsi', 'Prioritas', 'Status', 'Dibuat_Oleh', 'Selesai_At'],
+    'BERITA': ['Timestamp', 'ID_Berita', 'Judul', 'Isi', 'Kategori', 'Gambar_URL', 'Tgl_Tayang', 'Tgl_Off', 'Dibuat_Oleh', 'Tgl_Publish', 'Status'],
     'TEMPLATE_JADWAL': ['ID_Toko', 'Nama_Toko', 'Kebutuhan_Pagi', 'Kebutuhan_Siang']
   };
   return headers[sheetName];
@@ -367,7 +379,17 @@ function getSheetData(sheetName) {
       let h = headers[i] || defaultHeaders[i] || ('Col' + i);
       let val = row[i];
       if (val instanceof Date) {
-        val = Utilities.formatDate(val, "Asia/Jakarta", "yyyy-MM-dd");
+        const lowerH = h.toLowerCase();
+        if (val.getFullYear() === 1899) {
+          val = Utilities.formatDate(val, "Asia/Jakarta", "HH:mm");
+        } else {
+          const hasTime = val.getHours() !== 0 || val.getMinutes() !== 0 || val.getSeconds() !== 0;
+          if (lowerH.includes('timestamp') || lowerH.includes('_at') || lowerH.includes('waktu') || hasTime) {
+            val = Utilities.formatDate(val, "Asia/Jakarta", "yyyy-MM-dd HH:mm:ss");
+          } else {
+            val = Utilities.formatDate(val, "Asia/Jakarta", "yyyy-MM-dd");
+          }
+        }
       }
       obj[h] = val;
     }
@@ -1585,7 +1607,7 @@ function getJadwalMingguan(data) {
 
   const hariList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
   const jadwalAll = getSheetData(SHEET_NAMES.JADWAL_KARYAWAN).filter(j =>
-    j.ID_Karyawan === idKaryawan && (j.Status === 'Aktif' || j.Status === 'Normal' || j.Status === 'Diperbantukan')
+    j.ID_Karyawan === idKaryawan
   );
 
   const result = [];
@@ -1596,17 +1618,8 @@ function getJadwalMingguan(data) {
     const tglStr = Utilities.formatDate(tgl, 'Asia/Jakarta', 'dd MMM');
     const tglStrForCompare = formatDate(tgl); // yyyy-MM-dd
 
-    const jadwal = jadwalAll.find(j => {
-      let matchHari = false;
-      if (j.Hari_Berjalan === 'Senin-Minggu') matchHari = true;
-      else if (j.Hari_Berjalan.includes(namaHari)) matchHari = true;
-      
-      if (!matchHari) return false;
-
-      const tMulai = Utilities.formatDate(new Date(j.Tanggal_Mulai), 'Asia/Jakarta', 'yyyy-MM-dd');
-      const tSelesai = Utilities.formatDate(new Date(j.Tanggal_Selesai), 'Asia/Jakarta', 'yyyy-MM-dd');
-      return tglStrForCompare >= tMulai && tglStrForCompare <= tSelesai;
-    });
+    // Tolok ukur jadwal hari ini, 7 hari seminggu full (Abaikan Tanggal_Mulai, Selesai, Hari_Berjalan)
+    const jadwal = jadwalAll.length > 0 ? jadwalAll[0] : null;
 
     const toko = jadwal ? getSheetData(SHEET_NAMES.MASTER_TOKO).find(t => t.ID_Toko === jadwal.ID_Toko) : null;
     const shift = jadwal ? getSheetData(SHEET_NAMES.SHIFT_TOKO).find(s => s.ID_Shift === jadwal.ID_Shift) : null;
@@ -1652,21 +1665,11 @@ function getKaryawanJadwalByDate(data) {
     const namaHari = dayNames[targetDateObj.getDay()];
 
     const jadwalAll = getSheetData(SHEET_NAMES.JADWAL_KARYAWAN).filter(j =>
-      j.ID_Karyawan === idKaryawan && j.Status === 'Aktif'
+      j.ID_Karyawan === idKaryawan
     );
 
-    const jadwal = jadwalAll.find(j => {
-      if (!j.Tanggal_Mulai || !j.Tanggal_Selesai) return false;
-      const mulaiStr = formatDate(new Date(j.Tanggal_Mulai));
-      const selesaiStr = formatDate(new Date(j.Tanggal_Selesai));
-
-      // Cocokkan hari berjalan
-      const cocokHari = j.Hari_Berjalan.includes(namaHari);
-      // Cocokkan range tanggal
-      const cocokRange = targetDateStr >= mulaiStr && targetDateStr <= selesaiStr;
-
-      return cocokHari && cocokRange;
-    });
+    // Tolok ukur jadwal hari ini, 7 hari seminggu full (Abaikan Tanggal_Mulai, Selesai, Hari_Berjalan)
+    const jadwal = jadwalAll.length > 0 ? jadwalAll[0] : null;
 
     if (!jadwal) {
       const fallbackJadwal = { libur: true, idToko: '', namaToko: '—', idShift: '', namaShift: '—', jamMasuk: '—', jamPulang: '—' };
@@ -2078,7 +2081,8 @@ function getMonitoringToko(data) {
         nama: k ? k.Nama : j.ID_Karyawan,
         status: absen ? (absen.Status_Masuk === 'Telat' ? 'telat' : 'hadir') : 'belum',
         menitTelat: absen ? (parseInt(absen.Menit_Telat) || 0) : 0
-      };
+      , lat: absen ? (parseFloat(String(absen.Lat_Hp).replace(/'/g, '')) || 0) : 0, lng: absen ? (parseFloat(String(absen.Long_Hp).replace(/'/g, '')) || 0) : 0
+        };
     });
 
     return {
@@ -2087,7 +2091,10 @@ function getMonitoringToko(data) {
       fotoUrl: t.Foto_Toko_URL || '',
       jamBuka: formatTimeOnly(t.Jam_Buka),   // <-- FIX
       jamTutup: formatTimeOnly(t.Jam_Tutup), // <-- FIX
-      totalKaryawan: karyawanJadwal.length,
+      lat: parseFloat(String(t.Lat).replace(/'/g, '')) || 0,
+        lng: parseFloat(String(t.Long).replace(/'/g, '')) || 0,
+        radius: parseInt(t.Radius_M) || 50,
+        totalKaryawan: karyawanJadwal.length,
       totalOnline: karyawanOnline.filter(k => k.status !== 'belum').length,
       karyawan: karyawanOnline
     };
@@ -2530,6 +2537,7 @@ function getMyApprovals(data) {
 function getPendingApprovals(data) {
   const lembur = getSheetData(SHEET_NAMES.LEMBUR).filter(l => l.Status === 'Pending');
   const izin = getSheetData(SHEET_NAMES.IZIN_CUTI).filter(i => i.Status === 'Pending');
+  const kasbon = getSheetData(SHEET_NAMES.KASBON).filter(k => k.Status === 'Pending');
 
   const result = [
     ...lembur.map(l => ({
@@ -2549,6 +2557,15 @@ function getPendingApprovals(data) {
       detail: i.Nama_Jenis + ' | ' + i.Tanggal_Mulai + (i.Tanggal_Mulai !== i.Tanggal_Selesai ? ' s/d ' + i.Tanggal_Selesai : '') + ' (' + i.Jumlah_Hari + ' hari)',
       waktu: i.Tanggal_Mulai,
       fotoUrl: i.Lampiran_URL || ''
+    })),
+    ...kasbon.map(k => ({
+      tipe: 'kasbon',
+      id: k.ID_Kasbon,
+      nama: k.Nama_Karyawan,
+      toko: '—',
+      detail: 'Nominal: Rp ' + parseFloat(k.Nominal).toLocaleString('id-ID') + ' | Alasan: ' + k.Alasan,
+      waktu: k.Tanggal_Pengajuan,
+      fotoUrl: ''
     }))
   ];
 
@@ -2772,7 +2789,7 @@ function ensureKaryawanExtraColumns() {
   const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
   if (!sheet) return;
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const required = ['Alamat_Lengkap', 'Kontak_Darurat', 'Nama_Kontak_Darurat', 'Foto_KTP', 'NIK', 'Tempat_Lahir', 'Tanggal_Lahir', 'Jenis_Kelamin', 'RT_RW', 'Desa', 'Kecamatan', 'Agama', 'Status_Kawin', 'Kewarganegaraan', 'Profil_Lengkap'];
+  const required = ['Alamat_Lengkap', 'Kontak_Darurat', 'Nama_Kontak_Darurat', 'Foto_KTP', 'NIK', 'Tempat_Lahir', 'Tanggal_Lahir', 'Jenis_Kelamin', 'RT_RW', 'Desa', 'Kecamatan', 'Agama', 'Status_Kawin', 'Kewarganegaraan', 'Profil_Lengkap', 'Profile_Token'];
   let added = false;
   required.forEach(col => {
     if (!headers.includes(col)) {
@@ -2802,7 +2819,11 @@ function saveKaryawan(data) {
 
 // Update updateKaryawan:
 function updateKaryawan(data) {
-  const { idKaryawan, nama, pin, jabatan, noHP, email, status, tokoDefault, shiftDefault, fotoUrl, alamatLengkap, kontakDarurat, namaKontakDarurat, fotoKtp, tglMasuk } = data;
+  const { 
+    idKaryawan, nama, pin, jabatan, noHP, email, status, tokoDefault, shiftDefault, fotoUrl, 
+    alamatLengkap, kontakDarurat, namaKontakDarurat, fotoKtp, tglMasuk,
+    nik, tempatLahir, tglLahir, jenisKelamin, rtrw, desa, kecamatan, agama, statusKawin, kewarganegaraan
+  } = data;
 
   ensureKaryawanExtraColumns();
   const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
@@ -2826,6 +2847,17 @@ function updateKaryawan(data) {
       if (kontakDarurat !== undefined) { let c = headers.indexOf('Kontak_Darurat'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(kontakDarurat); }
       if (namaKontakDarurat !== undefined) { let c = headers.indexOf('Nama_Kontak_Darurat'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(namaKontakDarurat); }
       if (fotoKtp !== undefined) { let c = headers.indexOf('Foto_KTP'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(fotoKtp); }
+      
+      if (nik !== undefined) { let c = headers.indexOf('NIK'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(nik); }
+      if (tempatLahir !== undefined) { let c = headers.indexOf('Tempat_Lahir'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(tempatLahir); }
+      if (tglLahir !== undefined) { let c = headers.indexOf('Tanggal_Lahir'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(tglLahir); }
+      if (jenisKelamin !== undefined) { let c = headers.indexOf('Jenis_Kelamin'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(jenisKelamin); }
+      if (rtrw !== undefined) { let c = headers.indexOf('RT_RW'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(rtrw); }
+      if (desa !== undefined) { let c = headers.indexOf('Desa'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(desa); }
+      if (kecamatan !== undefined) { let c = headers.indexOf('Kecamatan'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(kecamatan); }
+      if (agama !== undefined) { let c = headers.indexOf('Agama'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(agama); }
+      if (statusKawin !== undefined) { let c = headers.indexOf('Status_Kawin'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(statusKawin); }
+      if (kewarganegaraan !== undefined) { let c = headers.indexOf('Kewarganegaraan'); if(c !== -1) sheet.getRange(i+1, c+1).setValue(kewarganegaraan); }
 
       return { success: true, message: 'Karyawan berhasil diupdate' };
     }
@@ -3216,6 +3248,24 @@ function sendChatMessage(data) {
     replyTo || ''
   ]);
 
+  // Broadcast real-time message via Pusher WebSockets!
+  try {
+    triggerPusher('pinguin-chat', 'new-message', {
+      tempId: data.tempId || '',
+      idPesan: idPesan,
+      idKaryawan: idKaryawan,
+      nama: nama,
+      pesan: pesan,
+      tipe: tipe || 'text',
+      fileUrl: fileUrl,
+      namaFile: namaFile || '',
+      replyTo: replyTo || '',
+      waktu: formatDateTime(new Date())
+    });
+  } catch (e) {
+    Logger.log("Pusher broadcast failed in sendChatMessage: " + e.toString());
+  }
+
   // Kirim FCM ke semua karyawan kecuali pengirim
   try {
     const allKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
@@ -3326,25 +3376,48 @@ function getTukarShiftHistory(data) {
   const { idKaryawan } = data;
   if (!idKaryawan) return { success: false, error: 'ID Karyawan wajib diisi' };
 
-  const tukar = getSheetData(SHEET_NAMES.TUKAR_SHIFT).filter(t =>
+  const karyawanList = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+  const tokoList = getSheetData(SHEET_NAMES.MASTER_TOKO);
+  const shiftList = getSheetData(SHEET_NAMES.SHIFT_TOKO);
+
+  const swapList = getSheetData(SHEET_NAMES.TUKAR_SHIFT).filter(t =>
     String(t.ID_Karyawan).trim() === String(idKaryawan).trim() ||
     String(t.ID_Karyawan_Tujuan).trim() === String(idKaryawan).trim()
   );
 
-  return {
-    success: true,
-    data: tukar.map(t => ({
+  const result = swapList.map(t => {
+    const requester = karyawanList.find(k => k.ID_Karyawan === t.ID_Karyawan);
+    const tokoSaya = tokoList.find(tk => tk.ID_Toko === t.ID_Toko_Saya);
+    const tokoTujuan = tokoList.find(tk => tk.ID_Toko === t.ID_Toko_Tujuan);
+    const shiftSaya = shiftList.find(sf => sf.ID_Shift === t.Shift_Saya);
+    const shiftTujuan = shiftList.find(sf => sf.ID_Shift === t.Shift_Tujuan);
+
+    return {
       id: t.ID_Tukar,
       status: t.Status,
-      tanggal: t.Tanggal,
-      tokoSaya: t.ID_Toko_Saya,
-      tokoTujuan: t.ID_Toko_Tujuan,
+      tanggalPengajuan: formatDateTime(new Date(t.Timestamp)),
+      idKaryawanSaya: t.ID_Karyawan,
+      namaSaya: t.Nama,
+      fotoSaya: requester ? (requester.Foto_Profil || requester.Foto_URL || '') : '',
+      jabatanSaya: requester ? (requester.Jabatan || 'Karyawan') : 'Karyawan',
+      idTokoSaya: t.ID_Toko_Saya,
+      namaTokoSaya: tokoSaya ? tokoSaya.Nama_Toko : 'Toko A',
+      idTokoTujuan: t.ID_Toko_Tujuan,
+      namaTokoTujuan: tokoTujuan ? tokoTujuan.Nama_Toko : 'Toko B',
       shiftSaya: t.Shift_Saya,
+      namaShiftSaya: shiftSaya ? shiftSaya.Nama_Shift : 'Shift A',
+      jamMasukSaya: shiftSaya ? formatTimeOnly(shiftSaya.Jam_Masuk) : '—',
+      jamPulangSaya: shiftSaya ? formatTimeOnly(shiftSaya.Jam_Pulang) : '—',
       shiftTujuan: t.Shift_Tujuan,
-      alasan: t.Alasan,
-      tanggalPengajuan: formatDateTime(new Date(t.Timestamp))
-    }))
-  };
+      namaShiftTujuan: shiftTujuan ? shiftTujuan.Nama_Shift : 'Shift B',
+      jamMasukTujuan: shiftTujuan ? formatTimeOnly(shiftTujuan.Jam_Masuk) : '—',
+      jamPulangTujuan: shiftTujuan ? formatTimeOnly(shiftTujuan.Jam_Pulang) : '—',
+      tanggal: t.Tanggal,
+      alasan: t.Alasan
+    };
+  });
+
+  return { success: true, data: result };
 }
 
 function getPendingTukarShift(data) {
@@ -3352,11 +3425,15 @@ function getPendingTukarShift(data) {
   if (!idKaryawan) return { success: false, error: 'ID Karyawan wajib diisi' };
 
   const karyawanList = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+  const isAdmin = (idKaryawan === 'admin');
 
   // Ambil semua pengajuan Tukar Shift yang pending untuk karyawan ini (sebagai tujuan)
-  const swapList = getSheetData(SHEET_NAMES.TUKAR_SHIFT).filter(t =>
-    t.Status === 'Pending' && t.ID_Karyawan_Tujuan === idKaryawan
-  );
+  const swapList = getSheetData(SHEET_NAMES.TUKAR_SHIFT).filter(t => {
+    if (isAdmin) {
+      return true; // Admin sees all Tukar Shift requests (Pending, Approved, Rejected)
+    }
+    return t.Status === 'Pending' && t.ID_Karyawan_Tujuan === idKaryawan;
+  });
 
   const tokoList = getSheetData(SHEET_NAMES.MASTER_TOKO);
   const shiftList = getSheetData(SHEET_NAMES.SHIFT_TOKO);
@@ -3370,6 +3447,8 @@ function getPendingTukarShift(data) {
 
     return {
       id: t.ID_Tukar,
+      status: t.Status,
+      tanggalPengajuan: formatDateTime(new Date(t.Timestamp)),
       idKaryawanSaya: t.ID_Karyawan,
       namaSaya: t.Nama,
       fotoSaya: requester ? (requester.Foto_Profil || requester.Foto_URL || '') : '',
@@ -3637,22 +3716,26 @@ function getTugasList(data) {
   let tugas = getSheetData(SHEET_NAMES.TUGAS).filter(t => t.Status !== 'Deleted');
 
   if (idKaryawan) {
-    tugas = tugas.filter(t => t.Ditugaskan_Ke === idKaryawan || t.Ditugaskan_Ke === 'ALL');
+    tugas = tugas.filter(t => t.Ditugaskan_Ke === 'ALL' || t.Ditugaskan_Ke.split(',').map(s=>s.trim()).includes(idKaryawan));
   }
   if (idToko) {
-    tugas = tugas.filter(t => t.ID_Toko === idToko || t.ID_Toko === 'ALL');
+    tugas = tugas.filter(t => t.ID_Toko === 'ALL' || t.ID_Toko.split(',').map(s=>s.trim()).includes(idToko));
   }
 
   return {
     success: true,
     data: tugas.map(t => ({
       id: t.ID_Tugas,
+      kategori: t.Kategori_Tugas,
+      idToko: t.ID_Toko,
       judul: t.Judul,
       deskripsi: t.Deskripsi,
-      deadline: t.Deadline,
       prioritas: t.Prioritas,
       status: t.Status,
-      ditugaskanKe: t.Ditugaskan_Ke
+      ditugaskanKe: t.Ditugaskan_Ke,
+      deadline: t.Deadline,
+      selesaiAt: t.Selesai_At,
+      dikerjakanOleh: t.Dikerjakan_Oleh || ''
     }))
   };
 }
@@ -3665,9 +3748,11 @@ function updateTugasStatus(data) {
 
   for (let i = 1; i < allData.length; i++) {
     if (allData[i][1] === idTugas) {
-      sheet.getRange(i + 1, 8).setValue(status);
+      sheet.getRange(i + 1, 9).setValue(status);
       if (status === 'Selesai') {
-        sheet.getRange(i + 1, 11).setValue(formatDateTime(new Date()));
+        sheet.getRange(i + 1, 12).setValue(formatDateTime(new Date()));
+      } else if (status === 'Dikerjakan' && idKaryawan) {
+        sheet.getRange(i + 1, 13).setValue(idKaryawan);
       }
 
       // Broadcast notifikasi tugas
@@ -3704,13 +3789,15 @@ function getBeritaList(data) {
       isi: b.Isi,
       kategori: b.Kategori,
       gambarUrl: b.Gambar_URL || '',
+      tglTayang: b.Tgl_Tayang || '',
+      tglOff: b.Tgl_Off || '',
       tglPublish: b.Tgl_Publish || formatDate(new Date(b.Timestamp))
     }))
   };
 }
 
 function createBerita(data) {
-  const { judul, isi, kategori, gambarUrl, dibuatOleh } = data;
+  const { judul, isi, kategori, gambarUrl, tglTayang, tglOff, dibuatOleh } = data;
   if (!judul || !isi) return { success: false, error: 'Judul dan isi wajib diisi' };
 
   const idBerita = generateId('BR');
@@ -3721,6 +3808,8 @@ function createBerita(data) {
     isi,
     kategori || 'Umum',
     gambarUrl || '',
+    tglTayang || '',
+    tglOff || '',
     dibuatOleh || '',
     formatDate(new Date()),
     'Aktif'
@@ -3737,6 +3826,90 @@ function createBerita(data) {
     } catch (e) { Logger.log('Pusher berita error: ' + e.toString()); }
 
   return { success: true, idBerita: idBerita, message: 'Berita berhasil dipublikasi' };
+}
+
+function createTugas(data) {
+  const { kategori, idToko, ditugaskanKe, judul, deskripsi, prioritas, dibuatOleh, deadline } = data;
+  if (!judul) return { success: false, error: 'Judul tugas wajib diisi' };
+
+  let targetTokos = (idToko || '').split(',').map(s => s.trim()).filter(s => s);
+  let targetKaryawans = (ditugaskanKe || '').split(',').map(s => s.trim()).filter(s => s);
+  
+  let finalTokos = [];
+  let finalKaryawans = [];
+  
+  const isTargetKaryawan = kategori === 'Individu' || (kategori === 'Urgensi' && targetKaryawans.length > 0 && targetTokos.length === 0);
+  const isTargetToko = kategori === 'Toko' || (kategori === 'Urgensi' && targetTokos.length > 0 && targetKaryawans.length === 0) || kategori === 'Rutin';
+
+  if (isTargetKaryawan) {
+      if (targetKaryawans.length > 0 && targetKaryawans[0] === 'ALL') {
+          const karSheet = getSheetData(SHEET_NAMES.KARYAWAN);
+          finalKaryawans = karSheet.filter(k => k.Status !== 'Deleted').map(k => k.ID_Karyawan);
+      } else if (targetKaryawans.length > 0) {
+          finalKaryawans = targetKaryawans;
+      }
+      finalTokos = ['ALL']; // Store is ALL for Individual tasks
+  } else if (isTargetToko) {
+      if (targetTokos.length > 0 && targetTokos[0] === 'ALL') {
+          const tokoSheet = getSheetData(SHEET_NAMES.TOKO);
+          finalTokos = tokoSheet.filter(t => t.Status !== 'Deleted').map(t => t.ID_Toko);
+      } else if (targetTokos.length > 0) {
+          finalTokos = targetTokos;
+      }
+      finalKaryawans = ['ALL']; // Employee is ALL for Toko tasks
+  }
+
+  const sheet = getSheet(SHEET_NAMES.TUGAS);
+  const now = formatDateTime(new Date());
+  
+  let ids = [];
+  
+  if (isTargetKaryawan) {
+      finalKaryawans.forEach(kar => {
+          const idTugas = generateId('TG');
+          ids.push(idTugas);
+          sheet.appendRow([now, idTugas, kategori, 'ALL', kar, judul, deskripsi || '', prioritas || 'Medium', 'Pending', dibuatOleh || 'Admin', deadline || '', '', '']);
+      });
+  } else {
+      finalTokos.forEach(tok => {
+          const idTugas = generateId('TG');
+          ids.push(idTugas);
+          sheet.appendRow([now, idTugas, kategori || 'Rutin', tok, 'ALL', judul, deskripsi || '', prioritas || 'Medium', 'Pending', dibuatOleh || 'Admin', deadline || '', '', '']);
+      });
+  }
+
+  // Broadcast notifikasi tugas baru
+  try {
+    triggerPusher('pinguin-chat', 'tugas-alert', {
+      idTugas: ids[0], // send first id just for triggering reload
+      kategori: kategori || 'Rutin',
+      judul: judul,
+      pesan: 'Tugas Baru: ' + judul,
+      idToko: idToko || 'ALL',
+      idKaryawan: ditugaskanKe || 'ALL'
+    });
+  } catch (e) { Logger.log('Pusher tugas error: ' + e.toString()); }
+
+  return { success: true, message: 'Tugas berhasil dibuat' };
+}
+function deleteTugas(data) {
+  const { idTugas } = data;
+  if (!idTugas) return { success: false, error: 'ID Tugas diperlukan' };
+  
+  if (updateCellByCondition(SHEET_NAMES.TUGAS, 'ID_Tugas', idTugas, 'Status', 'Deleted')) {
+    return { success: true, message: 'Tugas berhasil dihapus' };
+  }
+  return { success: false, error: 'Tugas tidak ditemukan' };
+}
+
+function deleteBerita(data) {
+  const { idBerita } = data;
+  if (!idBerita) return { success: false, error: 'ID Berita diperlukan' };
+  
+  if (updateCellByCondition(SHEET_NAMES.BERITA, 'ID_Berita', idBerita, 'Status', 'Deleted')) {
+    return { success: true, message: 'Berita berhasil dihapus' };
+  }
+  return { success: false, error: 'Berita tidak ditemukan' };
 }
 
 // ==================== INIT SPREADSHEET ====================
@@ -3756,6 +3929,14 @@ function initSpreadsheet() {
       'Potongan_Lain', 'Ket_Potongan_Lain', 'Keterangan_Umum', 'Total_Bersih', 'Timestamp'
     ]);
     sh.getRange("A1:X1").setFontWeight("bold").setBackground("#f3f3f3");
+  }
+
+  if (!ss.getSheetByName(SHEET_NAMES.KASBON)) {
+    const sh = ss.insertSheet(SHEET_NAMES.KASBON);
+    sh.appendRow([
+      'ID_Kasbon', 'ID_Karyawan', 'Nama_Karyawan', 'Tanggal_Pengajuan', 'Nominal', 'Alasan', 'Status', 'Keterangan_Admin', 'Timestamp'
+    ]);
+    sh.getRange("A1:I1").setFontWeight("bold").setBackground("#f3f3f3");
   }
 
   const settingSheet = getSheet(SHEET_NAMES.SETTING_GLOBAL);
@@ -3792,11 +3973,25 @@ function getSlipGaji(data) {
       idSlip: s.ID_Slip,
       bulan: s.Bulan,
       tahun: s.Tahun,
+      statusSlip: s.Status_Slip || 'Draft',
       gajiPokok: s.Gaji_Pokok,
+      ketGajiPokok: s.Ket_Gaji_Pokok || '',
+      tarifLembur: s.Tarif_Lembur,
+      jamLembur: s.Jam_Lembur,
+      totalLembur: s.Total_Lembur,
+      ketLembur: s.Ket_Lembur || '',
+      bonus: s.Bonus,
+      ketBonus: s.Ket_Bonus || '',
+      uangTransport: s.Uang_Transport,
+      ketUangTransport: s.Ket_Uang_Transport || '',
       tunjangan: s.Tunjangan,
-      potongan: parseFloat(s.Kasbon || 0) + parseFloat(s.Potongan_Lain || 0),
+      ketTunjangan: s.Ket_Tunjangan || '',
+      kasbon: s.Kasbon,
+      ketKasbon: s.Ket_Kasbon || '',
+      potonganLain: s.Potongan_Lain,
+      ketPotonganLain: s.Ket_Potongan_Lain || '',
       totalBersih: s.Total_Bersih,
-      keterangan: s.Keterangan_Umum || s.Keterangan,
+      keterangan: s.Keterangan_Umum || s.Keterangan || '',
       tanggal: s.Timestamp ? formatDateTime(parseDateSafe(s.Timestamp)) : ''
     }));
     return { success: true, data: formatted };
@@ -4948,7 +5143,7 @@ function uploadFotoKtp(data) {
 
 // ==================== PROFIL KARYAWAN ====================
 function getProfilStatus(data) {
-  const { idKaryawan } = data;
+  const { idKaryawan, token } = data;
   if (!idKaryawan) return { success: false, error: 'ID Karyawan tidak valid' };
 
   const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
@@ -4968,11 +5163,65 @@ function getProfilStatus(data) {
         rowObj[h] = allData[i][idx] || '';
       });
       
+      const savedToken = rowObj['Profile_Token'] || '';
+      // Verifikasi token jika dikirimkan (dari web lengkapi profil)
+      if (token !== undefined) {
+        if (!token || token !== savedToken) {
+          return { success: false, error: 'Link tidak valid atau kedaluwarsa. Silakan hubungi Admin untuk meminta link baru.' };
+        }
+      }
+      
       const isComplete = rowObj['Profil_Lengkap'] === true || rowObj['Profil_Lengkap'] === 'TRUE';
       return { 
         success: true, 
         isComplete: isComplete, 
         employeeData: rowObj
+      };
+    }
+  }
+
+  return { success: false, error: 'Karyawan tidak ditemukan' };
+}
+
+function generateProfileToken(data) {
+  const { idKaryawan } = data;
+  if (!idKaryawan) return { success: false, error: 'ID Karyawan tidak valid' };
+
+  const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
+  if (!sheet) return { success: false, error: 'Sheet tidak ditemukan' };
+
+  ensureKaryawanExtraColumns();
+  const allData = sheet.getDataRange().getValues();
+  const headers = allData[0];
+  
+  const idIdx = headers.indexOf('ID_Karyawan');
+  const tokenIdx = headers.indexOf('Profile_Token');
+  const completeIdx = headers.indexOf('Profil_Lengkap');
+  
+  if (idIdx === -1 || tokenIdx === -1) {
+    return { success: false, error: 'Kolom ID atau Token tidak ditemukan' };
+  }
+
+  for (let i = 1; i < allData.length; i++) {
+    if (allData[i][idIdx] === idKaryawan) {
+      // Buat token random unik 12 digit
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let token = '';
+      for (let j = 0; j < 12; j++) {
+        token += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      
+      // Simpan token ke sheet dan buka kunci profile_lengkap
+      sheet.getRange(i + 1, tokenIdx + 1).setValue(token);
+      if (completeIdx !== -1) {
+        sheet.getRange(i + 1, completeIdx + 1).setValue(false); // Buka kunci link
+      }
+      
+      const shareUrl = 'https://nafindo.github.io/absen/profil.html?id=' + idKaryawan + '&token=' + token;
+      return {
+        success: true,
+        token: token,
+        shareUrl: shareUrl
       };
     }
   }
@@ -5145,3 +5394,338 @@ function ocrKtp(data) {
     return { success: false, error: 'OCR gagal sistem: ' + e.toString() };
   }
 }
+
+function generateDummyGaji(data) {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const karyawanSheet = ss.getSheetByName(SHEET_NAMES.MASTER_KARYAWAN);
+    if (!karyawanSheet) return { success: false, error: 'Sheet MASTER_KARYAWAN tidak ditemukan' };
+    
+    // Read employees
+    const list = getSheetData(SHEET_NAMES.MASTER_KARYAWAN) || [];
+    const filteredList = list.filter(k => {
+      const jb = String(k.Jabatan || '').trim().toLowerCase();
+      const st = String(k.Status || '').trim().toLowerCase();
+      if (jb === 'owner') return false;
+      if (st === 'nonaktif' || st === 'off' || st === 'tidak aktif' || st === '') return false;
+      return true;
+    });
+
+    if (filteredList.length === 0) {
+      return { success: false, error: 'Tidak ada karyawan aktif untuk dibuatkan data dummy' };
+    }
+
+    const gajiSheet = getSheet(SHEET_NAMES.GAJI);
+    if (!gajiSheet) return { success: false, error: 'Sheet DATA_GAJI tidak ditemukan' };
+
+    // Get headers to match position
+    const headersGAJI = gajiSheet.getDataRange().getValues()[0] || [];
+    
+    // We want to generate for Bulan 4, 5, 6 Tahun 2026
+    const months = [4, 5, 6];
+    const year = 2026;
+    let count = 0;
+
+    // First, read existing data to avoid duplicates
+    const existingGaji = getSheetData(SHEET_NAMES.GAJI) || [];
+    const existingIds = new Set(existingGaji.map(g => String(g.ID_Slip).trim()));
+
+    filteredList.forEach(k => {
+      const idK = String(k.ID_Karyawan).trim();
+      const namaK = String(k.Nama).trim();
+      const jabatanK = String(k.Jabatan || 'Staff').trim();
+      
+      // Basic salary depending on position
+      let gp = 4000000;
+      if (jabatanK.toLowerCase().includes('leader') || jabatanK.toLowerCase().includes('supervisor') || jabatanK.toLowerCase().includes('spv')) {
+        gp = 5500000;
+      } else if (jabatanK.toLowerCase().includes('manager')) {
+        gp = 7500000;
+      } else if (jabatanK.toLowerCase().includes('admin')) {
+        gp = 4200000;
+      } else if (k.Gaji_Pokok) {
+        gp = parseFloat(k.Gaji_Pokok);
+      }
+
+      const glRate = k.Gaji_Lembur ? parseFloat(k.Gaji_Lembur) : 20000;
+
+      months.forEach(month => {
+        const idSlip = `SLIP-${year}-${month}-${idK}`;
+        
+        // Skip if already exists
+        if (existingIds.has(idSlip)) {
+          return;
+        }
+
+        const jamLembur = Math.floor(Math.random() * 11) + 5; // 5 to 15 hours
+        const totalLembur = glRate * jamLembur;
+        const bonus = (Math.floor(Math.random() * 5) + 1) * 100000; // 100k to 500k
+        const uangTransport = 15000 * 22; // 330,000
+        const tunjangan = 250000;
+        const kasbon = Math.random() > 0.7 ? 100000 : 0;
+        const potonganLain = 50000;
+        const totalBersih = gp + totalLembur + bonus + uangTransport + tunjangan - kasbon - potonganLain;
+
+        const newRowValues = [];
+        headersGAJI.forEach(h => {
+          if (h === 'ID_Slip') newRowValues.push(idSlip);
+          else if (h === 'ID_Karyawan') newRowValues.push(idK);
+          else if (h === 'Bulan') newRowValues.push(month);
+          else if (h === 'Tahun') newRowValues.push(year);
+          else if (h === 'Status_Slip') newRowValues.push('Published');
+          else if (h === 'Gaji_Pokok') newRowValues.push(gp);
+          else if (h === 'Ket_Gaji_Pokok') newRowValues.push('Gaji Pokok Bulanan');
+          else if (h === 'Tarif_Lembur') newRowValues.push(glRate);
+          else if (h === 'Jam_Lembur') newRowValues.push(jamLembur);
+          else if (h === 'Total_Lembur') newRowValues.push(totalLembur);
+          else if (h === 'Ket_Lembur') newRowValues.push('Uang Lembur Lemburan');
+          else if (h === 'Bonus') newRowValues.push(bonus);
+          else if (h === 'Ket_Bonus') newRowValues.push('Bonus Performa & Kedisiplinan');
+          else if (h === 'Uang_Transport') newRowValues.push(uangTransport);
+          else if (h === 'Ket_Uang_Transport') newRowValues.push('Transportasi Harian (22 Hari)');
+          else if (h === 'Tunjangan') newRowValues.push(tunjangan);
+          else if (h === 'Ket_Tunjangan') newRowValues.push('Tunjangan Makan & Jabatan');
+          else if (h === 'Kasbon') newRowValues.push(kasbon);
+          else if (h === 'Ket_Kasbon') newRowValues.push(kasbon > 0 ? 'Potongan Kasbon/Pinjaman' : '');
+          else if (h === 'Potongan_Lain') newRowValues.push(potonganLain);
+          else if (h === 'Ket_Potongan_Lain') newRowValues.push('Potongan Jaminan Kesehatan BPJS');
+          else if (h === 'Keterangan_Umum') newRowValues.push('Slip Gaji Rilis Bulanan');
+          else if (h === 'Total_Bersih') newRowValues.push(totalBersih);
+          else if (h === 'Timestamp') newRowValues.push(new Date());
+          else newRowValues.push('');
+        });
+
+        gajiSheet.appendRow(newRowValues);
+        count++;
+      });
+    });
+
+    return { success: true, message: `Berhasil menambahkan ${count} baris data slip gaji dummy` };
+
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+function ajukanKasbon(data) {
+  const { idKaryawan, nominal, alasan } = data;
+  if (!idKaryawan) return { success: false, error: 'ID Karyawan wajib diisi' };
+  if (!nominal || isNaN(nominal) || parseFloat(nominal) <= 0) return { success: false, error: 'Nominal wajib diisi dengan angka positif' };
+  if (!alasan) return { success: false, error: 'Alasan wajib diisi' };
+
+  try {
+    const userInfoRes = getUserInfo({ idKaryawan });
+    if (!userInfoRes.success || !userInfoRes.user) {
+      return { success: false, error: 'Karyawan tidak ditemukan' };
+    }
+    const nama = userInfoRes.user.nama;
+    
+    // Retrieve salary info from MASTER_KARYAWAN
+    const karyawanList = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+    const karyawanObj = karyawanList.find(k => String(k.ID_Karyawan) === String(idKaryawan));
+    if (!karyawanObj) return { success: false, error: 'Karyawan tidak terdaftar di master data' };
+    
+    // Get Gaji Pokok
+    let gajiPokok = parseFloat(karyawanObj.Gaji_Pokok || 0);
+    // If not found in master data, try finding in DATA_GAJI
+    if (gajiPokok <= 0) {
+      const gajiList = getSheetData(SHEET_NAMES.GAJI) || [];
+      const userGaji = gajiList.filter(g => String(g.ID_Karyawan) === String(idKaryawan));
+      if (userGaji.length > 0) {
+        // Sort to get the latest slip
+        userGaji.sort((a, b) => (parseInt(b.Tahun || 0) * 12 + parseInt(b.Bulan || 0)) - (parseInt(a.Tahun || 0) * 12 + parseInt(a.Bulan || 0)));
+        gajiPokok = parseFloat(userGaji[0].Gaji_Pokok || 0);
+      }
+    }
+    
+    if (gajiPokok <= 0) {
+      return { success: false, error: 'Gaji Pokok belum diatur. Tidak dapat mengajukan kasbon.' };
+    }
+
+    // Get current date details
+    const now = new Date();
+    const bln = now.getMonth() + 1;
+    const thn = now.getFullYear();
+    
+    // Days in current month
+    const daysInMonth = new Date(thn, bln, 0).getDate();
+    
+    // Count attendance entries (absen masuk) in this month
+    const absensiList = getSheetData(SHEET_NAMES.ABSENSI) || [];
+    const attendanceCount = absensiList.filter(a => {
+      const tgl = parseDateSafe(a.Timestamp);
+      return tgl &&
+        String(a.ID_Karyawan) === String(idKaryawan) &&
+        (tgl.getMonth() + 1) === bln &&
+        tgl.getFullYear() === thn &&
+        a.Tipe === 'Masuk';
+    }).length;
+    
+    // Calculate limit
+    const maxKasbon = Math.floor((gajiPokok / daysInMonth) * attendanceCount);
+    
+    if (parseFloat(nominal) > maxKasbon) {
+      return { 
+        success: false, 
+        error: 'Nominal pengajuan (Rp ' + parseFloat(nominal).toLocaleString('id-ID') + ') melebihi batas maksimal bulan ini (Rp ' + maxKasbon.toLocaleString('id-ID') + '). Rumus: (Gaji Pokok / Jumlah Hari) x Jumlah Hari Hadir.'
+      };
+    }
+    
+    const idKasbon = 'KB-' + Date.now();
+    const todayStr = formatDate(new Date());
+
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    if (!ss.getSheetByName(SHEET_NAMES.KASBON)) {
+      initSpreadsheet();
+    }
+
+    appendRow(SHEET_NAMES.KASBON, [
+      idKasbon,
+      idKaryawan,
+      nama,
+      todayStr,
+      parseFloat(nominal),
+      alasan,
+      'Pending',
+      '',
+      new Date()
+    ]);
+
+    // Send FCM push notifications to all admins immediately
+    try {
+      sendPushNotificationToAllAdmin(
+        'Pengajuan Kasbon Baru 💰',
+        nama + ' mengajukan kasbon sebesar Rp ' + parseFloat(nominal).toLocaleString('id-ID') + ' dengan keperluan: ' + alasan,
+        'aktivitas_umum_channel',
+        { tipe: 'kasbon', id: idKasbon }
+      );
+    } catch (e) {
+      Logger.log('FCM new kasbon request notify admin error: ' + e.toString());
+    }
+
+    return { success: true, message: 'Pengajuan kasbon berhasil dikirim' };
+  } catch (e) {
+    logError('ajukanKasbon', e, data);
+    return { success: false, error: e.toString() };
+  }
+}
+
+function getKasbonHistory(data) {
+  const { idKaryawan } = data;
+  if (!idKaryawan) return { success: false, error: 'ID Karyawan wajib diisi' };
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    if (!ss.getSheetByName(SHEET_NAMES.KASBON)) {
+      initSpreadsheet();
+    }
+
+    const sheetData = getSheetData(SHEET_NAMES.KASBON) || [];
+    const filtered = sheetData.filter(s => String(s.ID_Karyawan) === String(idKaryawan));
+    const formatted = filtered.map(s => ({
+      idKasbon: s.ID_Kasbon,
+      tanggal: s.Tanggal_Pengajuan,
+      nominal: parseFloat(s.Nominal) || 0,
+      alasan: s.Alasan || '',
+      status: s.Status || 'Pending',
+      keteranganAdmin: s.Keterangan_Admin || '',
+      timestamp: s.Timestamp ? formatDateTime(parseDateSafe(s.Timestamp)) : ''
+    }));
+
+    formatted.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    return { success: true, data: formatted };
+  } catch (e) {
+    logError('getKasbonHistory', e, data);
+    return { success: false, error: e.toString() };
+  }
+}
+
+function approveKasbon(data) {
+  const { idKasbon, status, approvedBy, keteranganAdmin, nominalDisetujui } = data;
+  if (!idKasbon || !status || !approvedBy) return { success: false, error: 'Parameter tidak lengkap' };
+
+  try {
+    const sheet = getSheet(SHEET_NAMES.KASBON);
+    const allData = sheet.getDataRange().getValues();
+
+    for (let i = 1; i < allData.length; i++) {
+      if (allData[i][0] === idKasbon) {
+        if (status === 'Approved' && nominalDisetujui !== undefined && nominalDisetujui !== null) {
+          sheet.getRange(i + 1, 5).setValue(nominalDisetujui); // Update Nominal
+          allData[i][4] = nominalDisetujui;
+        }
+        sheet.getRange(i + 1, 7).setValue(status); // Column 7: Status
+        sheet.getRange(i + 1, 8).setValue(keteranganAdmin || ''); // Column 8: Keterangan_Admin
+        
+        // Push notification
+        const idKaryawan = allData[i][1];
+        const nominal = allData[i][4];
+        const statusLabel = status === 'Approved' ? 'disetujui' : 'ditolak';
+        try {
+          sendPushNotification(
+            idKaryawan,
+            'Pengajuan Kasbon ' + (status === 'Approved' ? 'Disetujui ✅' : 'Ditolak ❌'),
+            'Pengajuan kasbon sebesar Rp ' + parseFloat(nominal).toLocaleString('id-ID') + ' Anda telah ' + statusLabel + '.',
+            'aktivitas_umum_channel'
+          );
+        } catch (e) {
+          Logger.log('FCM approve kasbon error: ' + e.toString());
+        }
+
+        return { success: true, message: 'Status kasbon berhasil diperbarui' };
+      }
+    }
+    return { success: false, error: 'Pengajuan kasbon tidak ditemukan' };
+  } catch (e) {
+    logError('approveKasbon', e, data);
+    return { success: false, error: e.toString() };
+  }
+}
+
+function submitTugasLog(data) {
+  const { idTugas, idKaryawan, idToko, fotoBukti, catatan } = data;
+  if (!idTugas || !idKaryawan) return { success: false, error: 'ID Tugas dan ID Karyawan diperlukan' };
+
+  const idLog = generateId('LT');
+  appendRow(SHEET_NAMES.LOG_TUGAS, [
+    formatDateTime(new Date()),
+    idLog,
+    idTugas,
+    idKaryawan,
+    idToko || 'ALL',
+    fotoBukti || '',
+    catatan || '',
+    'Pending' // Status_Verifikasi
+  ]);
+
+  return { success: true, message: 'Berhasil mensubmit tugas' };
+}
+
+function getTugasLogs(data) {
+  const { idKaryawan, idTugas } = data || {};
+  let logs = getSheetData(SHEET_NAMES.LOG_TUGAS);
+
+  if (idKaryawan) {
+    logs = logs.filter(l => l.ID_Karyawan === idKaryawan);
+  }
+  if (idTugas) {
+    logs = logs.filter(l => l.ID_Tugas === idTugas);
+  }
+
+  return {
+    success: true,
+    data: logs.map(l => ({
+      idLog: l.ID_Log,
+      idTugas: l.ID_Tugas,
+      idKaryawan: l.ID_Karyawan,
+      idToko: l.ID_Toko,
+      fotoBukti: l.Foto_Bukti,
+      catatan: l.Catatan,
+      statusVerifikasi: l.Status_Verifikasi,
+      timestamp: l.Timestamp
+    }))
+  };
+}
+
+
+
