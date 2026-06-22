@@ -5650,12 +5650,12 @@ function ajukanKasbon(data) {
     // Days in current month
     const daysInMonth = new Date(thn, bln, 0).getDate();
     
-    // Get Raport Bulanan to get totalJamKerja
+    // Get Raport Bulanan to get totalHadir
     const raport = getRaportBulanan({ idKaryawan, bulan: bln, tahun: thn });
-    const totalJamKerja = (raport.success) ? (raport.totalJamKerja || 0) : 0;
+    const totalHadir = (raport.success) ? (raport.totalHadir || 0) : 0;
     
     // Calculate limit
-    const maxKasbon = Math.round((gajiPokok / daysInMonth / 9.0) * totalJamKerja);
+    const maxKasbon = Math.round((gajiPokok / daysInMonth) * totalHadir);
     
     if (parseFloat(nominal) > maxKasbon) {
       return { 
