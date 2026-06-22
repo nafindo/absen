@@ -358,7 +358,8 @@ function getDefaultHeaders(sheetName) {
     'LOG_ERROR': ['Timestamp', 'Error', 'Stack', 'User', 'Action', 'Payload'],
     'CHAT': ['Timestamp', 'ID_Pesan', 'ID_Karyawan', 'Nama', 'Pesan', 'Tipe', 'File_URL', 'Nama_File', 'Size_KB', 'Reply_To'],
     'TUKAR_SHIFT': ['Timestamp', 'ID_Tukar', 'ID_Karyawan', 'Nama', 'ID_Toko_Saya', 'ID_Toko_Tujuan', 'ID_Karyawan_Tujuan', 'Shift_Saya', 'Shift_Tujuan', 'Tanggal', 'Alasan', 'Status', 'Approved_By', 'Approved_At'],
-    'TUGAS': ['Timestamp', 'ID_Tugas', 'Kategori_Tugas', 'ID_Toko', 'Ditugaskan_Ke', 'Judul', 'Deskripsi', 'Prioritas', 'Status', 'Dibuat_Oleh', 'Selesai_At'],
+    'TUGAS': ['Timestamp', 'ID_Tugas', 'Kategori_Tugas', 'ID_Toko', 'Ditugaskan_Ke', 'Judul', 'Deskripsi', 'Prioritas', 'Status', 'Dibuat_Oleh', 'Deadline', 'Selesai_At', 'Dikerjakan_Oleh', 'Foto_URL', 'Keterangan'],
+    'LOG_TUGAS': ['Timestamp', 'ID_Log', 'ID_Tugas', 'ID_Karyawan', 'ID_Toko', 'Foto_Bukti', 'Catatan', 'Status_Verifikasi'],
     'BERITA': ['Timestamp', 'ID_Berita', 'Judul', 'Isi', 'Kategori', 'Gambar_URL', 'Tgl_Tayang', 'Tgl_Off', 'Dibuat_Oleh', 'Tgl_Publish', 'Status'],
     'TEMPLATE_JADWAL': ['ID_Toko', 'Nama_Toko', 'Kebutuhan_Pagi', 'Kebutuhan_Siang']
   };
@@ -1518,7 +1519,7 @@ function getJenisIzinAktif(data) {
 
 // ==================== JADWAL ====================
 function getJadwalHariIni(data) {
-  const { idKaryawan } = data;
+  const { idKaryawan, skipAbsensi } = data;
   const hariIni = getHariIni();
   const todayStr = formatDate(new Date());
 
@@ -1555,6 +1556,22 @@ function getJadwalHariIni(data) {
 
   if (finalJadwal.libur) {
     return { success: true, jadwal: null, absen: null, message: 'Tidak ada jadwal hari ini' };
+  }
+  
+  if (skipAbsensi) {
+    return {
+      success: true,
+      jadwal: {
+        idToko: finalJadwal.idToko,
+        namaToko: finalJadwal.namaToko,
+        idShift: finalJadwal.idShift,
+        namaShift: finalJadwal.namaShift,
+        jamMasuk: finalJadwal.jamMasuk,
+        jamPulang: finalJadwal.jamPulang,
+        fotoToko: finalJadwal.fotoToko || ''
+      },
+      absen: null
+    };
   }
   
   // Fetch Absensi for today
@@ -2043,13 +2060,27 @@ function getDashboardData(data) {
   const pendingLembur = lembur.filter(l => l.Status === 'Pending').length;
   const pendingIzin = izin.filter(i => i.Status === 'Pending').length;
 
+  // Hitung yang sedang izin hari ini (Disetujui dan tanggal mencakup hari ini)
+  const tToday = new Date(today).getTime();
+  let izinHariIni = 0;
+  izin.forEach(i => {
+    if (i.Status === 'Disetujui') {
+        const tStart = new Date(i.Tanggal_Mulai).getTime();
+        const tEnd = new Date(i.Tanggal_Selesai).getTime();
+        if (tToday >= tStart && tToday <= tEnd) {
+            izinHariIni++;
+        }
+    }
+  });
+
   return {
     success: true,
     stats: {
-      totalKaryawan: karyawan.filter(k => k.Status === 'Aktif').length,
+      totalKaryawan: karyawan.filter(k => k.Status === 'Aktif' && k.Jabatan !== 'Owner').length,
       hadirHariIni: hadir,
       pendingApproval: pendingLembur + pendingIzin,
-      telatHariIni: telat
+      telatHariIni: telat,
+      izinHariIni: izinHariIni
     }
   };
 }
@@ -2058,44 +2089,57 @@ function getMonitoringToko(data) {
   const today = formatDate(new Date());
   const tokoList = getSheetData(SHEET_NAMES.MASTER_TOKO) || [];
   const absensi = getSheetData(SHEET_NAMES.ABSENSI) || [];
-  const jadwal = getSheetData(SHEET_NAMES.JADWAL_KARYAWAN) || [];
   const karyawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN) || [];
-  const hariIni = getHariIni();
+
+  // Ambil data absensi masuk hari ini
+  const absenHariIni = absensi.filter(a => 
+    formatDate(new Date(a.Timestamp)) === today && 
+    a.Tipe === 'Masuk'
+  );
+
+  const karyawanAktif = karyawan.filter(k => k.Status === 'Aktif' && k.Jabatan !== 'Owner');
+  
+  // Pra-kalkulasi jadwal hari ini untuk setiap karyawan aktif (sudah termasuk Tukar Shift)
+  const jadwalHariIniPerKaryawan = karyawanAktif.map(k => {
+    const res = getJadwalHariIni({ idKaryawan: k.ID_Karyawan, skipAbsensi: true });
+    return {
+      idKaryawan: k.ID_Karyawan,
+      jadwal: res.jadwal
+    };
+  });
 
   const result = tokoList.map(t => {
-    const karyawanJadwal = jadwal.filter(j =>
-      j.ID_Toko === t.ID_Toko &&
-      (j.Hari_Berjalan || '').includes(hariIni) &&
-      j.Status === 'Aktif'
+    // 1. Hitung total karyawan berdasarkan jadwal shift hari ini yang valid
+    const karyawanJadwal = jadwalHariIniPerKaryawan.filter(jk => 
+      jk.jadwal && jk.jadwal.idToko === t.ID_Toko
     );
 
-    const karyawanOnline = karyawanJadwal.map(j => {
-      const k = karyawan.find(kar => kar.ID_Karyawan === j.ID_Karyawan);
-      const absen = absensi.find(a =>
-        a.ID_Karyawan === j.ID_Karyawan &&
-        formatDate(new Date(a.Timestamp)) === today &&
-        a.Tipe === 'Masuk'
-      );
+    // 2. Karyawan yang benar-benar absen di toko ini (datareal)
+    const absenDiToko = absenHariIni.filter(a => a.ID_Toko === t.ID_Toko);
 
+    // Kita gabungkan data absensi riil ke dalam daftar
+    const karyawanOnline = absenDiToko.map(a => {
+      const k = karyawan.find(kar => kar.ID_Karyawan === a.ID_Karyawan);
       return {
-        nama: k ? k.Nama : j.ID_Karyawan,
-        status: absen ? (absen.Status_Masuk === 'Telat' ? 'telat' : 'hadir') : 'belum',
-        menitTelat: absen ? (parseInt(absen.Menit_Telat) || 0) : 0
-      , lat: absen ? (parseFloat(String(absen.Lat_Hp).replace(/'/g, '')) || 0) : 0, lng: absen ? (parseFloat(String(absen.Long_Hp).replace(/'/g, '')) || 0) : 0
-        };
+        nama: k ? k.Nama : a.ID_Karyawan,
+        status: a.Status_Masuk === 'Telat' ? 'telat' : 'hadir',
+        menitTelat: parseInt(a.Menit_Telat) || 0,
+        lat: parseFloat(String(a.Lat_Hp).replace(/'/g, '')) || 0,
+        lng: parseFloat(String(a.Long_Hp).replace(/'/g, '')) || 0
+      };
     });
 
     return {
       idToko: t.ID_Toko,
       namaToko: t.Nama_Toko,
       fotoUrl: t.Foto_Toko_URL || '',
-      jamBuka: formatTimeOnly(t.Jam_Buka),   // <-- FIX
-      jamTutup: formatTimeOnly(t.Jam_Tutup), // <-- FIX
+      jamBuka: formatTimeOnly(t.Jam_Buka),
+      jamTutup: formatTimeOnly(t.Jam_Tutup),
       lat: parseFloat(String(t.Lat).replace(/'/g, '')) || 0,
-        lng: parseFloat(String(t.Long).replace(/'/g, '')) || 0,
-        radius: parseInt(t.Radius_M) || 50,
-        totalKaryawan: karyawanJadwal.length,
-      totalOnline: karyawanOnline.filter(k => k.status !== 'belum').length,
+      lng: parseFloat(String(t.Long).replace(/'/g, '')) || 0,
+      radius: parseInt(t.Radius_M) || 50,
+      totalKaryawan: karyawanJadwal.length,
+      totalOnline: karyawanOnline.length,
       karyawan: karyawanOnline
     };
   });
@@ -3269,11 +3313,11 @@ function sendChatMessage(data) {
   // Kirim FCM ke semua karyawan kecuali pengirim
   try {
     const allKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
-    // Cari foto profil pengirim
+    // Cari foto profil pengirim (Admin atau Karyawan)
     const sender = allKaryawan.find(k => String(k.ID_Karyawan) === String(idKaryawan));
-    const senderFoto = sender ? (sender.Foto_Profil || '') : '';
+    const senderFoto = sender ? (sender.Foto_Profil || sender.Foto_URL || '') : '';
 
-    const targetKaryawan = allKaryawan.filter(k => k.Status === 'Aktif' && String(k.ID_Karyawan) !== String(idKaryawan));
+    const targetKaryawan = allKaryawan.filter(k => k.Status === 'Aktif' && String(k.ID_Karyawan).trim().toLowerCase() !== String(idKaryawan).trim().toLowerCase());
     
     Logger.log('[FCM Chat] Mengirim notifikasi ke ' + targetKaryawan.length + ' karyawan aktif');
     
@@ -3288,7 +3332,8 @@ function sendChatMessage(data) {
                 sender_id: idKaryawan,
                 sender_name: nama,
                 sender_foto: senderFoto,
-                pesan: pesan || 'Mengirim file'
+                pesan: pesan || 'Mengirim file',
+                target_id: k.ID_Karyawan
             }
         );
       } catch(e) {
@@ -3716,10 +3761,54 @@ function getTugasList(data) {
   let tugas = getSheetData(SHEET_NAMES.TUGAS).filter(t => t.Status !== 'Deleted');
 
   if (idKaryawan) {
-    tugas = tugas.filter(t => t.Ditugaskan_Ke === 'ALL' || t.Ditugaskan_Ke.split(',').map(s=>s.trim()).includes(idKaryawan));
+    tugas = tugas.filter(t => t.Ditugaskan_Ke === 'ALL' || t.Ditugaskan_Ke === 'GUGUR' || t.Ditugaskan_Ke.split(',').map(s=>s.trim()).includes(idKaryawan));
   }
   if (idToko) {
-    tugas = tugas.filter(t => t.ID_Toko === 'ALL' || t.ID_Toko.split(',').map(s=>s.trim()).includes(idToko));
+    tugas = tugas.filter(t => t.ID_Toko === 'ALL' || t.ID_Toko === '-' || t.ID_Toko.split(',').map(s=>s.trim()).includes(idToko));
+  }
+
+  if (idKaryawan) {
+      const logs = getSheetData(SHEET_NAMES.LOG_TUGAS);
+      const todayStr = formatDate(new Date());
+      
+      tugas = tugas.map(t => {
+          let statusPengerjaan = 'Pending';
+          let dikerjakanOleh = '';
+          
+          let myLogs = [];
+          if (t.Ditugaskan_Ke === 'GUGUR') {
+              // Jika Gugur, cari log dari siapapun di toko yang sama untuk tugas ini
+              // Asumsi: karyawan yang mengakses mengirimkan idToko nya sendiri (idToko dipassing ke getTugasList)
+              myLogs = logs.filter(l => l.ID_Tugas === t.ID_Tugas && (l.ID_Toko === idToko || idToko === 'ALL'));
+          } else {
+              // Individu atau All
+              myLogs = logs.filter(l => l.ID_Tugas === t.ID_Tugas && l.ID_Karyawan === idKaryawan);
+          }
+
+          if (t.Kategori_Tugas === 'Rutin') {
+              const myLogsToday = myLogs.filter(l => 
+                  (l.Timestamp && l.Timestamp.toString().includes(todayStr)) || 
+                  formatDate(parseDateSafe(l.Timestamp) || new Date()) === todayStr
+              );
+              if (myLogsToday.length > 0) {
+                  myLogsToday.sort((a, b) => (parseDateSafe(a.Timestamp) || new Date(0)) - (parseDateSafe(b.Timestamp) || new Date(0)));
+                  statusPengerjaan = myLogsToday[myLogsToday.length - 1].Status_Verifikasi;
+                  dikerjakanOleh = myLogsToday[myLogsToday.length - 1].ID_Karyawan;
+              }
+          } else {
+              if (myLogs.length > 0) {
+                  myLogs.sort((a, b) => (parseDateSafe(a.Timestamp) || new Date(0)) - (parseDateSafe(b.Timestamp) || new Date(0)));
+                  statusPengerjaan = myLogs[myLogs.length - 1].Status_Verifikasi;
+                  dikerjakanOleh = myLogs[myLogs.length - 1].ID_Karyawan;
+              }
+          }
+          
+          return {
+              ...t,
+              Status: statusPengerjaan === 'Selesai' ? 'Selesai' : (statusPengerjaan === 'Dikerjakan' ? 'Dikerjakan' : 'Pending'),
+              Dikerjakan_Oleh: dikerjakanOleh
+          };
+      });
   }
 
   return {
@@ -3741,33 +3830,54 @@ function getTugasList(data) {
 }
 
 function updateTugasStatus(data) {
-  const { idTugas, status, idKaryawan } = data;
+  const { idTugas, status, idKaryawan, fotoBase64, keterangan } = data;
+  const idToko = data.idToko || 'ALL'; // Fallback
 
-  const sheet = getSheet(SHEET_NAMES.TUGAS);
-  const allData = sheet.getDataRange().getValues();
+  let fotoUrl = '';
+  if (fotoBase64) {
+    try {
+      fotoUrl = uploadFotoToDrive(fotoBase64, idKaryawan || 'Admin', 'Tugas');
+    } catch(e) {
+      console.error('Gagal upload foto tugas:', e);
+    }
+  }
 
-  for (let i = 1; i < allData.length; i++) {
-    if (allData[i][1] === idTugas) {
-      sheet.getRange(i + 1, 9).setValue(status);
-      if (status === 'Selesai') {
-        sheet.getRange(i + 1, 12).setValue(formatDateTime(new Date()));
-      } else if (status === 'Dikerjakan' && idKaryawan) {
-        sheet.getRange(i + 1, 13).setValue(idKaryawan);
-      }
-
-      // Broadcast notifikasi tugas
+  // Jika dipanggil oleh Admin (tanpa idKaryawan) untuk Selesai/Aktif, kita abaikan saja karena Admin sekarang pakai deleteTugas
+  // Tapi kalau ada idKaryawan, berarti karyawan sedang mengerjakan / menyelesaikan
+  if (idKaryawan) {
+      const idLog = generateId('LT');
+      appendRow(SHEET_NAMES.LOG_TUGAS, [
+        formatDateTime(new Date()),
+        idLog,
+        idTugas,
+        idKaryawan,
+        idToko,
+        fotoUrl,
+        keterangan || '',
+        status
+      ]);
+      
       try {
         triggerPusher('pinguin-chat', 'tugas-alert', {
           idTugas: idTugas,
           idKaryawan: idKaryawan,
           status: status,
-          judul: allData[i][3] || 'Tugas',
-          pesan: 'Tugas "' + (allData[i][3] || '') + '" telah di-' + status.toLowerCase()
+          judul: 'Tugas',
+          pesan: 'Tugas telah di-' + status.toLowerCase()
         });
-      } catch (e) { Logger.log('Pusher tugas error: ' + e.toString()); }
-
-      return { success: true, message: 'Status tugas diupdate' };
-    }
+      } catch (e) {}
+      
+      return { success: true, message: 'Status tugas diupdate ke ' + status };
+  } else {
+      // Admin update status (e.g., delete/selesai dari backend admin lama)
+      const sheet = getSheet(SHEET_NAMES.TUGAS);
+      const allData = sheet.getDataRange().getValues();
+      for (let i = 1; i < allData.length; i++) {
+        if (allData[i][1] === idTugas) {
+          sheet.getRange(i + 1, 9).setValue(status);
+          return { success: true, message: 'Status master tugas diupdate' };
+        }
+      }
   }
 
   return { success: false, error: 'Tugas tidak ditemukan' };
@@ -3829,64 +3939,52 @@ function createBerita(data) {
 }
 
 function createTugas(data) {
-  const { kategori, idToko, ditugaskanKe, judul, deskripsi, prioritas, dibuatOleh, deadline } = data;
+  const { kategori, idToko, ditugaskanKe, judul, deskripsi, prioritas, dibuatOleh, deadline, modeToko } = data;
   if (!judul) return { success: false, error: 'Judul tugas wajib diisi' };
 
-  let targetTokos = (idToko || '').split(',').map(s => s.trim()).filter(s => s);
-  let targetKaryawans = (ditugaskanKe || '').split(',').map(s => s.trim()).filter(s => s);
+  const isTargetToko = kategori === 'Toko' || (kategori === 'Urgensi' && (data.urgensiTarget === 'Toko' || (!ditugaskanKe && idToko)));
   
-  let finalTokos = [];
-  let finalKaryawans = [];
+  const targetTokoStr = idToko || 'ALL';
+  let targetKarStr = ditugaskanKe || 'ALL';
   
-  const isTargetKaryawan = kategori === 'Individu' || (kategori === 'Urgensi' && targetKaryawans.length > 0 && targetTokos.length === 0);
-  const isTargetToko = kategori === 'Toko' || (kategori === 'Urgensi' && targetTokos.length > 0 && targetKaryawans.length === 0) || kategori === 'Rutin';
-
-  if (isTargetKaryawan) {
-      if (targetKaryawans.length > 0 && targetKaryawans[0] === 'ALL') {
-          const karSheet = getSheetData(SHEET_NAMES.KARYAWAN);
-          finalKaryawans = karSheet.filter(k => k.Status !== 'Deleted').map(k => k.ID_Karyawan);
-      } else if (targetKaryawans.length > 0) {
-          finalKaryawans = targetKaryawans;
+  if (isTargetToko) {
+      if (modeToko === 'gugur') {
+          targetKarStr = 'GUGUR';
+      } else {
+          targetKarStr = 'ALL';
       }
-      finalTokos = ['ALL']; // Store is ALL for Individual tasks
-  } else if (isTargetToko) {
-      if (targetTokos.length > 0 && targetTokos[0] === 'ALL') {
-          const tokoSheet = getSheetData(SHEET_NAMES.TOKO);
-          finalTokos = tokoSheet.filter(t => t.Status !== 'Deleted').map(t => t.ID_Toko);
-      } else if (targetTokos.length > 0) {
-          finalTokos = targetTokos;
-      }
-      finalKaryawans = ['ALL']; // Employee is ALL for Toko tasks
   }
 
   const sheet = getSheet(SHEET_NAMES.TUGAS);
   const now = formatDateTime(new Date());
+  const idTugas = generateId('TG');
   
-  let ids = [];
-  
-  if (isTargetKaryawan) {
-      finalKaryawans.forEach(kar => {
-          const idTugas = generateId('TG');
-          ids.push(idTugas);
-          sheet.appendRow([now, idTugas, kategori, 'ALL', kar, judul, deskripsi || '', prioritas || 'Medium', 'Pending', dibuatOleh || 'Admin', deadline || '', '', '']);
-      });
-  } else {
-      finalTokos.forEach(tok => {
-          const idTugas = generateId('TG');
-          ids.push(idTugas);
-          sheet.appendRow([now, idTugas, kategori || 'Rutin', tok, 'ALL', judul, deskripsi || '', prioritas || 'Medium', 'Pending', dibuatOleh || 'Admin', deadline || '', '', '']);
-      });
-  }
+  sheet.appendRow([
+      now, 
+      idTugas, 
+      kategori || 'Rutin', 
+      targetTokoStr, 
+      targetKarStr, 
+      judul, 
+      deskripsi || '', 
+      prioritas || 'Medium', 
+      'Aktif', 
+      dibuatOleh || 'Admin', 
+      deadline || '', 
+      '', 
+      '', 
+      '', 
+      ''  
+  ]);
 
-  // Broadcast notifikasi tugas baru
   try {
     triggerPusher('pinguin-chat', 'tugas-alert', {
-      idTugas: ids[0], // send first id just for triggering reload
+      idTugas: idTugas,
       kategori: kategori || 'Rutin',
       judul: judul,
       pesan: 'Tugas Baru: ' + judul,
-      idToko: idToko || 'ALL',
-      idKaryawan: ditugaskanKe || 'ALL'
+      idToko: targetTokoStr,
+      idKaryawan: targetKarStr
     });
   } catch (e) { Logger.log('Pusher tugas error: ' + e.toString()); }
 
@@ -4366,6 +4464,8 @@ function sendPushNotification(idKaryawan, title, message, channelId, extraData =
   
   // 1. Coba kirim via FCM v1 API (untuk APK Android)
   const fcmToken = getFCMToken(idKaryawan);
+  // Set target_id for client-side filtering
+  extraData.target_id = extraData.target_id || idKaryawan; // <--- Tambahkan baris ini
   if (fcmToken) {
     try {
       const fcmResult = sendFCMv1(fcmToken, title, message, channelId, extraData);
@@ -5550,19 +5650,12 @@ function ajukanKasbon(data) {
     // Days in current month
     const daysInMonth = new Date(thn, bln, 0).getDate();
     
-    // Count attendance entries (absen masuk) in this month
-    const absensiList = getSheetData(SHEET_NAMES.ABSENSI) || [];
-    const attendanceCount = absensiList.filter(a => {
-      const tgl = parseDateSafe(a.Timestamp);
-      return tgl &&
-        String(a.ID_Karyawan) === String(idKaryawan) &&
-        (tgl.getMonth() + 1) === bln &&
-        tgl.getFullYear() === thn &&
-        a.Tipe === 'Masuk';
-    }).length;
+    // Get Raport Bulanan to get totalJamKerja
+    const raport = getRaportBulanan({ idKaryawan, bulan: bln, tahun: thn });
+    const totalJamKerja = (raport.success) ? (raport.totalJamKerja || 0) : 0;
     
     // Calculate limit
-    const maxKasbon = Math.floor((gajiPokok / daysInMonth) * attendanceCount);
+    const maxKasbon = Math.round((gajiPokok / daysInMonth / 9.0) * totalJamKerja);
     
     if (parseFloat(nominal) > maxKasbon) {
       return { 
@@ -5686,6 +5779,17 @@ function submitTugasLog(data) {
   const { idTugas, idKaryawan, idToko, fotoBukti, catatan } = data;
   if (!idTugas || !idKaryawan) return { success: false, error: 'ID Tugas dan ID Karyawan diperlukan' };
 
+  let fotoUrl = '';
+  if (fotoBukti && fotoBukti.startsWith('data:image')) {
+    try {
+      fotoUrl = uploadFotoToDrive(fotoBukti, idKaryawan, 'Tugas');
+    } catch(e) {
+      fotoUrl = fotoBukti; 
+    }
+  } else {
+    fotoUrl = fotoBukti || '';
+  }
+
   const idLog = generateId('LT');
   appendRow(SHEET_NAMES.LOG_TUGAS, [
     formatDateTime(new Date()),
@@ -5693,10 +5797,20 @@ function submitTugasLog(data) {
     idTugas,
     idKaryawan,
     idToko || 'ALL',
-    fotoBukti || '',
+    fotoUrl,
     catatan || '',
-    'Pending' // Status_Verifikasi
+    'Selesai' // Status_Verifikasi otomatis selesai karena submitTugasLog
   ]);
+
+  try {
+    triggerPusher('pinguin-chat', 'tugas-alert', {
+      idTugas: idTugas,
+      idKaryawan: idKaryawan,
+      status: 'Selesai',
+      judul: 'Tugas',
+      pesan: 'Tugas telah selesai'
+    });
+  } catch (e) {}
 
   return { success: true, message: 'Berhasil mensubmit tugas' };
 }
@@ -5726,6 +5840,3 @@ function getTugasLogs(data) {
     }))
   };
 }
-
-
-
