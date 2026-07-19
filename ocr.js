@@ -433,8 +433,8 @@ function apiRequest(action, data = {}) {
     });
 }
 
-function previewFotoProfil() {
-    const file = document.getElementById('inp-foto-profil-file').files[0];
+function previewFotoProfil(inputElement) {
+    const file = inputElement.files[0];
     if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
