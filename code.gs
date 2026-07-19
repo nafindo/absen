@@ -24,7 +24,9 @@ const SHEET_NAMES = {
   BERITA: 'BERITA',
   GAJI: 'DATA_GAJI',
   TEMPLATE_JADWAL: 'TEMPLATE_JADWAL',
-  KASBON: 'DATA_KASBON'
+  KASBON: 'DATA_KASBON',
+  CEKLIST_HARIAN: 'CEKLIST_HARIAN',
+  SCORE_AUDIT: 'SCORE_AUDIT'
 };
 
 // ==================== WEB APP ROUTING ====================
@@ -84,6 +86,7 @@ function doPost(e) {
       case 'syncAllData': return jsonResponse(syncAllData(data));
       case 'registerFCMToken': return jsonResponse(registerFCMToken(data));
       case 'registerFaceId': return jsonResponse(registerFaceId(data));
+      case 'updateFotoProfil': return jsonResponse(updateFotoProfil(data));
 
       // === SETTING ===
       case 'getSettingGlobal': return jsonResponse(getSettingGlobal());
@@ -113,6 +116,11 @@ function doPost(e) {
       case 'getRaportBulanan': return jsonResponse(getRaportBulanan(data));
       case 'getRaportHarian': return jsonResponse(getRaportHarian(data));
       case 'getRaportMingguan': return jsonResponse(getRaportMingguan(data));
+      case 'getKinerja': return jsonResponse(getKinerja(data));
+      case 'calculateMonthlyScores': return calculateMonthlyScores(data);
+      case 'getMyScorecard': return getMyScorecard(data);
+      case 'getTeamScores': return getTeamScores(data);
+      case 'getOwnerReport': return getOwnerReport(data);
 
       // === LAPORAN ADMIN ===
       case 'getLaporanAbsensi': return jsonResponse(getLaporanAbsensi(data));
@@ -184,6 +192,12 @@ function doPost(e) {
       case 'getchatmessages': return jsonResponse(getChatMessages(data));
       case 'sendChatMessage':
       case 'sendchatmessage': return jsonResponse(sendChatMessage(data));
+      case 'deleteChatMessage':
+      case 'deletechatmessage': return jsonResponse(deleteChatMessage(data));
+      case 'pinChatMessage':
+      case 'pinchatmessage': return jsonResponse(pinChatMessage(data));
+      case 'reactChatMessage':
+      case 'reactchatmessage': return jsonResponse(reactChatMessage(data));
       case 'sendManualPushNotification': return jsonResponse(sendManualPushNotification(data));
 
       // === TUGAS & BERITA ===
@@ -196,6 +210,10 @@ function doPost(e) {
       case 'deleteTugas': return jsonResponse(deleteTugas(data));
       case 'submitTugasLog': return jsonResponse(submitTugasLog(data));
       case 'getTugasLogs': return jsonResponse(getTugasLogs(data));
+
+      // === CEKLIST HARIAN ===
+      case 'submitChecklistHarian': return jsonResponse(submitChecklistHarian(data));
+      case 'getChecklistHarian': return jsonResponse(getChecklistHarian(data));
 
       // === DELTA SYNC ===
       case 'getDeltas': return jsonResponse(getDeltas(data));
@@ -305,7 +323,7 @@ function uploadFotoToko(data) {
     }
 
     const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value || '1tJgsRcaRejhI6SAvDfrikvOTOEHz2CEw';
+    const folderId = settings.find(s => String(s.Parameter || '').trim().toUpperCase() === 'FOLDER_DRIVE_ID')?.Value || '1eteic6bmF5kV64ZNcJqN6aw2sUqtDYim';
 
     if (!folderId) throw new Error('Folder Drive ID belum diatur');
 
@@ -344,6 +362,63 @@ function uploadFotoToko(data) {
     return { success: false, error: 'Gagal upload: ' + e.toString() };
   }
 }
+
+const COL_KARYAWAN = {
+  ID: 0, NAMA: 1, PIN: 2, JABATAN: 3, TANGGAL_MASUK: 4, STATUS: 5,
+  NO_HP: 6, EMAIL: 7, TOKO_DEFAULT: 8, SHIFT_DEFAULT: 9, FOTO_PROFIL: 10,
+  FCM_TOKEN: 11, DEVICE_ID: 12, DEVICE_NAME: 13, ALAMAT_LENGKAP: 14,
+  KONTAK_DARURAT: 15, NAMA_KONTAK_DARURAT: 16, FOTO_KTP: 17, NIK: 18,
+  TEMPAT_LAHIR: 19, TANGGAL_LAHIR: 20, JENIS_KELAMIN: 21, RT_RW: 22,
+  DESA: 23, KECAMATAN: 24, AGAMA: 25, STATUS_KAWIN: 26, KEWARGANEGARAAN: 27,
+  PROFIL_LENGKAP: 28
+};
+
+const COL_ABSENSI = {
+  TIMESTAMP: 0, ID_KARYAWAN: 1, NAMA: 2, ID_TOKO: 3, NAMA_TOKO: 4,
+  ID_SHIFT: 5, NAMA_SHIFT: 6, TIPE: 7, JAM_MASUK: 8, JAM_PULANG: 9,
+  JAM_KERJA: 10, STATUS_MASUK: 11, MENIT_TELAT: 12, FOTO_URL: 13,
+  LAT_HP: 14, LONG_HP: 15, JARAK_M: 16, STATUS_GPS: 17, FACE_DETECTED: 18,
+  FOTO_PULANG_URL: 19
+};
+
+const COL_IZIN = {
+  ID: 0, ID_KARYAWAN: 1, NAMA: 2, ID_JENIS_IZIN: 3, NAMA_JENIS: 4,
+  TANGGAL_MULAI: 5, TANGGAL_SELESAI: 6, JUMLAH_HARI: 7, ALASAN: 8,
+  LAMPIRAN_URL: 9, STATUS: 10, APPROVED_BY: 11, APPROVED_AT: 12
+};
+
+const COL_LEMBUR = {
+  ID: 0, ID_KARYAWAN: 1, NAMA: 2, ID_TOKO: 3, NAMA_TOKO: 4, TANGGAL: 5,
+  JAM_MULAI: 6, JAM_SELESAI: 7, DURASI_JAM: 8, ALASAN: 9, FOTO_URL: 10,
+  STATUS: 11, APPROVED_BY: 12, APPROVED_AT: 13
+};
+
+const COL_TUGAS = {
+  TIMESTAMP: 0, ID_TUGAS: 1, KATEGORI_TUGAS: 2, ID_TOKO: 3, DITUGASKAN_KE: 4,
+  JUDUL: 5, DESKRIPSI: 6, PRIORITAS: 7, STATUS: 8, DIBUAT_OLEH: 9,
+  DEADLINE: 10, SELESAI_AT: 11, DIKERJAKAN_OLEH: 12, FOTO_URL: 13, KETERANGAN: 14
+};
+
+const COL_LOG_TUGAS = {
+  TIMESTAMP: 0, ID_LOG: 1, ID_TUGAS: 2, ID_KARYAWAN: 3, ID_TOKO: 4,
+  FOTO_BUKTI: 5, CATATAN: 6, STATUS_VERIFIKASI: 7
+};
+
+const COL_TOKO = {
+  ID: 0, NAMA: 1, ALAMAT: 2, LAT: 3, LONG: 4, RADIUS_M: 5, JAM_BUKA: 6,
+  JAM_TUTUP: 7, FOTO_URL: 8, STATUS: 9
+};
+
+const COL_SHIFT = {
+  ID: 0, ID_TOKO: 1, NAMA_TOKO: 2, NAMA_SHIFT: 3, JAM_MASUK: 4,
+  JAM_PULANG: 5, TOLERANSI_MENIT: 6, STATUS: 7
+};
+
+const COL_JADWAL = {
+  ID: 0, ID_KARYAWAN: 1, NAMA: 2, ID_TOKO: 3, NAMA_TOKO: 4, ID_SHIFT: 5,
+  NAMA_SHIFT: 6, HARI_BERJALAN: 7, TANGGAL_MULAI: 8, TANGGAL_SELESAI: 9, STATUS: 10
+};
+
 function getDefaultHeaders(sheetName) {
   const headers = {
     'MASTER_KARYAWAN': ['ID_Karyawan', 'Nama', 'PIN', 'Jabatan', 'Tanggal_Masuk', 'Status', 'No_HP', 'Email', 'Toko_Default', 'Shift_Default', 'Foto_Profil', 'FCM_Token', 'Device_ID', 'Device_Name', 'Alamat_Lengkap', 'Kontak_Darurat', 'Nama_Kontak_Darurat', 'Foto_KTP', 'NIK', 'Tempat_Lahir', 'Tanggal_Lahir', 'Jenis_Kelamin', 'RT_RW', 'Desa', 'Kecamatan', 'Agama', 'Status_Kawin', 'Kewarganegaraan', 'Profil_Lengkap'],
@@ -356,7 +431,7 @@ function getDefaultHeaders(sheetName) {
     'MASTER_JENIS_IZIN': ['ID_Jenis', 'Nama_Jenis', 'Kode', 'Kuota_Per_Tahun', 'Kuota_Per_Bulan', 'Maks_Hari_Sekali_Ajuan', 'Gender_Khusus', 'Potong_Cuti_Bulanan', 'Syarat_Hari_Kerja_Minimal', 'Status'],
     'SETTING_GLOBAL': ['Parameter', 'Value', 'Keterangan'],
     'LOG_ERROR': ['Timestamp', 'Error', 'Stack', 'User', 'Action', 'Payload'],
-    'CHAT': ['Timestamp', 'ID_Pesan', 'ID_Karyawan', 'Nama', 'Pesan', 'Tipe', 'File_URL', 'Nama_File', 'Size_KB', 'Reply_To'],
+    'CHAT': ['Timestamp', 'ID_Pesan', 'ID_Karyawan', 'Nama', 'Pesan', 'Tipe', 'File_URL', 'Nama_File', 'Size_KB', 'Reply_To', 'Is_Deleted', 'Is_Pinned', 'Reactions'],
     'TUKAR_SHIFT': ['Timestamp', 'ID_Tukar', 'ID_Karyawan', 'Nama', 'ID_Toko_Saya', 'ID_Toko_Tujuan', 'ID_Karyawan_Tujuan', 'Shift_Saya', 'Shift_Tujuan', 'Tanggal', 'Alasan', 'Status', 'Approved_By', 'Approved_At'],
     'TUGAS': ['Timestamp', 'ID_Tugas', 'Kategori_Tugas', 'ID_Toko', 'Ditugaskan_Ke', 'Judul', 'Deskripsi', 'Prioritas', 'Status', 'Dibuat_Oleh', 'Deadline', 'Selesai_At', 'Dikerjakan_Oleh', 'Foto_URL', 'Keterangan'],
     'LOG_TUGAS': ['Timestamp', 'ID_Log', 'ID_Tugas', 'ID_Karyawan', 'ID_Toko', 'Foto_Bukti', 'Catatan', 'Status_Verifikasi'],
@@ -437,6 +512,23 @@ function generateId(prefix) {
 
 function formatDate(date) {
   return Utilities.formatDate(date, 'Asia/Jakarta', 'yyyy-MM-dd');
+}
+
+function parseTimestampSafe(val) {
+  if (val instanceof Date) {
+    if (!isNaN(val.getTime())) return val;
+  }
+  let str = String(val).trim();
+  if (str.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+    str = str.replace(' ', 'T');
+  } else if (str.match(/^\d{2}\/\d{2}\/\d{4}/)) { 
+    const parts = str.split(' ')[0].split('/');
+    const time = str.split(' ')[1] || '00:00:00';
+    str = `${parts[2]}-${parts[1]}-${parts[0]}T${time}`;
+  }
+  let d = new Date(str);
+  if (!isNaN(d.getTime())) return d;
+  return new Date(); 
 }
 
 function parseDateSafe(dateVal) {
@@ -528,6 +620,38 @@ function checkUpdate() {
 }
 
 // ==================== AUTH ====================
+
+function updateFotoProfil(data) {
+  const { idKaryawan, fotoBase64 } = data;
+  if (!idKaryawan || !fotoBase64) return { success: false, error: 'Data tidak lengkap' };
+  
+  let fotoUrl = '';
+  try {
+    fotoUrl = uploadFotoToDrive(fotoBase64, idKaryawan, 'Profil');
+  } catch (e) {
+    return { success: false, error: 'Gagal mengunggah foto: ' + e.toString() };
+  }
+  
+  const sheet = getSheet(SHEET_NAMES.MASTER_KARYAWAN);
+  const allData = sheet.getDataRange().getValues();
+  const headers = allData[0];
+  const colIdKar = headers.indexOf('ID_Karyawan');
+  const colFoto = headers.indexOf('Foto_Profil'); // index 10
+  
+  if (colIdKar === -1 || colFoto === -1) return { success: false, error: 'Kolom tidak ditemukan di MASTER_KARYAWAN' };
+  
+  let found = false;
+  for (let i = 1; i < allData.length; i++) {
+    if (String(allData[i][colIdKar]) === String(idKaryawan)) {
+      sheet.getRange(i + 1, colFoto + 1).setValue(fotoUrl);
+      found = true;
+      break;
+    }
+  }
+  
+  if (!found) return { success: false, error: 'Karyawan tidak ditemukan' };
+  return { success: true, message: 'Foto profil berhasil diperbarui', fotoUrl: fotoUrl };
+}
 
 function registerFaceId(data) {
   const { idKaryawan, faceId } = data;
@@ -722,6 +846,25 @@ function updateSettingGlobal(data) {
   return { success: true, message: 'Setting berhasil ditambahkan' };
 }
 
+// ==================== HELPER ABSENSI ====================
+function getActiveShift(idKaryawan, absensiData) {
+  const now = new Date();
+  const maxLookbackMs = 18 * 60 * 60 * 1000; // 18 jam
+  
+  const riwayatMasuk = absensiData.filter(a => a.ID_Karyawan === idKaryawan && a.Tipe === 'Masuk');
+  if (riwayatMasuk.length === 0) return null;
+  
+  const latestMasuk = riwayatMasuk[riwayatMasuk.length - 1];
+  const timestampMasuk = parseTimestampSafe(latestMasuk.Timestamp);
+  
+  if ((now.getTime() - timestampMasuk.getTime()) <= maxLookbackMs) {
+    if (!latestMasuk.Jam_Pulang || String(latestMasuk.Jam_Pulang).trim() === '') {
+      return latestMasuk;
+    }
+  }
+  return null;
+}
+
 // ==================== ABSENSI ====================
 function absenMasuk(data) {
   const { idKaryawan, nama, idToko, namaToko, idShift, namaShift, fotoBase64, lat, lng } = data;
@@ -730,16 +873,23 @@ function absenMasuk(data) {
   if (!idToko) return { success: false, error: 'Toko harus dipilih' };
   if (!idShift) return { success: false, error: 'Shift harus dipilih' };
 
-  // Cek sudah absen masuk hari ini
-  const today = formatDate(new Date());
   const absensi = getSheetData(SHEET_NAMES.ABSENSI);
-  const sudahMasuk = absensi.find(a =>
+  
+  // 1. Cek shift menggantung (belum pulang) maks 18 jam
+  const activeShift = getActiveShift(idKaryawan, absensi);
+  if (activeShift) {
+    return { success: false, error: 'Anda sudah absen masuk (shift sebelumnya belum ditutup)' };
+  }
+
+  // 2. Cek absen masuk di kalender hari ini
+  const today = formatDate(new Date());
+  const sudahMasukHariIni = absensi.find(a =>
     a.ID_Karyawan === idKaryawan &&
-    formatDate(new Date(a.Timestamp)) === today &&
+    (a.Timestamp instanceof Date ? formatDate(a.Timestamp) : formatDate(new Date(a.Timestamp))) === today &&
     a.Tipe === 'Masuk'
   );
 
-  if (sudahMasuk) {
+  if (sudahMasukHariIni) {
     return { success: false, error: 'Anda sudah absen masuk hari ini' };
   }
 
@@ -792,6 +942,17 @@ function absenMasuk(data) {
   } catch (e) {
     console.error('Gagal upload foto:', e);
   }
+
+  // --- DAILY SCORE LOGIC ---
+  let attScore = 0;
+  if (statusMasuk === 'Ontime') {
+    attScore = 15;
+  } else if (statusMasuk === 'Telat') {
+    if (menitTelat <= 15) attScore = 8;
+    else attScore = 3;
+  }
+  logDailyScore(idKaryawan, nama, 'Absen Masuk', `Status: ${statusMasuk} (${menitTelat} menit telat)`, attScore, 0);
+  // -------------------------
 
   // Simpan ke sheet
   const idAbsensi = generateId('A');
@@ -850,16 +1011,16 @@ function absenMasuk(data) {
     Logger.log('FCM absen masuk error: ' + e.toString());
   }
 
-  // Kirim notifikasi ke semua admin
+  // Kirim notifikasi HANYA ke Owner
   try {
-    sendPushNotificationToAllAdmin(
+    sendPushNotificationToOwner(
       '📍 Absen Masuk',
       nama + ' absen masuk di ' + namaToko,
       'absensi_channel',
       { type: 'absen_masuk', idKaryawan: idKaryawan, toko: namaToko }
     );
   } catch(e) {
-    Logger.log('FCM broadcast absen masuk ke admin error: ' + e.toString());
+    Logger.log('FCM broadcast absen masuk ke owner error: ' + e.toString());
   }
 
   return {
@@ -877,29 +1038,28 @@ function absenPulang(data) {
 
   if (!fotoBase64) return { success: false, error: 'Foto wajib diambil' };
 
-  // Cek sudah absen masuk
   const today = formatDate(new Date());
   const absensi = getSheetData(SHEET_NAMES.ABSENSI);
-  const recordMasuk = absensi.find(a =>
-    a.ID_Karyawan === idKaryawan &&
-    formatDate(new Date(a.Timestamp)) === today &&
-    a.Tipe === 'Masuk'
-  );
-
-  if (!recordMasuk) {
-    return { success: false, error: 'Anda belum absen masuk hari ini' };
+  
+  // Cek shift terbuka (lookback 18 jam)
+  const activeShift = getActiveShift(idKaryawan, absensi);
+  
+  if (!activeShift) {
+    // Tidak ada shift terbuka, cek apakah sudah pulang hari ini untuk error yg pas
+    const sudahPulangHariIni = absensi.find(a =>
+      a.ID_Karyawan === idKaryawan &&
+      formatDate(parseTimestampSafe(a.Timestamp)) === today &&
+      a.Tipe === 'Pulang'
+    );
+    if (sudahPulangHariIni) {
+      return { success: false, error: 'Anda sudah absen pulang hari ini' };
+    } else {
+      return { success: false, error: 'Anda belum absen masuk (atau shift sudah kedaluwarsa > 18 jam)' };
+    }
   }
 
-  // Cek sudah absen pulang
-  const sudahPulang = absensi.find(a =>
-    a.ID_Karyawan === idKaryawan &&
-    formatDate(new Date(a.Timestamp)) === today &&
-    a.Tipe === 'Pulang'
-  );
-
-  if (sudahPulang) {
-    return { success: false, error: 'Anda sudah absen pulang hari ini' };
-  }
+  const recordMasuk = activeShift;
+  const masukDateStr = formatDate(parseTimestampSafe(recordMasuk.Timestamp));
 
   // Upload foto
   let fotoUrl = '';
@@ -910,7 +1070,7 @@ function absenPulang(data) {
   }
 
   const now = new Date();
-  let jamMasuk = new Date(recordMasuk.Timestamp);
+  let jamMasuk = parseTimestampSafe(recordMasuk.Timestamp);
   if (isNaN(jamMasuk.getTime())) {
     jamMasuk = new Date(today + ' ' + String(recordMasuk.Jam_Masuk));
   }
@@ -918,6 +1078,37 @@ function absenPulang(data) {
   if (isNaN(durasiMs) || durasiMs < 0) {
     durasiMs = 0;
   }
+
+  // Hitung batas maksimal durasi dari jadwal shift
+  let maxDurationMs = 9 * 3600000; // Default 9 jam
+  const shift = getSheetData(SHEET_NAMES.SHIFT_TOKO).find(s => s.ID_Shift === recordMasuk.ID_Shift);
+  if (shift && shift.Jam_Masuk && shift.Jam_Pulang) {
+    const formatT = (t) => {
+      if (t instanceof Date) return formatTimeOnly(t);
+      if (typeof t === 'number') {
+        const h = Math.floor(t * 24);
+        const m = Math.round((t * 24 * 60) % 60);
+        return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      }
+      return String(t);
+    };
+    
+    const sIn = formatT(shift.Jam_Masuk).split(':').map(Number);
+    const sOut = formatT(shift.Jam_Pulang).split(':').map(Number);
+    
+    if (sIn.length >= 2 && sOut.length >= 2) {
+      let minIn = sIn[0] * 60 + sIn[1];
+      let minOut = sOut[0] * 60 + sOut[1];
+      if (minOut < minIn) minOut += 24 * 60; // Cross midnight
+      maxDurationMs = (minOut - minIn) * 60000;
+    }
+  }
+
+  // Batasi (cap) durasi kerja agar tidak melebihi jadwal shift
+  if (durasiMs > maxDurationMs) {
+    durasiMs = maxDurationMs;
+  }
+
   const durasiJam = Math.floor(durasiMs / 3600000);
   const durasiMenit = Math.floor((durasiMs % 3600000) / 60000);
   const durasiKerja = durasiJam + 'j ' + String(durasiMenit).padStart(2, '0') + 'm';
@@ -931,11 +1122,11 @@ function absenPulang(data) {
   
   for (let i = 1; i < allData.length; i++) {
     // Cari baris "Masuk" milik karyawan ini hari ini
-    const rowDate = allData[i][0] instanceof Date ? formatDate(allData[i][0]) : formatDate(new Date(allData[i][0]));
+    const rowDate = formatDate(parseTimestampSafe(allData[i][0]));
     const rowTipe = colTipe >= 0 ? String(allData[i][colTipe]) : String(allData[i][7]);
     const rowIdKar = colIdKar >= 0 ? String(allData[i][colIdKar]) : String(allData[i][1]);
     
-    if (rowIdKar === idKaryawan && rowDate === today && rowTipe === 'Masuk') {
+    if (rowIdKar === idKaryawan && rowDate === masukDateStr && rowTipe === 'Masuk' && String(allData[i][10]).trim() === '') {
       sheet.getRange(i + 1, 10).setValue(formatTime(now)); // Jam_Pulang
       sheet.getRange(i + 1, 11).setValue(durasiKerja); // Jam_Kerja
       sheet.getRange(i + 1, 20).setValue(fotoUrl); // Foto_Pulang_URL
@@ -993,16 +1184,16 @@ function absenPulang(data) {
     Logger.log('FCM absen pulang error: ' + e.toString());
   }
 
-  // Kirim notifikasi ke semua admin
+  // Kirim notifikasi HANYA ke Owner
   try {
-    sendPushNotificationToAllAdmin(
+    sendPushNotificationToOwner(
       '🏠 Absen Pulang',
       nama + ' absen pulang',
       'absensi_channel',
       { type: 'absen_pulang', idKaryawan: idKaryawan }
     );
   } catch(e) {
-    Logger.log('FCM broadcast absen pulang ke admin error: ' + e.toString());
+    Logger.log('FCM broadcast absen pulang ke owner error: ' + e.toString());
   }
 
   // SISTEM GANDA: Hitung ulang lembur yang sudah Approved saat karyawan pulang
@@ -1118,17 +1309,24 @@ function getAbsenStatus(data) {
   const today = formatDate(new Date());
   const absensi = getSheetData(SHEET_NAMES.ABSENSI);
 
-  const masuk = absensi.find(a =>
-    a.ID_Karyawan === idKaryawan &&
-    formatDate(new Date(a.Timestamp)) === today &&
-    a.Tipe === 'Masuk'
-  );
+  const activeShift = getActiveShift(idKaryawan, absensi);
+  let masuk = null;
+  let pulang = null;
 
-  const pulang = absensi.find(a =>
-    a.ID_Karyawan === idKaryawan &&
-    formatDate(new Date(a.Timestamp)) === today &&
-    a.Tipe === 'Pulang'
-  );
+  if (activeShift) {
+    masuk = activeShift;
+  } else {
+    masuk = absensi.find(a =>
+      a.ID_Karyawan === idKaryawan &&
+      (a.Timestamp instanceof Date ? formatDate(a.Timestamp) : formatDate(new Date(a.Timestamp))) === today &&
+      a.Tipe === 'Masuk'
+    );
+    pulang = absensi.find(a =>
+      a.ID_Karyawan === idKaryawan &&
+      (a.Timestamp instanceof Date ? formatDate(a.Timestamp) : formatDate(new Date(a.Timestamp))) === today &&
+      a.Tipe === 'Pulang'
+    );
+  }
 
   let shiftDetail = null;
   if (masuk) {
@@ -1255,21 +1453,19 @@ function ajukanIzin(data) {
     return { success: false, error: 'Maksimal ' + jenisIzin.Maks_Hari_Sekali_Ajuan + ' hari per pengajuan' };
   }
 
-  // Validasi sisa kuota sebelum memproses (Kecuali Sakit karena auto-close)
-  if (jenisIzin.Kode !== 'sakit') {
-    try {
-      const kuotaRes = getSisaKuota({ idKaryawan });
-      if (kuotaRes.success) {
-        const kuotaInfo = kuotaRes.kuota[jenisIzin.Kode];
-        if (kuotaInfo && kuotaInfo.sisa !== null) {
-          if (jumlahHari > kuotaInfo.sisa) {
-            return { success: false, error: 'Kuota tidak mencukupi. Sisa kuota Anda: ' + kuotaInfo.sisa + ' hari.' };
-          }
+  // Validasi sisa kuota sebelum memproses
+  try {
+    const kuotaRes = getSisaKuota({ idKaryawan });
+    if (kuotaRes.success) {
+      const kuotaInfo = kuotaRes.kuota[jenisIzin.Kode];
+      if (kuotaInfo && kuotaInfo.sisa !== null) {
+        if (jumlahHari > kuotaInfo.sisa) {
+          return { success: false, error: 'Kuota tidak mencukupi. Sisa kuota Anda: ' + kuotaInfo.sisa + ' hari.' };
         }
       }
-    } catch (e) {
-      console.error('Gagal validasi sisa kuota:', e);
     }
+  } catch (e) {
+    console.error('Gagal validasi sisa kuota:', e);
   }
 
   // Upload lampiran jika ada
@@ -1409,7 +1605,9 @@ function autoCloseIzin(idKaryawan, checkInDateStr) {
     .filter(i => {
       const master = jenisIzin.find(j => j.ID_Jenis === i.ID_Jenis_Izin);
       const tgl = parseDateSafe(i.Tanggal_Mulai);
-      return master && (master.Potong_Cuti_Bulanan === 'Ya' || master.Potong_Cuti_Bulanan === 'Yes') &&
+      // Masukkan 'izin' ke dalam pool cuti secara paksa
+      const isShared = master && (master.Potong_Cuti_Bulanan === 'Ya' || master.Potong_Cuti_Bulanan === 'Yes' || master.Kode === 'izin');
+      return isShared &&
         tgl && tgl.getMonth() + 1 === bulanIni && tgl.getFullYear() === tahunIni;
     })
     .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
@@ -1420,12 +1618,24 @@ function autoCloseIzin(idKaryawan, checkInDateStr) {
   jenisIzin.forEach(j => {
     let sisa = null;
 
-    if (j.Kode === 'cuti' || j.Potong_Cuti_Bulanan === 'Ya' || j.Potong_Cuti_Bulanan === 'Yes') {
+    if (j.Kode === 'cuti' || j.Kode === 'izin' || j.Potong_Cuti_Bulanan === 'Ya' || j.Potong_Cuti_Bulanan === 'Yes') {
       // Menggunakan shared pool (Kuota Cuti Bulanan)
       sisa = Math.max(0, limitCutiBulanan - totalSharedUsedBulanIni);
     } else {
+      // Tentukan fallback default jika sheet kosong
+      let kuotaTahun = j.Kuota_Per_Tahun;
+      if (!kuotaTahun) {
+        if (j.Kode === 'hamil') kuotaTahun = 30;
+        else if (j.Kode === 'menikah') kuotaTahun = 7;
+      }
+      
+      let kuotaBulan = j.Kuota_Per_Bulan;
+      if (!kuotaBulan) {
+        if (j.Kode === 'sakit') kuotaBulan = 3;
+      }
+
       // Menggunakan kuota masing-masing
-      if (j.Kuota_Per_Tahun) {
+      if (kuotaTahun) {
         const terpakai = izinApproved
           .filter(i => {
             if (i.ID_Jenis_Izin !== j.ID_Jenis) return false;
@@ -1433,9 +1643,9 @@ function autoCloseIzin(idKaryawan, checkInDateStr) {
             return tgl && tgl.getFullYear() === tahunIni;
           })
           .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
-        sisa = Math.max(0, parseInt(j.Kuota_Per_Tahun) - terpakai);
+        sisa = Math.max(0, parseInt(kuotaTahun) - terpakai);
       }
-      if (j.Kuota_Per_Bulan) {
+      if (kuotaBulan) {
         const terpakai = izinApproved
           .filter(i => {
             if (i.ID_Jenis_Izin !== j.ID_Jenis) return false;
@@ -1443,7 +1653,7 @@ function autoCloseIzin(idKaryawan, checkInDateStr) {
             return tgl && tgl.getMonth() + 1 === bulanIni && tgl.getFullYear() === tahunIni;
           })
           .reduce((sum, i) => sum + (parseInt(i.Jumlah_Hari) || 0), 0);
-        sisa = Math.max(0, parseInt(j.Kuota_Per_Bulan) - terpakai);
+        sisa = Math.max(0, parseInt(kuotaBulan) - terpakai);
       }
     }
 
@@ -1472,52 +1682,106 @@ function getJenisIzinAktif(data) {
     const jenisIzin = getSheetData(SHEET_NAMES.MASTER_JENIS_IZIN);
 
     // Ambil yang statusnya Aktif
-    const aktif = jenisIzin.filter(j => j.Status === 'Aktif');
+    const aktif = jenisIzin.filter(j => j.Status && j.Status.toString().trim().toLowerCase() === 'aktif');
 
-    // Cek data karyawan untuk validasi hari kerja minimal & gender jika ada
-    const karyawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN).find(k => k.ID_Karyawan === idKaryawan);
-
-    let hariKerja = 999; // Default jika tidak ada info masuk
-    if (karyawan && karyawan.Tanggal_Masuk) {
-      const tglMasuk = new Date(karyawan.Tanggal_Masuk);
-      const selisihMs = new Date() - tglMasuk;
-      hariKerja = Math.floor(selisihMs / (1000 * 60 * 60 * 24));
-    }
-
-    let genderKaryawan = '';
-    if (karyawan) {
-      // Cari properti gender atau jenis kelamin secara case-insensitive
-      for (let key in karyawan) {
-        if (key.toLowerCase().includes('gender') || key.toLowerCase().includes('kelamin')) {
-          genderKaryawan = karyawan[key];
-          break;
-        }
-      }
-    }
-
-    const filtered = aktif.filter(j => {
-      // 1. Cek syarat hari kerja minimal
-      const syarat = parseInt(j.Syarat_Hari_Kerja_Minimal) || 0;
-      if (hariKerja < syarat) return false;
-
-      // 2. Cek syarat gender khusus
-      const genderKhusus = j.Gender_Khusus;
-      if (genderKhusus && genderKhusus !== 'Semua' && genderKaryawan) {
-        if (genderKhusus.toLowerCase() !== genderKaryawan.toLowerCase()) {
-          return false;
-        }
-      }
-      return true;
-    });
-
-    return { success: true, data: filtered };
+    // Kembalikan semua kategori yang aktif
+    return { success: true, data: aktif };
   } catch (e) {
     console.error('Gagal getJenisIzinAktif:', e);
     return { success: false, error: e.toString() };
   }
 }
 
+
+function deleteChatMessage(data) {
+  const { idKaryawan, idPesan } = data;
+  if (!idPesan || !idKaryawan) return { success: false, error: 'Data tidak lengkap' };
+  
+  const updated = updateRow(SHEET_NAMES.CHAT, 'ID_Pesan', idPesan, {
+    Is_Deleted: true
+  }, { checkOwnership: true, ownerId: idKaryawan, ownerCol: 'ID_Karyawan' });
+  
+  if (updated) {
+    try {
+      triggerPusher('pinguin-chat', 'delete-message', { idPesan, idKaryawan });
+    } catch(e) {}
+    return { success: true };
+  }
+  return { success: false, error: 'Gagal menghapus. Pastikan pesan milik Anda.' };
+}
+
+function pinChatMessage(data) {
+  const { idKaryawan, idPesan, isPinned } = data; // Admin can pin, or anyone?
+  if (!idPesan) return { success: false, error: 'Data tidak lengkap' };
+  
+  const updated = updateRow(SHEET_NAMES.CHAT, 'ID_Pesan', idPesan, {
+    Is_Pinned: isPinned
+  });
+  
+  if (updated) {
+    try {
+      triggerPusher('pinguin-chat', 'pin-message', { idPesan, isPinned });
+    } catch(e) {}
+    return { success: true };
+  }
+  return { success: false, error: 'Gagal pin pesan.' };
+}
+
+function reactChatMessage(data) {
+  const { idKaryawan, idPesan, reaction } = data;
+  if (!idPesan || !idKaryawan || !reaction) return { success: false, error: 'Data tidak lengkap' };
+  
+  // Find current reactions
+  const chat = getSheetData(SHEET_NAMES.CHAT).find(c => c.ID_Pesan === idPesan);
+  if (!chat) return { success: false, error: 'Pesan tidak ditemukan' };
+  
+  let currentReactions = {};
+  try {
+    if (chat.Reactions) currentReactions = JSON.parse(chat.Reactions);
+  } catch(e) {}
+  
+  // Toggle reaction
+  let isAdding = false;
+  if (!currentReactions[reaction]) currentReactions[reaction] = [];
+  const idx = currentReactions[reaction].indexOf(idKaryawan);
+  if (idx > -1) {
+    currentReactions[reaction].splice(idx, 1);
+    if (currentReactions[reaction].length === 0) delete currentReactions[reaction];
+  } else {
+    currentReactions[reaction].push(idKaryawan);
+    isAdding = true;
+  }
+  
+  const newReactions = JSON.stringify(currentReactions);
+  const updated = updateRow(SHEET_NAMES.CHAT, 'ID_Pesan', idPesan, {
+    Reactions: newReactions
+  });
+  
+  if (updated) {
+    try {
+      triggerPusher('pinguin-chat', 'react-message', { idPesan, reactions: newReactions });
+      // Notify sender
+      if (isAdding && chat.ID_Karyawan && chat.ID_Karyawan !== idKaryawan) {
+        const token = getFCMToken(chat.ID_Karyawan);
+        if (token) {
+          const kar = getSheetData(SHEET_NAMES.MASTER_KARYAWAN).find(k => k.ID_Karyawan === idKaryawan);
+          const reactorName = kar ? kar.Nama : 'Seseorang';
+          const title = "Reaksi Baru di Chat";
+          const cleanPesan = (chat.Pesan || "").replace(/^\{\{REPLY:[^}]+\}\}/, "").trim();
+          const body = `${reactorName} bereaksi ${reaction} pada pesan Anda: "${cleanPesan.substring(0, 30)}${cleanPesan.length > 30 ? '...' : ''}"`;
+          sendFCMv1(token, title, body, "chat_channel", { type: "chat", idPesan: idPesan });
+        }
+      }
+    } catch(e) {
+      Logger.log("FCM Reaction Error: " + e.toString());
+    }
+    return { success: true, reactions: newReactions };
+  }
+  return { success: false, error: 'Gagal mereaksikan pesan.' };
+}
+
 // ==================== JADWAL ====================
+
 function getJadwalHariIni(data) {
   const { idKaryawan, skipAbsensi } = data;
   const hariIni = getHariIni();
@@ -1574,10 +1838,17 @@ function getJadwalHariIni(data) {
     };
   }
   
-  // Fetch Absensi for today
   const absensiData = getSheetData(SHEET_NAMES.ABSENSI);
-  const masuk = absensiData.find(a => a.ID_Karyawan === idKaryawan && (a.Timestamp instanceof Date ? formatDate(a.Timestamp) : formatDate(new Date(a.Timestamp))) === todayStr && a.Tipe === 'Masuk');
-  const pulang = absensiData.find(a => a.ID_Karyawan === idKaryawan && (a.Timestamp instanceof Date ? formatDate(a.Timestamp) : formatDate(new Date(a.Timestamp))) === todayStr && a.Tipe === 'Pulang');
+  const activeShift = getActiveShift(idKaryawan, absensiData);
+  let masuk = null;
+  let pulang = null;
+
+  if (activeShift) {
+    masuk = activeShift;
+  } else {
+    masuk = absensiData.find(a => a.ID_Karyawan === idKaryawan && (a.Timestamp instanceof Date ? formatDate(a.Timestamp) : formatDate(new Date(a.Timestamp))) === todayStr && a.Tipe === 'Masuk');
+    pulang = absensiData.find(a => a.ID_Karyawan === idKaryawan && (a.Timestamp instanceof Date ? formatDate(a.Timestamp) : formatDate(new Date(a.Timestamp))) === todayStr && a.Tipe === 'Pulang');
+  }
 
   let jamMasukReal = '';
   let statusMasukReal = '';
@@ -1957,9 +2228,19 @@ function formatRaport(absensi, mode, bln, thn, idKaryawan) {
     };
   }) : [];
 
+  let gajiPokok = 0;
+  if (empId && mode === 'bulanan') {
+    const karyawanList = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+    if (karyawanList) {
+      const karyawanObj = karyawanList.find(k => String(k.ID_Karyawan) === String(empId));
+      if (karyawanObj) gajiPokok = parseFloat(karyawanObj.Gaji_Pokok || 0);
+    }
+  }
+
   return {
     success: true,
     mode: mode,
+    gajiPokok: gajiPokok,
     totalHadir: totalHadir,
     totalTelat: totalTelat,
     totalMenitTelat: totalMenitTelat,
@@ -2792,7 +3073,7 @@ function uploadFotoProfil(data) {
     }
 
     const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value || '1tJgsRcaRejhI6SAvDfrikvOTOEHz2CEw';
+    const folderId = settings.find(s => String(s.Parameter || '').trim().toUpperCase() === 'FOLDER_DRIVE_ID')?.Value || '1eteic6bmF5kV64ZNcJqN6aw2sUqtDYim';
 
     if (!folderId) throw new Error('Folder Drive ID belum diatur');
 
@@ -3040,7 +3321,7 @@ function deleteJenisIzin(data) {
 function uploadFotoToDrive(base64Data, idKaryawan, tipe) {
   try {
     const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value || '1tJgsRcaRejhI6SAvDfrikvOTOEHz2CEw';
+    const folderId = settings.find(s => String(s.Parameter || '').trim().toUpperCase() === 'FOLDER_DRIVE_ID')?.Value || '1eteic6bmF5kV64ZNcJqN6aw2sUqtDYim';
 
     if (!folderId) throw new Error('Folder Drive ID belum diatur');
 
@@ -3067,7 +3348,7 @@ function uploadFotoToDrive(base64Data, idKaryawan, tipe) {
 function uploadFileToDrive(base64Data, idKaryawan, tipe) {
   try {
     const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value || '1tJgsRcaRejhI6SAvDfrikvOTOEHz2CEw';
+    const folderId = settings.find(s => String(s.Parameter || '').trim().toUpperCase() === 'FOLDER_DRIVE_ID')?.Value || '1eteic6bmF5kV64ZNcJqN6aw2sUqtDYim';
 
     if (!folderId) throw new Error('Folder Drive ID belum diatur');
 
@@ -3174,24 +3455,39 @@ function getIzinPeriode(data) {
 }
 // ==================== CHAT ====================
 function getChatMessages(data) {
-  const { limit = 50, offset = 0 } = data || {};
+  const { limit = 50, offset = 0, lastTimestamp } = data || {};
   const chat = getSheetData(SHEET_NAMES.CHAT);
   // Sort by timestamp descending, then reverse for chronological display
-  const sorted = chat.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
-  const limited = sorted.slice(offset, offset + limit);
+  const sorted = chat.sort((a, b) => {
+    const timeA = new Date(a.Timestamp || a.timestamp || a.Waktu || a.waktu || 0);
+    const timeB = new Date(b.Timestamp || b.timestamp || b.Waktu || b.waktu || 0);
+    return timeB - timeA;
+  });
+    let filtered = sorted;
+  if (lastTimestamp) {
+    const lastTime = new Date(lastTimestamp).getTime();
+    filtered = sorted.filter(c => {
+      const cTime = new Date(c.Timestamp || c.timestamp || c.Waktu || c.waktu || 0).getTime();
+      return cTime < lastTime;
+    });
+  }
+  const limited = filtered.slice(offset, offset + limit);
 
   return {
     success: true,
     data: limited.reverse().map(c => ({
-      idPesan: c.ID_Pesan,
-      idKaryawan: c.ID_Karyawan,
-      nama: c.Nama,
-      pesan: c.Pesan,
-      tipe: c.Tipe || 'text',
-      fileUrl: c.File_URL || '',
-      namaFile: c.Nama_File || '',
-      replyTo: c.Reply_To || c.replyTo || null,
-      waktu: formatDateTime(new Date(c.Timestamp))
+      idPesan: c.ID_Pesan || c.Id_Pesan || c.idPesan || c.id_pesan || '',
+      idKaryawan: c.ID_Karyawan || c.Id_Karyawan || c.idKaryawan || c.id_karyawan || '',
+      nama: c.Nama || c.nama || '',
+      pesan: c.Pesan || c.pesan || '',
+      tipe: c.Tipe || c.tipe || 'text',
+      fileUrl: c.File_URL || c.File_Url || c.fileUrl || c.file_url || '',
+      namaFile: c.Nama_File || c.Nama_file || c.namaFile || c.nama_file || '',
+      replyTo: c.Reply_To || c.Reply_to || c.replyTo || c.reply_to || null,
+      isDeleted: c.Is_Deleted || false,
+      isPinned: c.Is_Pinned || false,
+      reactions: c.Reactions || '',
+      waktu: formatDateTime(new Date(c.Timestamp || c.timestamp || c.Waktu || c.waktu || new Date()))
     }))
   };
 }
@@ -3230,24 +3526,94 @@ function pingOnline(data) {
 }
 
 function sendChatMessage(data) {
-  const { idKaryawan, nama, pesan, tipe, fileBase64, namaFile, replyTo } = data;
-  if (!idKaryawan || (!pesan && !fileBase64)) {
+  const { idKaryawan, nama, pesan, tipe, fileBase64, namaFile, replyTo, files } = data;
+  if (!idKaryawan || (!pesan && !fileBase64 && (!files || files.length === 0))) {
     return { success: false, error: 'Data tidak lengkap' };
   }
 
   let fileUrl = '';
   let sizeKB = 0;
+  let finalNamaFile = namaFile || '';
 
-  // Handle file upload if present
-  if (fileBase64 && (tipe === 'image' || tipe === 'file')) {
+  let safeTipe = (tipe || 'text').toLowerCase();
+  if ((fileBase64 || (files && files.length > 0)) && safeTipe !== 'image' && safeTipe !== 'file') {
+    safeTipe = 'image'; 
+  }
+  
+  // Backward compatible & new files array
+  let fileList = [];
+  if (files && files.length > 0) fileList = files;
+  else if (fileBase64) fileList = [{ base64: fileBase64, namaFile: namaFile }];
+
+  if (fileList.length > 0) {
+    let urlArr = [];
+    let nameArr = [];
+    let totalSize = 0;
+    
+    // settings scope
+    const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
+    const folderSetting = settings.find(s => String(s.Parameter || '').trim().toUpperCase() === 'FOLDER_DRIVE_ID');
+    const folderId = (folderSetting ? folderSetting.Value : '') || '1eteic6bmF5kV64ZNcJqN6aw2sUqtDYim';
+    let folder = null, subFolder = null, bulanFolder = null;
+    
+    if (folderId) {
+        try {
+          folder = DriveApp.getFolderById(folderId);
+          const folderType = safeTipe === 'image' ? 'Chat_Images' : 'Chat_Files';
+          const subFolders = folder.getFoldersByName(folderType);
+          subFolder = subFolders.hasNext() ? subFolders.next() : folder.createFolder(folderType);
+          const bulanFolderName = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM');
+          const bulanFolders = subFolder.getFoldersByName(bulanFolderName);
+          bulanFolder = bulanFolders.hasNext() ? bulanFolders.next() : subFolder.createFolder(bulanFolderName);
+        } catch(e) { Logger.log(e); }
+    }
+
+    for (let i = 0; i < fileList.length; i++) {
+        let fBase64 = fileList[i].base64;
+        let fNama = fileList[i].namaFile || '';
+        if (bulanFolder && fBase64) {
+            try {
+              const mimeType = safeTipe === 'image' ? 'image/jpeg' : 'application/octet-stream';
+              const ext = safeTipe === 'image' ? '.jpg' : (fNama.match(/\.[^.]+$/) ? fNama.match(/\.[^.]+$/)[0] : '.bin');
+              const fileName = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyyMMdd_HHmmss') + '_' + idKaryawan + '_' + i + ext;
+              
+              const rawBase64 = fBase64.split(',')[1] || fBase64;
+              const base64Data = rawBase64.replace(/ /g, '+');
+              const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, fileName);
+              const file = bulanFolder.createFile(blob);
+              try {
+                file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+              } catch(shareErr) {
+                Logger.log('Sharing error: ' + shareErr);
+              }
+              
+              urlArr.push('https://drive.google.com/uc?id=' + file.getId());
+              nameArr.push(fNama);
+              totalSize += Math.round(base64Data.length * 0.75 / 1024);
+            } catch(e) {
+              Logger.log("Upload error: " + e.toString());
+            }
+        }
+    }
+    
+    if (urlArr.length === 1) {
+        fileUrl = urlArr[0];
+        finalNamaFile = nameArr[0];
+    } else if (urlArr.length > 1) {
+        fileUrl = JSON.stringify(urlArr);
+        finalNamaFile = JSON.stringify(nameArr);
+    }
+    sizeKB = totalSize;
+  }
+  if (false) {
     try {
-      const folderType = tipe === 'image' ? 'Chat_Images' : 'Chat_Files';
-      const mimeType = tipe === 'image' ? 'image/jpeg' : 'application/octet-stream';
-      const ext = tipe === 'image' ? '.jpg' : (namaFile.match(/\.[^.]+$/) || ['.bin'])[0];
+      const folderType = safeTipe === 'image' ? 'Chat_Images' : 'Chat_Files';
+      const mimeType = safeTipe === 'image' ? 'image/jpeg' : 'application/octet-stream';
+      const ext = safeTipe === 'image' ? '.jpg' : ((namaFile && typeof namaFile === 'string' && namaFile.match(/\.[^.]+$/)) ? namaFile.match(/\.[^.]+$/)[0] : '.bin');
 
       const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-      const folderSetting = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID');
-      const folderId = (folderSetting ? folderSetting.Value : '') || '1tJgsRcaRejhI6SAvDfrikvOTOEHz2CEw';
+      const folderSetting = settings.find(s => String(s.Parameter || '').trim().toUpperCase() === 'FOLDER_DRIVE_ID');
+      const folderId = (folderSetting ? folderSetting.Value : '') || '1eteic6bmF5kV64ZNcJqN6aw2sUqtDYim';
       
       Logger.log('[CHAT_UPLOAD] folderType=' + folderType + ', folderId=' + folderId + ', namaFile=' + namaFile + ', base64Length=' + (fileBase64 ? fileBase64.length : 0));
 
@@ -3262,10 +3628,15 @@ function sendChatMessage(data) {
         const bulanFolder = bulanFolders.hasNext() ? bulanFolders.next() : subFolder.createFolder(bulanFolderName);
 
         const fileName = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyyMMdd_HHmmss') + '_' + idKaryawan + ext;
-        const base64Data = fileBase64.split(',')[1] || fileBase64;
+        const rawBase64 = fileBase64.split(',')[1] || fileBase64;
+        const base64Data = rawBase64.replace(/ /g, '+');
         const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, fileName);
         const file = bulanFolder.createFile(blob);
-        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        try {
+          file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch(shareError) {
+          Logger.log('Set sharing failed: ' + shareError);
+        }
         fileUrl = 'https://drive.google.com/uc?id=' + file.getId();
         sizeKB = Math.round(base64Data.length * 0.75 / 1024);
         Logger.log('[CHAT_UPLOAD] SUCCESS fileUrl=' + fileUrl + ', sizeKB=' + sizeKB);
@@ -3275,6 +3646,7 @@ function sendChatMessage(data) {
     } catch (e) {
       Logger.log('[CHAT_UPLOAD] ERROR: ' + e.toString());
       logError('sendChatMessage_upload', e, data);
+      fileUrl = 'ERROR: ' + e.toString();
     }
   }
 
@@ -3287,9 +3659,12 @@ function sendChatMessage(data) {
     pesan,
     tipe || 'text',
     fileUrl,
-    namaFile || '',
+    finalNamaFile || '',
     sizeKB,
-    replyTo || ''
+    replyTo || '',
+    false,
+    false,
+    ''
   ]);
 
   // Broadcast real-time message via Pusher WebSockets!
@@ -3302,8 +3677,11 @@ function sendChatMessage(data) {
       pesan: pesan,
       tipe: tipe || 'text',
       fileUrl: fileUrl,
-      namaFile: namaFile || '',
+      namaFile: finalNamaFile || '',
       replyTo: replyTo || '',
+      isDeleted: false,
+      isPinned: false,
+      reactions: '',
       waktu: formatDateTime(new Date())
     });
   } catch (e) {
@@ -3323,16 +3701,36 @@ function sendChatMessage(data) {
     
     targetKaryawan.forEach(k => {
       try {
+        let displayTitle = 'Pesan dari ' + nama;
+        let displayBody = pesan || 'Mengirim file';
+        
+        let trimmedPesan = (pesan || '').trim();
+        if (trimmedPesan.toUpperCase().startsWith('{{REPLY:')) {
+          // Format: {{REPLY:ID|Nama|Snippet}}PesanAsli
+          const match = trimmedPesan.match(/^{{REPLY:[^|]+\|([^|]+)\|.*?}}([\s\S]*)$/i);
+          if (match) {
+            const replyTarget = match[1].trim();
+            const actualMessage = match[2].trim();
+            
+            if (replyTarget.toLowerCase() === String(k.Nama).trim().toLowerCase()) {
+              displayTitle = nama + ' Membalas Anda';
+            } else {
+              displayTitle = nama + ' Membalas ' + replyTarget;
+            }
+            displayBody = actualMessage || 'Mengirim file';
+          }
+        }
+
         sendPushNotification(
             k.ID_Karyawan, 
-            'Pesan dari ' + nama, 
-            pesan || 'Mengirim file', 
+            displayTitle, 
+            displayBody, 
             'pesan_chat_channel',
             { 
                 sender_id: idKaryawan,
                 sender_name: nama,
                 sender_foto: senderFoto,
-                pesan: pesan || 'Mengirim file',
+                pesan: displayBody,
                 target_id: k.ID_Karyawan
             }
         );
@@ -3857,6 +4255,14 @@ function updateTugasStatus(data) {
         status
       ]);
       
+      // --- DAILY SCORE LOGIC ---
+      if (status === 'Selesai' || status === 'selesai' || status === 'SELESAI') {
+         const empData = getSheetData(SHEET_NAMES.MASTER_KARYAWAN).find(k => k.ID_Karyawan === idKaryawan);
+         const empName = empData ? empData.Nama : '';
+         logDailyScore(idKaryawan, empName, 'Selesai Tugas', `ID Tugas: ${idTugas}`, 0, 10);
+      }
+      // -------------------------
+      
       try {
         triggerPusher('pinguin-chat', 'tugas-alert', {
           idTugas: idTugas,
@@ -3907,17 +4313,25 @@ function getBeritaList(data) {
 }
 
 function createBerita(data) {
-  const { judul, isi, kategori, gambarUrl, tglTayang, tglOff, dibuatOleh } = data;
+  const { judul, isi, kategori, gambarUrl, gambarBase64, tglTayang, tglOff, dibuatOleh } = data;
   if (!judul || !isi) return { success: false, error: 'Judul dan isi wajib diisi' };
 
   const idBerita = generateId('BR');
+  
+  let finalGambarUrl = gambarUrl || '';
+  if (gambarBase64) {
+    try {
+      finalGambarUrl = uploadFotoToDrive(gambarBase64, idBerita, 'Berita');
+    } catch(e) {}
+  }
+
   appendRow(SHEET_NAMES.BERITA, [
     formatDateTime(new Date()),
     idBerita,
     judul,
     isi,
     kategori || 'Umum',
-    gambarUrl || '',
+    finalGambarUrl,
     tglTayang || '',
     tglOff || '',
     dibuatOleh || '',
@@ -4712,6 +5126,57 @@ function sendPushNotificationToAllAdmin(title, message, channelId, extraData) {
 }
 
 /**
+ * Mengirim notifikasi push hanya ke Owner yang aktif.
+ */
+function sendPushNotificationToOwner(title, message, channelId, extraData) {
+  channelId = channelId || 'general';
+  extraData = extraData || {};
+  
+  // ID pengirim (agar pengirim tidak menerima notif dari dirinya sendiri)
+  const excludeId = extraData.idKaryawan ? String(extraData.idKaryawan).trim().toLowerCase() : null;
+
+  try {
+    if (extraData.idKaryawan && !extraData.sender_foto) {
+      const karyawanInfo = getSheetData(SHEET_NAMES.MASTER_KARYAWAN).find(k => k.ID_Karyawan === extraData.idKaryawan);
+      if (karyawanInfo && (karyawanInfo.Foto_Profil || karyawanInfo.Foto_URL)) {
+        extraData.sender_foto = karyawanInfo.Foto_Profil || karyawanInfo.Foto_URL;
+      }
+    }
+  } catch(e) {
+    Logger.log('[FCM Owner] Gagal melampirkan foto profil: ' + e.toString());
+  }
+
+  try {
+    const allKaryawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+    
+    // 1. Kirim ke semua Owner aktif di MASTER_KARYAWAN (kecuali pengirim)
+    allKaryawan.forEach(k => {
+      const jabatan = String(k.Jabatan || '').trim().toLowerCase();
+      const status = String(k.Status || '').trim().toLowerCase();
+      const idK = String(k.ID_Karyawan || '').trim().toLowerCase();
+      
+      // Skip pengirim agar tidak dapat notif dari dirinya sendiri
+      if (excludeId && idK === excludeId) {
+        Logger.log('[FCM Owner] Skip pengirim: ' + k.Nama + ' (' + k.ID_Karyawan + ')');
+        return;
+      }
+      
+      if (jabatan === 'owner' && status === 'aktif') {
+        try {
+          sendPushNotification(k.ID_Karyawan, title, message, channelId, extraData);
+          Logger.log('[FCM Owner] Berhasil memicu notifikasi untuk owner: ' + k.Nama + ' (' + k.ID_Karyawan + ')');
+        } catch (e) {
+          Logger.log('[FCM Owner] Gagal memicu notifikasi untuk owner ' + k.Nama + ': ' + e.toString());
+        }
+      }
+    });
+  } catch (e) {
+    Logger.log('[FCM Owner] Gagal membaca data MASTER_KARYAWAN: ' + e.toString());
+  }
+}
+
+
+/**
  * Mengirim notifikasi push manual ke satu karyawan atau melakukan broadcast.
  */
 function sendManualPushNotification(data) {
@@ -5203,7 +5668,7 @@ function uploadFotoKtp(data) {
     }
 
     const settings = getSheetData(SHEET_NAMES.SETTING_GLOBAL);
-    const folderId = settings.find(s => s.Parameter === 'FOLDER_DRIVE_ID')?.Value || '1tJgsRcaRejhI6SAvDfrikvOTOEHz2CEw';
+    const folderId = settings.find(s => String(s.Parameter || '').trim().toUpperCase() === 'FOLDER_DRIVE_ID')?.Value || '1eteic6bmF5kV64ZNcJqN6aw2sUqtDYim';
 
     if (!folderId) throw new Error('Folder Drive ID belum diatur');
 
@@ -5222,7 +5687,11 @@ function uploadFotoKtp(data) {
     const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), 'image/jpeg', fileName);
     const file = bulanFolder.createFile(blob);
 
-    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    try {
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch(e) {
+      console.error('Gagal set sharing KTP:', e);
+    }
 
     const fileId = file.getId();
     const thumbUrl = 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w400';
@@ -5302,8 +5771,9 @@ function generateProfileToken(data) {
     return { success: false, error: 'Kolom ID atau Token tidak ditemukan' };
   }
 
+  const searchId = String(idKaryawan).trim();
   for (let i = 1; i < allData.length; i++) {
-    if (allData[i][idIdx] === idKaryawan) {
+    if (String(allData[i][idIdx]).trim() === searchId) {
       // Buat token random unik 12 digit
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
       let token = '';
@@ -5317,7 +5787,7 @@ function generateProfileToken(data) {
         sheet.getRange(i + 1, completeIdx + 1).setValue(false); // Buka kunci link
       }
       
-      const shareUrl = 'https://nafindo.github.io/absen/profil.html?id=' + idKaryawan + '&token=' + token;
+      const shareUrl = 'https://nafindo.github.io/absen/profil.html?id=' + encodeURIComponent(searchId) + '&token=' + token;
       return {
         success: true,
         token: token,
@@ -5326,7 +5796,7 @@ function generateProfileToken(data) {
     }
   }
 
-  return { success: false, error: 'Karyawan tidak ditemukan' };
+  return { success: false, error: 'Karyawan tidak ditemukan (' + searchId + ')' };
 }
 
 function submitKaryawanProfil(data) {
@@ -5650,17 +6120,29 @@ function ajukanKasbon(data) {
     // Days in current month
     const daysInMonth = new Date(thn, bln, 0).getDate();
     
-    // Get Raport Bulanan to get totalHadir
+    // Get Raport Bulanan to get totalJamKerja
     const raport = getRaportBulanan({ idKaryawan, bulan: bln, tahun: thn });
-    const totalHadir = (raport.success) ? (raport.totalHadir || 0) : 0;
+    const totalJamKerja = (raport.success) ? (raport.totalJamKerja || 0) : 0;
     
-    // Calculate limit
-    const maxKasbon = Math.round((gajiPokok / daysInMonth) * totalHadir);
+    // Calculate limit (hourly rate * total hours worked)
+    let maxKasbon = Math.round((gajiPokok / daysInMonth / 9.0) * totalJamKerja);
+    
+    // Calculate total approved kasbon this month
+    const currentMonthPrefix = thn + '-' + String(bln).padStart(2, '0');
+    const allKasbon = getSheetData(SHEET_NAMES.KASBON) || [];
+    const approvedKasbon = allKasbon.filter(k => 
+      String(k.ID_Karyawan) === String(idKaryawan) &&
+      k.Status === 'Approved' &&
+      String(k.Tanggal_Pengajuan).startsWith(currentMonthPrefix)
+    );
+    const totalApproved = approvedKasbon.reduce((sum, k) => sum + (parseFloat(k.Nominal) || 0), 0);
+    
+    maxKasbon = Math.max(0, maxKasbon - totalApproved);
     
     if (parseFloat(nominal) > maxKasbon) {
       return { 
         success: false, 
-        error: 'Nominal pengajuan (Rp ' + parseFloat(nominal).toLocaleString('id-ID') + ') melebihi batas maksimal bulan ini (Rp ' + maxKasbon.toLocaleString('id-ID') + '). Rumus: (Gaji Pokok / Jumlah Hari) x Jumlah Hari Hadir.'
+        error: 'Nominal pengajuan (Rp ' + parseFloat(nominal).toLocaleString('id-ID') + ') melebihi sisa batas maksimal bulan ini (Rp ' + maxKasbon.toLocaleString('id-ID') + '). Rumus: [(Gaji Pokok / Jumlah Hari / 9) x Total Jam Kerja (' + totalJamKerja + ' jam)] - Kasbon Disetujui (Rp ' + totalApproved.toLocaleString('id-ID') + ').'
       };
     }
     
@@ -5684,13 +6166,26 @@ function ajukanKasbon(data) {
       new Date()
     ]);
 
+    // Notifikasi ke pemohon (karyawan)
+    try {
+      sendPushNotification(
+        idKaryawan,
+        'Pengajuan Kasbon Sedang Diproses',
+        'Pengajuan kasbon Anda sebesar Rp ' + parseFloat(nominal).toLocaleString('id-ID') + ' telah diterima dan sedang diproses oleh Admin.',
+        'aktivitas_umum_channel',
+        { tipe: 'kasbon', id: idKasbon }
+      );
+    } catch(e) {
+      Logger.log('FCM to employee error: ' + e);
+    }
+
     // Send FCM push notifications to all admins immediately
     try {
       sendPushNotificationToAllAdmin(
         'Pengajuan Kasbon Baru 💰',
         nama + ' mengajukan kasbon sebesar Rp ' + parseFloat(nominal).toLocaleString('id-ID') + ' dengan keperluan: ' + alasan,
         'aktivitas_umum_channel',
-        { tipe: 'kasbon', id: idKasbon }
+        { tipe: 'kasbon', id: idKasbon, idKaryawan: idKaryawan }
       );
     } catch (e) {
       Logger.log('FCM new kasbon request notify admin error: ' + e.toString());
@@ -5839,4 +6334,1266 @@ function getTugasLogs(data) {
       timestamp: l.Timestamp
     }))
   };
+}
+
+// ============================================================
+// MODUL KINERJA (Zero-Risk Integration)
+// ============================================================
+
+// ============================================
+// FILE: ReviewKinerja.gs (BARU — Tambah ke project)
+// ============================================
+// FILE INI TERPISAH dari Code.gs existing
+// Jika ada error di file ini, Code.gs existing tetap jalan
+// ============================================
+
+/**
+ * Web App URL terpisah untuk Review Kinerja
+ * Deploy sebagai web app terpisah atau gunakan doGet terpisah
+ */
+function doGetReview(e) {
+  var action = e.parameter.action;
+
+  if (action == 'getMyScorecard') return getMyScorecard(e);
+  if (action == 'getTeamScores') return getTeamScores(e);
+  if (action == 'getOwnerReport') return getOwnerReport(e);
+  if (action == 'getScoreTrend') return getScoreTrend(e);
+
+  return jsonResponse({success: false, status: 'error', error: 'Unknown action'});
+}
+
+/**
+ * POST handler untuk Review Kinerja (terpisah dari doPost existing)
+ */
+function doPostReview(e) {
+  var action = e.parameter.action;
+
+  if (action == 'calculateMonthlyScores') return calculateMonthlyScores(e);
+  if (action == 'recalculateScore') return recalculateScore(e);
+  if (action == 'exportScorecard') return exportScorecard(e);
+  if (action == 'triggerMonthlyCalculation') return triggerMonthlyCalculation(e);
+
+  return jsonResponse({success: false, status: 'error', error: 'Unknown action: ' + action});
+}
+
+/**
+ * JSON response helper (terpisah, tidak ganggu existing)
+ */
+function jsonResponse(data) {
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Get spreadsheet (sama spreadsheet, sheet berbeda)
+ */
+function getSpreadsheetReview() {
+  // Ganti dengan ID spreadsheet Anda
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
+// ============================================
+// KALKULASI UTAMA (CRON JOB)
+// ============================================
+
+/**
+ * Kalkulasi score bulanan untuk SEMUA karyawan
+ * Jalan otomatis tanggal 1 jam 01:00 via cron
+ * Baca dari Sheet existing, tulis ke Sheet Monthly_Scores (BARU)
+ */
+function calculateMonthlyScores(data) {
+  try {
+    var yearMonth = data && data.year_month 
+      ? data.year_month 
+      : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM');
+
+    var ss = getSpreadsheetReview();
+
+    // READ dari Sheet existing (TIDAK DIUBAH!)
+    var absensiSheet = ss.getSheetByName('ABSENSI');
+    var taskAssignmentsSheet = ss.getSheetByName('LOG_TUGAS');
+    var tasksSheet = ss.getSheetByName('TUGAS');
+    var karyawanSheet = ss.getSheetByName('MASTER_KARYAWAN');
+
+    // WRITE ke Sheet baru
+    var scoresSheet = ss.getSheetByName('Monthly_Scores');
+    if (!scoresSheet) {
+      // Buat sheet baru jika belum ada
+      scoresSheet = ss.insertSheet('Monthly_Scores');
+      scoresSheet.appendRow([
+        'score_id', 'employee_id', 'store_id', 'year_month',
+        'attendance_score', 'task_score', 'total_score', 'grade', 'recommendation',
+        'generated_at', 'status'
+      ]);
+    }
+
+    var karyawanData = karyawanSheet.getDataRange().getValues();
+    var generated = 0;
+    var errors = [];
+
+    // Loop semua karyawan (skip header row 0)
+    for (var i = 1; i < karyawanData.length; i++) {
+      try {
+        var employeeId = karyawanData[i][0];  // kolom A: id
+        var employeeName = karyawanData[i][1]; // kolom B: nama
+        var storeId = karyawanData[i][8];     // kolom I: Toko_Default
+        var role = karyawanData[i][3];        // kolom D: Jabatan
+        var status = karyawanData[i][5];      // kolom F: Status
+
+        var roleUpper = role ? role.toString().toUpperCase().trim() : '';
+        var statusUpper = status ? status.toString().toUpperCase().trim() : '';
+
+        // Hanya hitung untuk Admin dan Karyawan, serta yang masih aktif
+        if (statusUpper === 'NONAKTIF' || statusUpper === 'RESIGNED') continue;
+        if (roleUpper !== 'KARYAWAN' && roleUpper !== 'ADMIN') continue;
+
+        // === KALKULASI ATTENDANCE (baca dari Absensi) ===
+        var izinCutiSheet = ss.getSheetByName('IZIN_CUTI');
+        var attScore = calculateAttendanceFromSheet(absensiSheet, employeeId, yearMonth, izinCutiSheet);
+
+        // === KALKULASI TASK (baca dari Task_Assignments + Tasks) ===
+        var taskScore = calculateTaskFromSheet(taskAssignmentsSheet, tasksSheet, employeeId, yearMonth);
+
+        // === NORMALISASI 50:50 ===
+        var attPct = (attScore.raw / 500) * 100;
+        var taskPct = (taskScore.raw / 1000) * 100;
+        var totalPct = (attPct * 0.50) + (taskPct * 0.50);
+        var totalScore = totalPct * 5; // skala 0-500
+
+        // === GRADE ===
+        var grade = getGrade(totalScore);
+
+        // === RECOMMENDATION ===
+        var recommendation = getRecommendation(employeeId, grade, attPct, yearMonth, scoresSheet);
+
+        // === SIMPAN KE Sheet BARU ===
+        var scoreId = 'SCR-' + yearMonth.replace('-', '') + '-' + employeeId;
+
+        // Cek apakah sudah ada score untuk bulan ini
+        var existingRow = findExistingScore(scoresSheet, employeeId, yearMonth);
+
+        if (existingRow > 0) {
+          // Update existing
+          scoresSheet.getRange(existingRow, 5).setValue(attScore.raw);
+          scoresSheet.getRange(existingRow, 6).setValue(taskScore.raw);
+          scoresSheet.getRange(existingRow, 7).setValue(totalScore);
+          scoresSheet.getRange(existingRow, 8).setValue(grade);
+          scoresSheet.getRange(existingRow, 9).setValue(recommendation);
+          scoresSheet.getRange(existingRow, 10).setValue(new Date());
+        } else {
+          // Insert new
+          scoresSheet.appendRow([
+            scoreId,
+            employeeId,
+            storeId,
+            yearMonth,
+            attScore.raw,
+            taskScore.raw,
+            totalScore,
+            grade,
+            recommendation,
+            new Date(),
+            'ACTIVE'
+          ]);
+        }
+
+        generated++;
+
+      } catch (empError) {
+        errors.push({employee_id: karyawanData[i][0], error: empError.toString()});
+      }
+    }
+
+    // Log ke Score_Audit
+    logScoreAudit('SYSTEM', 'GENERATE', '', yearMonth, '', '', 'Generated ' + generated + ' scores');
+
+    return jsonResponse({
+      success: true, status: 'success',
+      year_month: yearMonth,
+      generated_count: generated,
+      errors: errors
+    });
+
+  } catch (error) {
+    return jsonResponse({success: false, status: 'error', error: error.toString()});
+  }
+}
+
+function calculateAttendanceFromSheet(absensiSheet, employeeId, yearMonth, izinCutiSheet) {
+  if (!izinCutiSheet && absensiSheet) {
+    try { izinCutiSheet = absensiSheet.getParent().getSheetByName('IZIN_CUTI'); } catch(e){}
+  }
+  
+  var absensiData = absensiSheet.getDataRange().getValues();
+
+  var totalPoints = 0;
+  var hadirTepat = 0;
+  var terlambatRingan = 0;
+  var terlambatBerat = 0;
+  var izin = 0;
+  var alpa = 0;
+  var lateCount = 0;
+
+  var startDate, endDate;
+  if (yearMonth === 'ROLLING_30') {
+    endDate = new Date();
+    startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+  } else {
+    var parts = yearMonth.split('-');
+    var year = parseInt(parts[0], 10);
+    var month = parseInt(parts[1], 10) - 1;
+    startDate = new Date(year, month, 1);
+    endDate = new Date(year, month + 1, 0);
+  }
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+  
+  var presentDates = {};
+
+  for (var i = 1; i < absensiData.length; i++) {
+    var row = absensiData[i];
+    var rowEmployeeId = row[1];
+    var rowDate = row[0];
+    var rowTipe = row[7];
+    var rowStatus = row[11];
+    var rowMenitTelat = row[12];
+
+    if (rowTipe !== 'Masuk') continue;
+
+    var rowDateObj = (rowDate instanceof Date) ? rowDate : new Date(rowDate);
+
+    if (rowEmployeeId == employeeId && rowDateObj >= startDate && rowDateObj <= endDate) {
+      var status = rowStatus ? rowStatus.toString().toUpperCase().trim() : '';
+      var menitTelat = parseInt(rowMenitTelat) || 0;
+      
+      var dateKey = Utilities.formatDate(rowDateObj, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      presentDates[dateKey] = true;
+
+      if (status == 'ONTIME' || status == 'HADIR_TEPAT' || status == 'TEPAT_WAKTU') {
+        totalPoints += 15;
+        hadirTepat++;
+      }
+    }
+  }
+
+  // Full Month Bonus
+  if (alpa == 0 && izin <= 2 && lateCount <= 2 && hadirTepat > 0) {
+    totalPoints += 50;
+  }
+
+  // Perfect Month (100% hadir tepat waktu, 0 izin, 0 terlambat, 0 alpa)
+  var totalHari = hadirTepat + terlambatRingan + terlambatBerat + izin + alpa;
+  if (totalHari > 0 && hadirTepat == totalHari) {
+    totalPoints += 50; // tambahan di atas full month
+  }
+
+  // Cap 0-500
+  totalPoints = Math.max(0, Math.min(500, totalPoints));
+
+  return {
+    raw: totalPoints,
+    hadir_tepat: hadirTepat,
+    terlambat_ringan: terlambatRingan,
+    terlambat_berat: terlambatBerat,
+    izin: izin,
+    alpa: alpa,
+    late_count: lateCount
+  };
+}
+
+/**
+ * Kalkulasi Task dari Sheet "Task_Assignments" + "Tasks" (READ-ONLY)
+ */
+function calculateTaskFromSheet(taskAssignmentsSheet, tasksSheet, employeeId, yearMonth) {
+  var tasksData = tasksSheet.getDataRange().getValues();
+
+  var totalAssigned = 0;
+  var totalSelesai = 0;
+  var totalOnTime = 0;
+  var totalSubmitted = 0;
+  var totalApproved = 0;
+
+  var startDate, endDate;
+  if (yearMonth === 'ROLLING_30') {
+    endDate = new Date();
+    startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+  } else {
+    var parts = yearMonth.split('-');
+    var year = parseInt(parts[0], 10);
+    var month = parseInt(parts[1], 10) - 1;
+    startDate = new Date(year, month, 1);
+    endDate = new Date(year, month + 1, 0);
+  }
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(23, 59, 59, 999);
+
+  for (var i = 1; i < tasksData.length; i++) {
+    var row = tasksData[i];
+    var timestamp = row[0];
+    var ditugaskanKe = row[4] ? row[4].toString() : '';
+    var status = row[8] ? row[8].toString().toUpperCase().trim() : '';
+    var deadline = row[10];
+    var selesaiAt = row[11];
+    var dikerjakanOleh = row[12];
+
+    var rowDateObj = (timestamp instanceof Date) ? timestamp : new Date(timestamp);
+
+    if ((ditugaskanKe === employeeId || dikerjakanOleh === employeeId || ditugaskanKe === 'ALL') && rowDateObj >= startDate && rowDateObj <= endDate) {
+      totalAssigned++;
+
+      if (status === 'SELESAI' || status === 'APPROVED' || status === 'AUTO_APPROVED' || status === 'SUBMITTED') {
+        if (dikerjakanOleh === employeeId || ditugaskanKe === employeeId || ditugaskanKe === 'ALL') {
+          totalSelesai++;
+          totalSubmitted++;
+
+          var submittedDate = (selesaiAt instanceof Date) ? selesaiAt : new Date(selesaiAt);
+          var deadlineDate = (deadline instanceof Date) ? deadline : new Date(deadline);
+
+          if (!isNaN(submittedDate.getTime()) && !isNaN(deadlineDate.getTime())) {
+            if (submittedDate <= deadlineDate) {
+              totalOnTime++;
+            }
+          } else {
+            totalOnTime++;
+          }
+          
+          if (status === 'APPROVED' || status === 'AUTO_APPROVED') {
+            totalApproved++;
+          }
+        }
+      }
+    }
+  }
+
+  var completionRate = totalAssigned > 0 ? (totalSelesai / totalAssigned) : 0;
+  var onTimeRate = totalSelesai > 0 ? (totalOnTime / totalSelesai) : 0;
+  var qualityRate = totalSubmitted > 0 ? (totalApproved / totalSubmitted) : 0;
+
+  var baseScore = Math.min(completionRate, 1.0) * 600;
+  var onTimeBonus = onTimeRate * 200;
+  var qualityBonus = qualityRate * 200;
+
+  var taskRaw = baseScore + onTimeBonus + qualityBonus;
+  taskRaw = Math.max(0, Math.min(1000, taskRaw));
+
+  return {
+    raw: taskRaw,
+    completion_rate: completionRate * 100,
+    ontime_rate: onTimeRate * 100,
+    quality_rate: qualityRate * 100,
+    total_assigned: totalAssigned,
+    total_selesai: totalSelesai,
+    total_ontime: totalOnTime,
+    total_approved: totalApproved
+  };
+}
+
+/**
+ * Get Grade dari Total Score
+ */
+function getGrade(totalScore) {
+  if (totalScore >= 450) return 'A+';
+  if (totalScore >= 400) return 'A';
+  if (totalScore >= 350) return 'B+';
+  if (totalScore >= 300) return 'B';
+  if (totalScore >= 250) return 'C';
+  if (totalScore >= 200) return 'D';
+  return 'E';
+}
+
+/**
+ * Get Recommendation
+ */
+function getRecommendation(employeeId, grade, attPct, yearMonth, scoresSheet) {
+  // Cek history 2 bulan terakhir
+  var scoresData = scoresSheet.getDataRange().getValues();
+  var prevGrades = [];
+
+  for (var i = 1; i < scoresData.length; i++) {
+    if (scoresData[i][1] == employeeId && scoresData[i][3] != yearMonth && scoresData[i][3] != 'ROLLING_30') {
+      prevGrades.push({
+        year_month: scoresData[i][3],
+        grade: scoresData[i][7]
+      });
+    }
+  }
+
+  // Sort by year_month descending
+  prevGrades.sort(function(a, b) { return String(b.year_month).localeCompare(String(a.year_month)); });
+
+  var lastGrade = prevGrades.length > 0 ? prevGrades[0].grade : '';
+  var secondLastGrade = prevGrades.length > 1 ? prevGrades[1].grade : '';
+
+  // Logic recommendation
+  if (grade == 'A+' && lastGrade == 'A+' && attPct >= 80) {
+    return 'BONUS_ELIGIBLE';
+  }
+  if ((grade == 'A+' || grade == 'A' || grade == 'B+') && 
+      (lastGrade == 'A+' || lastGrade == 'A' || lastGrade == 'B+') &&
+      (secondLastGrade == 'A+' || secondLastGrade == 'A' || secondLastGrade == 'B+')) {
+    return 'RETAIN';
+  }
+  if (grade == 'B' || grade == 'C' || (lastGrade != '' && isLowerGrade(grade, lastGrade))) {
+    return 'WATCH';
+  }
+  if (grade == 'D' || attPct < 60) {
+    return 'REVIEW';
+  }
+  if (grade == 'E' || (lastGrade == 'E' && grade == 'E')) {
+    return 'NOT_RECOMMENDED';
+  }
+
+  return 'RETAIN';
+}
+
+function isLowerGrade(current, previous) {
+  var grades = ['E', 'D', 'C', 'B', 'B+', 'A', 'A+'];
+  return grades.indexOf(current) < grades.indexOf(previous);
+}
+
+/**
+ * Cari existing score di Monthly_Scores
+ */
+function findExistingScore(scoresSheet, employeeId, yearMonth) {
+  var scoresData = scoresSheet.getDataRange().getValues();
+  for (var i = 1; i < scoresData.length; i++) {
+    if (scoresData[i][1] == employeeId && scoresData[i][3] == yearMonth) {
+      return i + 1; // return row number (1-based)
+    }
+  }
+  return 0;
+}
+
+// ============================================
+// API ENDPOINTS untuk UI
+// ============================================
+
+/**
+ * Get My Scorecard (untuk Karyawan)
+ * GET/POST: action=getMyScorecard&employee_id=XXX&year_month=YYYY-MM
+ */
+function getMyScorecard(data) {
+  try {
+    var employeeId = data.employee_id;
+    var yearMonth = data.year_month || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM');
+
+    var ss = getSpreadsheetReview();
+    var scoresSheet = ss.getSheetByName('Monthly_Scores');
+    var karyawanSheet = ss.getSheetByName('MASTER_KARYAWAN');
+
+    
+    if (!scoresSheet) {
+      scoresSheet = ss.insertSheet('Monthly_Scores');
+      scoresSheet.appendRow(['score_id', 'employee_id', 'store_id', 'year_month', 'attendance_score', 'task_score', 'total_score', 'grade', 'recommendation', 'generated_at', 'status']);
+    }
+
+
+    var scoresData = scoresSheet.getDataRange().getValues();
+    var karyawanData = karyawanSheet.getDataRange().getValues();
+
+    // Cari score
+    var scoreRow = null;
+    for (var i = 1; i < scoresData.length; i++) {
+      if (scoresData[i][1] == employeeId && scoresData[i][3] == yearMonth) {
+        scoreRow = scoresData[i];
+        break;
+      }
+    }
+
+    if (!scoreRow) {
+      return jsonResponse({success: false, status: 'error', error: 'Scorecard not found for ' + yearMonth});
+    }
+
+    // Get employee info
+    var employeeName = '';
+    var storeId = '';
+    for (var j = 1; j < karyawanData.length; j++) {
+      if (karyawanData[j][0] == employeeId) {
+        employeeName = karyawanData[j][1];
+        storeId = karyawanData[j][5]; // sesuaikan kolom
+        break;
+      }
+    }
+
+    // Get trend (6 bulan terakhir)
+    var trend = [];
+    for (var k = 1; k < scoresData.length; k++) {
+      if (scoresData[k][1] == employeeId && scoresData[k][3] != 'ROLLING_30') {
+        trend.push({
+          year_month: scoresData[k][3],
+          total_score: scoresData[k][6],
+          grade: scoresData[k][7]
+        });
+      }
+    }
+    trend.sort(function(a, b) { return String(a.year_month).localeCompare(String(b.year_month)); });
+
+    return jsonResponse({
+      success: true, status: 'success',
+      employee: {
+        id: employeeId,
+        name: employeeName,
+        store_id: storeId
+      },
+      scorecard: {
+        year_month: scoreRow[3],
+        attendance_score: scoreRow[4],
+        task_score: scoreRow[5],
+        total_score: scoreRow[6],
+        grade: scoreRow[7],
+        recommendation: scoreRow[8],
+        generated_at: scoreRow[9]
+      },
+      trend: trend.slice(-6) // 6 bulan terakhir
+    });
+
+  } catch (error) {
+    return jsonResponse({success: false, status: 'error', error: error.toString()});
+  }
+}
+
+/**
+ * Get Team Scores (untuk Manager)
+ * GET/POST: action=getTeamScores&store_id=XXX&year_month=YYYY-MM
+ */
+function getTeamScores(data) {
+  try {
+    var storeId = data.store_id;
+    var yearMonth = data.year_month || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM');
+
+    var ss = getSpreadsheetReview();
+    var scoresSheet = ss.getSheetByName('Monthly_Scores');
+    var karyawanSheet = ss.getSheetByName('MASTER_KARYAWAN');
+
+    
+    if (!scoresSheet) {
+      scoresSheet = ss.insertSheet('Monthly_Scores');
+      scoresSheet.appendRow(['score_id', 'employee_id', 'store_id', 'year_month', 'attendance_score', 'task_score', 'total_score', 'grade', 'recommendation', 'generated_at', 'status']);
+    }
+
+
+    var scoresData = scoresSheet.getDataRange().getValues();
+    var karyawanData = karyawanSheet.getDataRange().getValues();
+
+    var tokoSheet = ss.getSheetByName('MASTER_TOKO');
+    var tokoData = tokoSheet ? tokoSheet.getDataRange().getValues() : [];
+    var tokoMap = {};
+    for (var t = 1; t < tokoData.length; t++) {
+      tokoMap[tokoData[t][0]] = tokoData[t][1];
+    }
+
+    var teamScores = [];
+
+    for (var i = 1; i < scoresData.length; i++) {
+      if (scoresData[i][2] == storeId && scoresData[i][3] == yearMonth) {
+        // Get employee name
+        var empName = '';
+        var role = '';
+        var empStatus = '';
+        for (var j = 1; j < karyawanData.length; j++) {
+          if (karyawanData[j][0] == scoresData[i][1]) {
+            empName = karyawanData[j][1];
+            role = karyawanData[j][3];
+            empStatus = karyawanData[j][5];
+            break;
+          }
+        }
+
+        var roleUpper = role ? role.toString().toUpperCase().trim() : '';
+        var statusUpper = empStatus ? empStatus.toString().toUpperCase().trim() : '';
+
+        if (statusUpper === 'NONAKTIF' || statusUpper === 'RESIGNED') continue;
+        if (roleUpper !== 'KARYAWAN' && roleUpper !== 'ADMIN') continue;
+
+        teamScores.push({
+          employee_id: scoresData[i][1],
+          employee_name: empName,
+          attendance_score: scoresData[i][4],
+          task_score: scoresData[i][5],
+          total_score: scoresData[i][6],
+          grade: scoresData[i][7],
+          recommendation: scoresData[i][8]
+        });
+      }
+    }
+
+    // Sort by total_score descending
+    teamScores.sort(function(a, b) { return b.total_score - a.total_score; });
+
+    // Add rank
+    for (var k = 0; k < teamScores.length; k++) {
+      teamScores[k].rank = k + 1;
+    }
+
+    return jsonResponse({
+      success: true, status: 'success',
+      store_id: storeId,
+      store_name: tokoMap[storeId] || storeId,
+      year_month: yearMonth,
+      total_employees: teamScores.length,
+      scores: teamScores
+    });
+
+  } catch (error) {
+    return jsonResponse({success: false, status: 'error', error: error.toString()});
+  }
+}
+
+/**
+ * Get Owner Report (untuk Owner — semua toko)
+ * GET/POST: action=getOwnerReport&year_month=YYYY-MM
+ */
+function getOwnerReport(data) {
+  try {
+    var yearMonth = data.year_month || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM');
+
+    var ss = getSpreadsheetReview();
+    var scoresSheet = ss.getSheetByName('Monthly_Scores');
+    var karyawanSheet = ss.getSheetByName('MASTER_KARYAWAN');
+
+    
+    if (!scoresSheet) {
+      scoresSheet = ss.insertSheet('Monthly_Scores');
+      scoresSheet.appendRow(['score_id', 'employee_id', 'store_id', 'year_month', 'attendance_score', 'task_score', 'total_score', 'grade', 'recommendation', 'generated_at', 'status']);
+    }
+
+
+    var scoresData = scoresSheet.getDataRange().getValues();
+    var karyawanData = karyawanSheet.getDataRange().getValues();
+
+    var tokoSheet = ss.getSheetByName('MASTER_TOKO');
+    var tokoData = tokoSheet ? tokoSheet.getDataRange().getValues() : [];
+    var tokoMap = {};
+    for (var t = 1; t < tokoData.length; t++) {
+      tokoMap[tokoData[t][0]] = tokoData[t][1];
+    }
+
+    var summary = {
+      total_karyawan: 0,
+      avg_score: 0,
+      a_plus: 0, a: 0, b_plus: 0, b: 0, c: 0, d: 0, e: 0,
+      bonus_eligible: 0,
+      retain: 0,
+      watch: 0,
+      review: 0,
+      not_recommended: 0
+    };
+
+    var allScores = [];
+    var totalScoreSum = 0;
+
+    for (var i = 1; i < scoresData.length; i++) {
+      if (scoresData[i][3] == yearMonth && scoresData[i][10] == 'ACTIVE') {
+        summary.total_karyawan++;
+        totalScoreSum += scoresData[i][6];
+
+        var grade = scoresData[i][7];
+        var rec = scoresData[i][8];
+
+        if (grade == 'A+') summary.a_plus++;
+        else if (grade == 'A') summary.a++;
+        else if (grade == 'B+') summary.b_plus++;
+        else if (grade == 'B') summary.b++;
+        else if (grade == 'C') summary.c++;
+        else if (grade == 'D') summary.d++;
+        else if (grade == 'E') summary.e++;
+
+        if (rec == 'BONUS_ELIGIBLE') summary.bonus_eligible++;
+        else if (rec == 'RETAIN') summary.retain++;
+        else if (rec == 'WATCH') summary.watch++;
+        else if (rec == 'REVIEW') summary.review++;
+        else if (rec == 'NOT_RECOMMENDED') summary.not_recommended++;
+
+        // Get employee name
+        var empName = '';
+        var storeId = '';
+        var role = '';
+        var empStatus = '';
+        for (var j = 1; j < karyawanData.length; j++) {
+          if (karyawanData[j][0] == scoresData[i][1]) {
+            empName = karyawanData[j][1];
+            role = karyawanData[j][3];
+            storeId = karyawanData[j][8];
+            empStatus = karyawanData[j][5];
+            break;
+          }
+        }
+
+        var roleUpper = role ? role.toString().toUpperCase().trim() : '';
+        var statusUpper = empStatus ? empStatus.toString().toUpperCase().trim() : '';
+
+        if (statusUpper === 'NONAKTIF' || statusUpper === 'RESIGNED') {
+          // Adjust summary if we already counted them
+          summary.total_karyawan--;
+          totalScoreSum -= scoresData[i][6];
+          if (grade == 'A+') summary.a_plus--;
+          else if (grade == 'A') summary.a--;
+          else if (grade == 'B+') summary.b_plus--;
+          else if (grade == 'B') summary.b--;
+          else if (grade == 'C') summary.c--;
+          else if (grade == 'D') summary.d--;
+          else if (grade == 'E') summary.e--;
+          if (rec == 'BONUS_ELIGIBLE') summary.bonus_eligible--;
+          else if (rec == 'RETAIN') summary.retain--;
+          else if (rec == 'WATCH') summary.watch--;
+          else if (rec == 'REVIEW') summary.review--;
+          else if (rec == 'NOT_RECOMMENDED') summary.not_recommended--;
+          continue;
+        }
+
+        if (roleUpper !== 'KARYAWAN' && roleUpper !== 'ADMIN') {
+          summary.total_karyawan--;
+          totalScoreSum -= scoresData[i][6];
+          if (grade == 'A+') summary.a_plus--;
+          else if (grade == 'A') summary.a--;
+          else if (grade == 'B+') summary.b_plus--;
+          else if (grade == 'B') summary.b--;
+          else if (grade == 'C') summary.c--;
+          else if (grade == 'D') summary.d--;
+          else if (grade == 'E') summary.e--;
+          if (rec == 'BONUS_ELIGIBLE') summary.bonus_eligible--;
+          else if (rec == 'RETAIN') summary.retain--;
+          else if (rec == 'WATCH') summary.watch--;
+          else if (rec == 'REVIEW') summary.review--;
+          else if (rec == 'NOT_RECOMMENDED') summary.not_recommended--;
+          continue;
+        }
+
+        allScores.push({
+          employee_id: scoresData[i][1],
+          employee_name: empName,
+          store_id: storeId,
+          store_name: tokoMap[storeId] || storeId,
+          total_score: scoresData[i][6],
+          grade: grade,
+          recommendation: rec
+        });
+      }
+    }
+
+    summary.avg_score = summary.total_karyawan > 0 ? Math.round(totalScoreSum / summary.total_karyawan) : 0;
+
+    // Sort by score
+    allScores.sort(function(a, b) { return b.total_score - a.total_score; });
+
+    return jsonResponse({
+      success: true, status: 'success',
+      year_month: yearMonth,
+      summary: summary,
+      all_scores: allScores,
+      top_performers: allScores.slice(0, 10),
+      red_flags: allScores.filter(function(s) { return s.recommendation == 'WATCH' || s.recommendation == 'REVIEW' || s.recommendation == 'NOT_RECOMMENDED'; })
+    });
+
+  } catch (error) {
+    return jsonResponse({success: false, status: 'error', error: error.toString()});
+  }
+}
+
+// ============================================
+// AUDIT LOG
+// ============================================
+
+function logScoreAudit(actor, action, employeeId, yearMonth, oldScore, newScore, reason) {
+  try {
+    var ss = getSpreadsheetReview();
+    var auditSheet = ss.getSheetByName('Score_Audit');
+
+    if (!auditSheet) {
+      auditSheet = ss.insertSheet('Score_Audit');
+      auditSheet.appendRow(['audit_id', 'timestamp', 'action', 'employee_id', 'year_month', 'old_score', 'new_score', 'triggered_by']);
+    }
+
+    auditSheet.appendRow([
+      'AUD-' + new Date().getTime(),
+      new Date(),
+      action,
+      employeeId,
+      yearMonth,
+      oldScore,
+      newScore,
+      actor
+    ]);
+
+  } catch (e) {
+    Logger.log('Audit log error: ' + e);
+  }
+}
+
+// ============================================
+// CRON JOB SETUP
+// ============================================
+
+/**
+ * Setup cron job untuk kalkulasi bulanan
+ * Jalankan INI SEKALI untuk setup trigger
+ */
+function setupReviewCronJob() {
+  // Hapus trigger lama jika ada
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() == 'calculateMonthlyScores') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+
+  // Buat trigger baru: tanggal 1, jam 01:00
+  ScriptApp.newTrigger('calculateMonthlyScores')
+    .timeBased()
+    .onMonthDay(1)
+    .atHour(1)
+    .nearMinute(0)
+    .create();
+
+  Logger.log('Review Kinerja cron job setup complete!');
+  Logger.log('Trigger: Setiap tanggal 1 jam 01:00');
+}
+
+/**
+ * Trigger manual untuk testing
+ * Bisa dijalankan dari Apps Script editor
+ */
+function triggerMonthlyCalculation() {
+  var result = calculateMonthlyScores({parameter: {}});
+  Logger.log(result.getContent());
+}
+
+function logScoreAudit(triggeredBy, action, employeeId, yearMonth, oldScore, newScore, notes) {
+  var ss = getSpreadsheetReview();
+  var auditSheet = ss.getSheetByName('Score_Audit');
+  if (!auditSheet) {
+    auditSheet = ss.insertSheet('Score_Audit');
+    auditSheet.appendRow(['audit_id', 'timestamp', 'action', 'employee_id', 'year_month', 'old_score', 'new_score', 'triggered_by', 'notes']);
+  }
+  var auditId = 'AUD-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMddHHmmss');
+  auditSheet.appendRow([auditId, new Date(), action, employeeId, yearMonth, oldScore, newScore, triggeredBy, notes]);
+}
+
+function setupCronKinerja() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() == 'calculateMonthlyScores') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  ScriptApp.newTrigger('calculateMonthlyScores')
+    .timeBased()
+    .onMonthDay(1)
+    .atHour(1)
+    .create();
+}
+
+// ============================================
+// REAL getKinerja FOR ANDROID COMPATIBILITY
+// ============================================
+function getKinerja(data) {
+  try {
+    var idKaryawan = data.idKaryawan;
+    var bulan = data.bulan || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM');
+
+    var ss = getSpreadsheetReview();
+    var scoresSheet = ss.getSheetByName('Monthly_Scores');
+    var karyawanSheet = ss.getSheetByName('MASTER_KARYAWAN');
+    
+    
+    if (!scoresSheet) {
+      scoresSheet = ss.insertSheet('Monthly_Scores');
+      scoresSheet.appendRow(['score_id', 'employee_id', 'store_id', 'year_month', 'attendance_score', 'task_score', 'total_score', 'grade', 'recommendation', 'generated_at', 'status']);
+    }
+
+
+    var scoresData = scoresSheet.getDataRange().getValues();
+    var karyawanData = karyawanSheet.getDataRange().getValues();
+
+    var tokoSheet = ss.getSheetByName('MASTER_TOKO');
+    var tokoData = tokoSheet ? tokoSheet.getDataRange().getValues() : [];
+    var tokoMap = {};
+    for (var t = 1; t < tokoData.length; t++) {
+      tokoMap[tokoData[t][0]] = tokoData[t][1];
+    }
+
+    var monthlyScores = [];
+    var scorecard = null;
+
+    for (var i = 1; i < scoresData.length; i++) {
+      if (scoresData[i][3] == bulan && scoresData[i][10] == 'ACTIVE') {
+        var empId = scoresData[i][1];
+        
+        var empName = '';
+        var storeName = '';
+        var role = '';
+        var empStatus = '';
+        var storeId = scoresData[i][2];
+        
+        for (var j = 1; j < karyawanData.length; j++) {
+          if (karyawanData[j][0] == empId) {
+            empName = karyawanData[j][1];
+            role = karyawanData[j][3];
+            storeName = tokoMap[storeId] || storeId;
+            empStatus = karyawanData[j][5];
+            break;
+          }
+        }
+
+        var roleUpper = role ? role.toString().toUpperCase().trim() : '';
+        var statusUpper = empStatus ? empStatus.toString().toUpperCase().trim() : '';
+
+        if (statusUpper === 'NONAKTIF' || statusUpper === 'RESIGNED') continue;
+        if (roleUpper !== 'KARYAWAN' && roleUpper !== 'ADMIN') continue;
+
+        var item = {
+          idKaryawan: empId,
+          nama: empName,
+          fotoProfil: null,
+          idToko: storeId,
+          namaToko: storeName,
+          bulan: bulan,
+          skorKehadiran: scoresData[i][4],
+          skorTugas: scoresData[i][5],
+          skorTotal: scoresData[i][6],
+          grade: scoresData[i][7],
+          rekomendasi: scoresData[i][8]
+        };
+
+        monthlyScores.push(item);
+
+        if (idKaryawan && idKaryawan == empId) {
+          var absensiSheet = ss.getSheetByName('ABSENSI');
+          var taskAssignmentsSheet = ss.getSheetByName('LOG_TUGAS');
+          var tasksSheet = ss.getSheetByName('TUGAS');
+          
+          var attScore = calculateAttendanceFromSheet(absensiSheet, empId, bulan);
+          var taskScore = calculateTaskFromSheet(taskAssignmentsSheet, tasksSheet, empId, bulan);
+          
+          scorecard = {
+            idKaryawan: item.idKaryawan,
+            nama: item.nama,
+            bulan: item.bulan,
+            skorKehadiran: item.skorKehadiran,
+            skorTugas: item.skorTugas,
+            skorTotal: item.skorTotal,
+            grade: item.grade,
+            rekomendasi: item.rekomendasi,
+            detailKehadiran: { 
+              hadirTepat: attScore.hadir_tepat, 
+              terlambatRingan: attScore.terlambat_ringan, 
+              terlambatBerat: attScore.terlambat_berat, 
+              izin: attScore.izin, 
+              alpa: attScore.alpa, 
+              bonusFullMonth: (attScore.alpa == 0 && attScore.izin <= 2 && attScore.late_count <= 2 && attScore.hadir_tepat > 0), 
+              bonusPerfect: (attScore.hadir_tepat > 0 && attScore.hadir_tepat == (attScore.hadir_tepat + attScore.terlambat_ringan + attScore.terlambat_berat + attScore.izin + attScore.alpa)) 
+            },
+            detailTugas: { 
+              totalDitugaskan: taskScore.total_assigned, 
+              totalSelesai: taskScore.total_selesai, 
+              totalTepatWaktu: taskScore.total_ontime, 
+              totalApproved: taskScore.total_approved, 
+              completionRate: taskScore.completion_rate, 
+              onTimeRate: taskScore.ontime_rate, 
+              qualityRate: taskScore.quality_rate 
+            }
+          };
+        }
+      }
+    }
+
+    return {
+      success: true,
+      monthlyScores: monthlyScores,
+      scorecard: scorecard,
+      error: null
+    };
+
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+function updateRow(sheetName, idColName, idValue, updates, options) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    if (!sheet) return false;
+    
+    const dataRange = sheet.getDataRange();
+    const values = dataRange.getValues();
+    const headers = values[0];
+    
+    const idColIdx = headers.indexOf(idColName);
+    if (idColIdx === -1) return false;
+    
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][idColIdx]) === String(idValue)) {
+        if (options && options.checkOwnership) {
+          const ownerIdx = headers.indexOf(options.ownerCol);
+          if (ownerIdx > -1 && String(values[i][ownerIdx]) !== String(options.ownerId)) {
+            return false; // Not the owner
+          }
+        }
+        
+        for (const key in updates) {
+          const updateIdx = headers.indexOf(key);
+          if (updateIdx > -1) {
+            sheet.getRange(i + 1, updateIdx + 1).setValue(updates[key]);
+          }
+        }
+        return true;
+      }
+    }
+    return false;
+  } catch(e) {
+    Logger.log("Error in updateRow: " + e.toString());
+    return false;
+  }
+}
+
+function testUpdateRow() {
+  const chatSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("CHAT");
+  if (!chatSheet) {
+    Logger.log("Sheet CHAT tidak ditemukan!");
+    return;
+  }
+  const data = chatSheet.getDataRange().getValues();
+  if (data.length <= 1) {
+    Logger.log("Sheet CHAT kosong, tidak ada pesan untuk dites.");
+    return;
+  }
+  const idColIdx = data[0].indexOf("ID_Pesan");
+  if (idColIdx === -1) {
+    Logger.log("Kolom ID_Pesan tidak ditemukan!");
+    return;
+  }
+  const testId = data[1][idColIdx]; // Ambil ID pesan dari baris pertama data
+  Logger.log("Mencoba update pesan dengan ID: " + testId);
+  
+  const updated = updateRow("CHAT", "ID_Pesan", testId, {
+    Is_Pinned: true,
+    Reactions: '{"👍":["TEST_USER"]}'
+  });
+  
+  if (updated) {
+    Logger.log("Update BERHASIL!");
+  } else {
+    Logger.log("Update GAGAL. Pesan tidak ditemukan atau error.");
+  }
+}
+
+
+// ==================== CEKLIST HARIAN ====================
+
+// Format CEKLIST_HARIAN:
+// 0: ID
+// 1: Timestamp
+// 2: Karyawan_ID
+// 3: Karyawan_Nama
+// 4: Toko_ID
+// 5: Area_Tugas
+// 6: Kebersihan
+// 7: Tata_Letak
+// 8: Barang_Rusak
+// 9: Barang_Kosong
+// 10: Catatan
+// 11: Foto_URL
+
+function submitChecklistHarian(data) {
+  try {
+    const sheet = getSheet(SHEET_NAMES.CEKLIST_HARIAN);
+    const id = "CKL" + new Date().getTime();
+    const timestamp = formatDateTime(new Date());
+    
+    let photoUrl = "";
+    if (data.foto_base64 && data.foto_base64.length > 10) {
+      photoUrl = uploadBase64ToDrive(data.foto_base64, "Checklist_" + id, "image/jpeg");
+    }
+
+    const rowData = [
+      id,
+      timestamp,
+      data.karyawan_id || "",
+      data.karyawan_nama || "",
+      data.toko_id || "",
+      data.area_tugas || "",
+      data.kebersihan ? "Bersih" : "Kotor",
+      data.tata_letak ? "Rapi" : "Berantakan",
+      data.barang_rusak ? "Ada Rusak" : "Aman",
+      data.barang_kosong ? "Ada Kosong" : "Aman",
+      data.catatan || "",
+      photoUrl
+    ];
+
+    sheet.appendRow(rowData);
+    
+    // --- DAILY SCORE LOGIC ---
+    logDailyScore(data.karyawan_id || '', data.karyawan_nama || '', 'Selesai Ceklist Harian', `Area: ${data.area_tugas || ''}`, 0, 10);
+    // -------------------------
+
+    return {
+      success: true,
+      message: "Ceklist harian berhasil disimpan",
+      id: id,
+      timestamp: timestamp,
+      foto_url: photoUrl
+    };
+  } catch (error) {
+    logError('submitChecklistHarian', error, data);
+    return { success: false, error: error.toString() };
+  }
+}
+
+function getChecklistHarian(data) {
+  try {
+    const sheet = getSheet(SHEET_NAMES.CEKLIST_HARIAN);
+    const rows = sheet.getDataRange().getValues();
+    if (rows.length <= 1) return { success: true, data: [] };
+
+    const headers = rows[0];
+    const results = [];
+    
+    const tokoId = data.toko_id;
+    const karyawanId = data.karyawan_id;
+    const filterDate = data.date; // format DD/MM/YYYY
+    
+    for (let i = rows.length - 1; i >= 1; i--) {
+      const row = rows[i];
+      
+      // Filter by toko if provided
+      if (tokoId && row[4] != tokoId) continue;
+      // Filter by karyawan if provided
+      if (karyawanId && row[2] != karyawanId) continue;
+      
+      // Filter by date if provided
+      if (filterDate) {
+         const rowTimestamp = row[1];
+         // Basic date matching (assuming DD/MM/YYYY prefix)
+         if (typeof rowTimestamp === 'string' && !rowTimestamp.startsWith(filterDate)) {
+             continue;
+         } else if (rowTimestamp instanceof Date) {
+             const d = Utilities.formatDate(rowTimestamp, "Asia/Jakarta", "dd/MM/yyyy");
+             if (d !== filterDate) continue;
+         }
+      }
+
+      results.push({
+        id: row[0],
+        timestamp: row[1],
+        karyawan_id: row[2],
+        karyawan_nama: row[3],
+        toko_id: row[4],
+        area_tugas: row[5],
+        kebersihan: row[6],
+        tata_letak: row[7],
+        barang_rusak: row[8],
+        barang_kosong: row[9],
+        catatan: row[10],
+        foto_url: row[11]
+      });
+      
+      // Limit to 50 results for performance if no specific filter
+      if (!filterDate && !karyawanId && results.length >= 50) break;
+    }
+
+    return { success: true, data: results };
+  } catch (error) {
+    logError('getChecklistHarian', error, data);
+    return { success: false, error: error.toString() };
+  }
+}
+
+// ============================================================
+// MODUL SCORE AUDIT
+// ============================================================
+function updateScoreAudit(karyawanId, karyawanNama, tokoId, type, scoreToAdd) {
+  try {
+    const sheet = getSheet(SHEET_NAMES.SCORE_AUDIT);
+    const dateStr = Utilities.formatDate(new Date(), "Asia/Jakarta", "dd/MM/yyyy");
+    const data = sheet.getDataRange().getValues();
+    let rowIndex = -1;
+    
+    // Cari baris karyawan pada hari ini
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][2] === dateStr && data[i][0] === karyawanId) {
+        rowIndex = i + 1; // 1-based index for sheet
+        break;
+      }
+    }
+    
+    if (rowIndex === -1) {
+      // Baris baru
+      // Kolom: 0:Karyawan_ID, 1:Nama, 2:Tanggal, 3:Toko_ID, 4:Status_Absen, 5:Score_Absen, 6(G):Task_Score, 7(H):Ceklist_Score, 8(I):Total_Score
+      const newRow = [
+        karyawanId, 
+        karyawanNama, 
+        dateStr, 
+        tokoId, 
+        (type === 'Absen' ? 'Hadir' : '-'), 
+        (type === 'Absen' ? scoreToAdd : 0), // F: Score Absen
+        (type === 'Tugas' ? scoreToAdd : 0), // G: Task Score
+        (type === 'Checklist' ? scoreToAdd : 0), // H: Ceklist Score
+        scoreToAdd // I: Total Score
+      ];
+      sheet.appendRow(newRow);
+    } else {
+      // Update baris
+      let currentAbsen = parseInt(data[rowIndex - 1][5]) || 0;
+      let currentTask = parseInt(data[rowIndex - 1][6]) || 0;
+      let currentChecklist = parseInt(data[rowIndex - 1][7]) || 0;
+      let currentTotal = parseInt(data[rowIndex - 1][8]) || 0;
+      
+      if (type === 'Absen') {
+        currentAbsen = scoreToAdd;
+        sheet.getRange(rowIndex, 5).setValue('Hadir');
+        sheet.getRange(rowIndex, 6).setValue(currentAbsen);
+      } else if (type === 'Tugas') {
+        currentTask += scoreToAdd;
+        sheet.getRange(rowIndex, 7).setValue(currentTask);
+      } else if (type === 'Checklist') {
+        currentChecklist += scoreToAdd;
+        sheet.getRange(rowIndex, 8).setValue(currentChecklist);
+      }
+      
+      currentTotal = currentAbsen + currentTask + currentChecklist;
+      sheet.getRange(rowIndex, 9).setValue(currentTotal);
+    }
+  } catch (e) {
+    logError('updateScoreAudit', e, { karyawanId, type });
+  }
+}
+
+
+function logDailyScore(idKaryawan, nama, aktivitas, keterangan, attScore, taskScore) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let auditSheet = ss.getSheetByName('Score_Audit');
+    
+    // Auto-create & Set Headers if not match new format
+    if (!auditSheet) {
+      auditSheet = ss.insertSheet('Score_Audit');
+      auditSheet.appendRow(['Timestamp', 'ID_Karyawan', 'Nama', 'Tanggal', 'Aktivitas', 'Keterangan', 'Score_Attendance', 'Score_Task', 'Total_Score']);
+    } else {
+      const headers = auditSheet.getRange(1, 1, 1, 9).getValues()[0];
+      if (headers[0] !== 'Timestamp' && headers[6] !== 'Score_Attendance') {
+         auditSheet.insertRowsBefore(1, 1);
+         auditSheet.getRange(1, 1, 1, 9).setValues([['Timestamp', 'ID_Karyawan', 'Nama', 'Tanggal', 'Aktivitas', 'Keterangan', 'Score_Attendance', 'Score_Task', 'Total_Score']]);
+      }
+    }
+
+    const today = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd');
+    const totalScore = (attScore || 0) + (taskScore || 0);
+
+    auditSheet.appendRow([
+      formatDateTime(new Date()),
+      idKaryawan,
+      nama || '',
+      today,
+      aktivitas,
+      keterangan,
+      attScore || 0,
+      taskScore || 0,
+      totalScore
+    ]);
+
+  } catch (e) {
+    console.error('Gagal logDailyScore:', e);
+  }
 }
