@@ -326,10 +326,7 @@ async function submitProfil() {
     }
 
     const fotoProfil = document.getElementById('inp-foto-profil-base64').value;
-    if (!fotoProfil) {
-        alert("Anda wajib mengambil atau memilih Foto Profil terlebih dahulu.");
-        return;
-    }
+    // Validasi Foto Profil dihilangkan sesuai permintaan (menjadi opsional)
 
     const fotoBase64 = document.getElementById('inp-foto-base64').value;
     if (!fotoBase64) {
