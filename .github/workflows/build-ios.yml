@@ -19,8 +19,9 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
+      - name: Set up Python & Install Dependencies
         run: |
+          pip install Pillow
           npm install --legacy-peer-deps
 
       - name: Compile web assets
@@ -35,32 +36,26 @@ jobs:
       - name: Install CocoaPods
         run: |
           cd ios/App
-          pod install || true
+          pod install
 
-      - name: Build iOS App (Xcode)
+      - name: Archive iOS App (Xcode)
         run: |
           cd ios/App
-          xcodebuild build \
+          xcodebuild archive \
             -workspace App.xcworkspace \
             -scheme App \
             -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath build \
+            -sdk iphoneos \
+            -archivePath build/App.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            ONLY_ACTIVE_ARCH=NO
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
 
       - name: Create Payload and Zip IPA
         run: |
           mkdir -p ios/build/Payload
-          APP_PATH=$(find ios/App/build -name "*.app" | head -n 1)
-          if [ -z "$APP_PATH" ]; then
-            echo "Error: .app bundle not found!"
-            exit 1
-          fi
-          echo "Found .app at: $APP_PATH"
-          cp -r "$APP_PATH" ios/build/Payload/
+          cp -r ios/App/build/App.xcarchive/Products/Applications/App.app ios/build/Payload/
           cd ios/build
           zip -r PinguinAbsen-Unsigned.ipa Payload
 
