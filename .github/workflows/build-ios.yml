@@ -1,0 +1,51 @@
+name: Build iOS App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: |
+          npm install
+
+      - name: Compile web assets
+        run: |
+          python compile.py
+
+      - name: Add & Sync Capacitor iOS
+        run: |
+          npx cap add ios || true
+          npx cap sync ios
+
+      - name: Build iOS App (Xcode)
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -derivedDataPath build -sdk iphoneos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO ONLY_ACTIVE_ARCH=NO
+
+      - name: Create Payload and Zip IPA
+        run: |
+          mkdir -p ios/build/Payload
+          cp -r ios/App/build/Build/Products/Release-iphoneos/App.app ios/build/Payload/
+          cd ios/build
+          zip -r PinguinAbsen-Unsigned.ipa Payload
+
+      - name: Upload iOS IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinguin-absen-ios-ipa
+          path: ios/build/PinguinAbsen-Unsigned.ipa
