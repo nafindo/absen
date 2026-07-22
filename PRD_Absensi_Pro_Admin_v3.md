@@ -1,0 +1,977 @@
+
+# PRD: Absensi Pro - Aplikasi Admin (Pusat Kontrol)
+## Frontend Android Full - Modern & Kekinian
+
+---
+
+## 1. IDENTITAS PRODUK
+
+| Atribut | Detail |
+|---------|--------|
+| **Nama Aplikasi** | Absensi Pro - Admin Control |
+| **Versi** | v3.0 |
+| **Platform** | Android Native (Kotlin) |
+| **Target User** | Owner/Admin (Pengelola 4 Toko) |
+| **Mode Akses** | Tanpa Login (Single Device Admin) |
+| **Tema** | Modern, Clean, Dark/Light Mode |
+
+---
+
+## 2. VISI & TUJUAN
+
+### 2.1 Visi
+Aplikasi pusat kontrol yang memungkinkan owner mengelola absensi, shift, cuti, dan komunikasi seluruh karyawan di 4 toko secara real-time dari satu tangan.
+
+### 2.2 Tujuan Utama
+1. **Pusat Kontrol Total** - Semua aktivitas karyawan terpantau real-time
+2. **Otomatisasi Shift** - Pergantian shift pagi↔siang otomatis tiap minggu
+3. **Auto-Backup Karyawan** - Ketika ada yang cuti/tidak masuk, sistem otomatis pindahkan karyawan dari toko lain dengan jaminan minimum 1 penjaga per toko
+4. **Tanpa Login** - Akses langsung untuk kecepatan operasional
+5. **Komunikasi Terintegrasi** - Group chat seluruh karyawan dalam satu aplikasi
+
+---
+
+## 3. ARSITEKTUR DATA & KASUS BISNIS
+
+### 3.1 Struktur Toko & Shift
+
+```
+TOKO A (Pusat)
+├── Shift Pagi: 2 Karyawan (07:00 - 16:00)
+└── Shift Siang: 2 Karyawan (13:00 - 22:00)
+
+TOKO B
+├── Shift Pagi: 1 Karyawan (07:00 - 16:00)
+└── Shift Siang: 2 Karyawan (13:00 - 22:00)
+
+TOKO C
+├── Shift Pagi: 1 Karyawan (07:00 - 16:00)
+└── Shift Siang: 1 Karyawan (12:30 - 21:30)
+
+TOKO D
+├── Shift Pagi: 1 Karyawan (07:00 - 16:00)
+└── Shift Siang: 2 Karyawan (12:30 - 21:30)
+
+TOTAL KARYAWAN: 13 Orang
+```
+
+### 3.2 Aturan Bisnis Kritis
+
+#### A. Auto-Backup Karyawan (Sistem Darurat)
+```
+TRIGGER: Karyawan mengajukan cuti / tidak masuk dadakan (alpha)
+
+RULES:
+1. Cek kebutuhan toko yang kekurangan
+2. Cari karyawan dari toko lain yang sedang OFF/LIBUR
+3. Prioritas: Toko dengan karyawan berlebih → Toko terdekat
+4. Minimum 1 penjaga HARUS tersisa di toko asal
+5. Notifikasi push ke karyawan yang dipindahkan
+6. Approval admin (1-tap confirm)
+7. Update jadwal real-time
+
+CONTOH SCENARIO:
+Toko A - Siang: Budi (cuti), Andi, Rina
+→ Cari backup dari Toko B/C/D
+→ Toko B Siang: 2 karyawan, 1 bisa dipindah
+→ Sistem usulkan: "Pindahkan [Nama] dari Toko B ke Toko A?"
+→ Admin tap "Setuju" → Jadwal update otomatis
+```
+
+#### B. Rolling Shift Otomatis (Tiap Minggu)
+```
+TRIGGER: Setiap Minggu malam (Minggu 23:59)
+
+RULES:
+1. Shift Pagi ↔ Shift Siang bergantian
+2. Sistem generate jadwal baru untuk minggu depan
+3. Notifikasi ke semua karyawan
+4. Admin bisa edit manual sebelum publish
+5. Publish otomatis H-1 (Sabtu malam)
+
+CONTOH:
+Minggu 1: Budi, Andi = Pagi | Rina, Siti = Siang
+Minggu 2: Budi, Andi = Siang | Rina, Siti = Pagi
+Minggu 3: Kembali ke Minggu 1 pattern
+```
+
+#### C. Jam Kerja & Hari Kerja
+```
+- Per shift: 9 jam kerja
+- Hari kerja: FULL per bulan (tanpa libur mingguan)
+- Libur hanya: Cuti (diajukan), Sakit (dengan surat), Alpha (tidak masuk)
+- Lembur: Di luar jam shift, dihitung per jam
+```
+
+---
+
+## 4. DESAIN UI/UX - TAMPILAN ADMIN
+
+### 4.1 Color Palette (Modern)
+
+```css
+Primary:       #0D8ABC (Ocean Blue)
+Primary Dark:  #0A6B8F
+Secondary:     #FF6B35 (Sunset Orange)
+Success:       #00C853 (Neon Green)
+Warning:       #FFB300 (Amber)
+Danger:        #FF1744 (Crimson Red)
+Info:          #2979FF (Electric Blue)
+
+Background:    #F0F4F8 (Light Gray-Blue)
+Card:          #FFFFFF
+Text Primary:  #1A1A2E (Dark Navy)
+Text Secondary:#6B7280 (Gray)
+
+Dark Mode:
+Background:    #0F172A (Deep Navy)
+Card:          #1E293B (Slate)
+Text:          #F1F5F9 (Off White)
+```
+
+### 4.2 Typography
+```
+Heading:    Poppins Bold/ SemiBold
+Body:       Inter Regular/ Medium
+Numbers:    Roboto Mono (untuk statistik)
+```
+
+### 4.3 Navigation Structure
+
+```
+┌─────────────────────────────────────────┐
+│  BOTTOM NAVIGATION (5 Tab)              │
+├─────────┬─────────┬─────────┬───────────┤
+│ BERANDA │ JADWAL  │ ABSENSI │  CHAT     │
+│  (Home) │(Schedule│(Monitor)│ (Obrolan) │
+├─────────┴─────────┴─────────┴───────────┤
+│  FLOATING ACTION BUTTON (Center)        │
+│  [+] Quick Action Menu                  │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## 5. SCREEN DETAIL - SEMUA HALAMAN
+
+### 5.1 SCREEN 1: BERANDA (Dashboard Admin)
+
+#### Layout Structure:
+```
+┌─────────────────────────────────────────┐
+│ HEADER                                  │
+│ ┌─────┐  Absensi Pro Admin    [🔔][⚙️] │
+│ │ 👤  │  Selamat Datang, Boss!        │
+│ └─────┘  Senin, 26 Mei 2026            │
+├─────────────────────────────────────────┤
+│ STATISTIC CARDS (Horizontal Scroll)     │
+│ ┌────────┐ ┌────────┐ ┌────────┐       │
+│ │ TOTAL  │ │ HADIR  │ │ TIDAK  │       │
+│ │   13   │ │   11   │ │   2    │       │
+│ │Karyawan│ │  Hari  │ │  Hari  │       │
+│ └────────┘ └────────┘ └────────┘       │
+├─────────────────────────────────────────┤
+│ TOKO OVERVIEW (4 Cards)                 │
+│                                         │
+│ ┌─────────────────────────────────┐     │
+│ │ 🏪 TOKO A - PUSAT     [🟢 LIVE] │     │
+│ │    Pagi: 2/2 ✅  Siang: 1/2 ⚠️  │     │
+│ │    [Lihat Detail →]             │     │
+│ └─────────────────────────────────┘     │
+│ ┌─────────────────────────────────┐     │
+│ │ 🏪 TOKO B              [🟢 LIVE] │     │
+│ │    Pagi: 1/1 ✅  Siang: 2/2 ✅  │     │
+│ └─────────────────────────────────┘     │
+│ ┌─────────────────────────────────┐     │
+│ │ 🏪 TOKO C              [🟢 LIVE] │     │
+│ │    Pagi: 1/1 ✅  Siang: 0/1 🔴  │     │
+│ │    [⚠️ BUTUH BACKUP!]            │     │
+│ └─────────────────────────────────┘     │
+│ ┌─────────────────────────────────┐     │
+│ │ 🏪 TOKO D              [🟢 LIVE] │     │
+│ │    Pagi: 1/1 ✅  Siang: 2/2 ✅  │     │
+│ └─────────────────────────────────┘     │
+├─────────────────────────────────────────┤
+│ ALERT & NOTIFICATIONS                   │
+│ ┌─────────────────────────────────┐     │
+│ │ 🔴 PERINGATAN                   │     │
+│ │ Toko C Siang: Karyawan sakit    │     │
+│ │ Auto-backup tersedia: [Setuju]  │     │
+│ └─────────────────────────────────┘     │
+├─────────────────────────────────────────┤
+│ QUICK STATS BAR                         │
+│ Hadir:11 │ Izin:1 │ Sakit:1 │ Alpha:0   │
+└─────────────────────────────────────────┘
+```
+
+#### Interactions:
+- **Tap Toko Card** → Buka Detail Toko
+- **Tap [Setuju] Alert** → Konfirmasi auto-backup
+- **Pull to Refresh** → Update data real-time
+- **Long Press Toko Card** → Quick Actions (Edit, View Map, Call)
+
+---
+
+### 5.2 SCREEN 2: DETAIL TOKO (Modal/Bottom Sheet)
+
+```
+┌─────────────────────────────────────────┐
+│ TOKO A - PUSAT              [✕]       │
+│ 📍 Jl. Merdeka No. 123                 │
+├─────────────────────────────────────────┤
+│ SHIFT PAGI (07:00 - 16:00)             │
+│ ┌─────────┐ ┌─────────┐                │
+│ │  👤     │ │  👤     │                │
+│ │ Budi    │ │ Andi    │                │
+│ │ 🟢Hadir │ │ 🟢Hadir │                │
+│ │07:02:15 │ │07:05:33 │                │
+│ └─────────┘ └─────────┘                │
+│                                         │
+│ SHIFT SIANG (13:00 - 22:00)            │
+│ ┌─────────┐ ┌─────────┐                │
+│ │  👤     │ │  👤     │                │
+│ │ Rina    │ │ [KOSONG]│                │
+│ │ ⏳Belum │ │ 🔴ALPHA │                │
+│ │         │ │         │                │
+│ └─────────┘ └─────────┘                │
+│                                         │
+│ [+ Tambah Karyawan Sementara]          │
+│ [🔄 Rolling Shift Minggu Depan]        │
+│ [📊 Lihat Rekap Minggu Ini]            │
+└─────────────────────────────────────────┘
+```
+
+---
+
+### 5.3 SCREEN 3: JADWAL (Schedule Management)
+
+#### Layout:
+```
+┌─────────────────────────────────────────┐
+│ JADWAL SHIFT          [📅][⚙️]          │
+│ Minggu Ini: 26 Mei - 1 Juni 2026       │
+├─────────────────────────────────────────┤
+│ DAY SELECTOR (Horizontal Scroll)        │
+│ ┌────┬────┬────┬────┬────┬────┬────┐  │
+│ │Sen │Sel │Rab │Kam │Jum │Sab │Min │  │
+│ │ 26 │ 27 │ 28 │ 29 │ 30 │ 31 │ 1  │  │
+│ │🟢  │🟢  │🟢  │🟡  │⏳  │⏳  │⏳  │  │
+│ └────┴────┴────┴────┴────┴────┴────┘  │
+├─────────────────────────────────────────┤
+│ FILTER: [Semua ▼] [Toko A ▼] [Pagi ▼] │
+├─────────────────────────────────────────┤
+│ TIMELINE VIEW                           │
+│                                         │
+│ 07:00 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    │
+│       │ Budi (Toko A) 🟢               │
+│       │ Andi (Toko A) 🟢               │
+│       │ Caca (Toko B) 🟢               │
+│       │ Dedi (Toko C) 🟢               │
+│       │ Eka  (Toko D) 🟢               │
+│                                         │
+│ 12:30 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    │
+│       │ Fani (Toko C) 🟡 (Izin)        │
+│       │ Gita (Toko D) 🟢               │
+│                                         │
+│ 13:00 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    │
+│       │ Rina (Toko A) ⏳               │
+│       │ Siti (Toko A) ⏳               │
+│       │ Hani (Toko B) ⏳               │
+│       │ Iwan (Toko B) ⏳               │
+│       │ Gita (Toko D) ⏳               │
+│       │ Joko (Toko D) ⏳               │
+│                                         │
+│ [+ Tambah Jadwal Manual]               │
+│ [🔄 Generate Rolling Shift Otomatis]   │
+└─────────────────────────────────────────┘
+```
+
+#### Status Legend:
+- 🟢 Hadir (Sudah absen)
+- 🟡 Izin/Sakit (Diajukan)
+- 🔴 Alpha (Tidak masuk, tidak ada kabar)
+- ⏳ Belum waktunya / Menunggu
+- ⚪ Libur/Off
+
+---
+
+### 5.4 SCREEN 4: ABSENSI MONITOR (Real-time)
+
+```
+┌─────────────────────────────────────────┐
+│ MONITOR ABSENSI         [🔴 LIVE]       │
+│ Update: 17:26:44                        │
+├─────────────────────────────────────────┤
+│ FILTER: [Hari Ini ▼] [Semua Toko ▼]    │
+├─────────────────────────────────────────┤
+│ LIVE ACTIVITY FEED (Auto-scroll)        │
+│                                         │
+│ ┌─────────────────────────────────┐     │
+│ │ 🟢 MASUK  17:26:15               │     │
+│ │ 👤 Budi Santoso - Toko A Pagi    │     │
+│ │ 📍 Lokasi: -6.1234, 106.7890     │     │
+│ │ 📷 [FOTO SELFIE]                 │     │
+│ └─────────────────────────────────┘     │
+│                                         │
+│ ┌─────────────────────────────────┐     │
+│ │ 🔴 PULANG 17:25:08               │     │
+│ │ 👤 Rina Wulandari - Toko A Siang │     │
+│ │ 📍 Lokasi: -6.1234, 106.7890     │     │
+│ │ 📷 [FOTO SELFIE]                 │     │
+│ └─────────────────────────────────┘     │
+│                                         │
+│ ┌─────────────────────────────────┐     │
+│ │ 🟡 IZIN   17:20:00               │     │
+│ │ 👤 Fani - Toko C Siang           │     │
+│ │ 📝 Alasan: Sakit demam           │     │
+│ │ 📎 [SURAT DOKTER.pdf]            │     │
+│ │ [✅ Setuju] [❌ Tolak]           │     │
+│ └─────────────────────────────────┘     │
+│                                         │
+│ [⏸ Pause Auto-scroll]                  │
+│ [📊 Export Data Hari Ini]              │
+└─────────────────────────────────────────┘
+```
+
+---
+
+### 5.5 SCREEN 5: REKAP & LAPORAN
+
+```
+┌─────────────────────────────────────────┐
+│ REKAP ABSENSI                           │
+├─────────────────────────────────────────┤
+│ PERIODE: [Mei 2026 ▼]                   │
+│ TOKO: [Semua Toko ▼]                   │
+├─────────────────────────────────────────┤
+│ SUMMARY CARDS                           │
+│ ┌─────────┬─────────┬─────────┐        │
+│ │  286   │   12    │   5     │        │
+│ │  HADIR │  IZIN   │  ALPHA  │        │
+│ └─────────┴─────────┴─────────┘        │
+│ ┌─────────┬─────────┬─────────┐        │
+│ │  45h   │  23h    │  2jt    │        │
+│ │ LEMBUR │ TERLAMB │  GAJI   │        │
+│ └─────────┴─────────┴─────────┘        │
+├─────────────────────────────────────────┤
+│ CHART: KEHADIRAN BULANAN                │
+│ 📊 [Bar Chart - 30 Hari]               │
+├─────────────────────────────────────────┤
+│ TABEL DETAIL KARYAWAN                   │
+│ ┌──────┬─────┬─────┬─────┬─────┬────┐ │
+│ │Nama  │ H   │ I   │ S   │ A   │ T  │ │
+│ ├──────┼─────┼─────┼─────┼─────┼────┤ │
+│ │Budi  │ 30  │ 0   │ 0   │ 0   │ 0  │ │
+│ │Andi  │ 28  │ 1   │ 1   │ 0   │ 2  │ │
+│ │Rina  │ 29  │ 0   │ 0   │ 1   │ 5  │ │
+│ └──────┴─────┴─────┴─────┴─────┴────┘ │
+│                                         │
+│ [📥 Export Excel] [📄 Export PDF]       │
+│ [📧 Kirim ke Email]                     │
+└─────────────────────────────────────────┘
+```
+
+---
+
+### 5.6 SCREEN 6: CHAT / OBROLAN GROUP
+
+```
+┌─────────────────────────────────────────┐
+│ 💬 OBROLAN GROUP          [👥 13] [📎] │
+│ "Tim Absensi Pro - 4 Toko"              │
+├─────────────────────────────────────────┤
+│ CHAT BUBBLES                            │
+│                                         │
+│     ┌─────────────────────────┐         │
+│     │ 👤 Admin (Anda)         │         │
+│     │ Jadwal minggu depan     │         │
+│     │ sudah diupdate ya!      │         │
+│     │ Cek aplikasi masing2    │         │
+│     │ 17:15 ✅✅              │         │
+│     └─────────────────────────┘         │
+│                                         │
+│ ┌─────────────────────────┐             │
+│ │ 👤 Budi - Toko A        │             │
+│ │ Siap bos! Terima kasih  │             │
+│ │ 17:16                   │             │
+│ └─────────────────────────┘             │
+│                                         │
+│     ┌─────────────────────────┐         │
+│     │ 👤 Admin (Anda)         │         │
+│     │ @Fani - Toko C          │         │
+│     │ Jangan lupa bawa surat  │         │
+│     │ dokter ya besok         │         │
+│     │ 17:18 ✅                │         │
+│     └─────────────────────────┘         │
+│                                         │
+│ ┌─────────────────────────┐             │
+│ │ 👤 Fani - Toko C        │             │
+│ │ Baik bos, siap 🙏       │             │
+│ │ 17:19                   │             │
+│ └─────────────────────────┘             │
+│                                         │
+│ ┌─────────────────────────┐             │
+│ │ 📢 SYSTEM NOTIF         │             │
+│ │ ROLLING SHIFT UPDATE    │             │
+│ │ Minggu depan:           │             │
+│ │ Budi → Shift Siang      │             │
+│ │ Rina → Shift Pagi       │             │
+│ │ 17:20                   │             │
+│ └─────────────────────────┘             │
+├─────────────────────────────────────────┤
+│ [😊] [🎤]  Ketik pesan...    [📎] [📷] │
+└─────────────────────────────────────────┘
+```
+
+#### Chat Features:
+- **Group Chat**: Semua 13 karyawan + Admin
+- **Mention System**: @Nama untuk notifikasi personal
+- **System Messages**: Auto-generated (shift update, backup alert)
+- **Media Support**: Foto, Dokumen, Voice Note
+- **Read Receipt**: ✅ / ✅✅
+- **Pin Message**: Pesan penting di-pin di atas
+
+---
+
+### 5.7 SCREEN 7: MANAJEMEN KARYAWAN
+
+```
+┌─────────────────────────────────────────┐
+│ DAFTAR KARYAWAN         [🔍] [+]       │
+│ Total: 13 Karyawan                      │
+├─────────────────────────────────────────┤
+│ FILTER: [Semua ▼] [Toko A ▼] [Aktif ▼] │
+├─────────────────────────────────────────┤
+│ KARYAWAN CARDS (List View)              │
+│                                         │
+│ ┌─────────────────────────────────┐     │
+│ │ ┌────┐ Budi Santoso    [🟢]      │     │
+│ │ │ 👤 │ 📱 0812-3456-7890        │     │
+│ │ └────┘ 🏪 Toko A | Shift Pagi    │     │
+│ │      ⭐ 30 hari hadir bulan ini │     │
+│ │ [✏️] [📋] [🗑️]                  │     │
+│ └─────────────────────────────────┘     │
+│                                         │
+│ ┌─────────────────────────────────┐     │
+│ │ ┌────┐ Rina Wulandari  [🟡]      │     │
+│ │ │ 👤 │ 📱 0813-9876-5432        │     │
+│ │ └────┘ 🏪 Toko A | Shift Siang   │     │
+│ │      📝 Izin: Sakit (2 hari)     │     │
+│ │ [✏️] [📋] [🗑️]                  │     │
+│ └─────────────────────────────────┘     │
+│                                         │
+│ [+ TAMBAH KARYAWAN BARU]               │
+└─────────────────────────────────────────┘
+```
+
+---
+
+### 5.8 SCREEN 8: PENGATURAN (Settings)
+
+```
+┌─────────────────────────────────────────┐
+│ PENGATURAN                              │
+├─────────────────────────────────────────┤
+│ 👤 PROFIL ADMIN                         │
+│    Nama: [Owner Absensi Pro]           │
+│    No. HP: [0812-xxxx-xxxx]            │
+│                                         │
+│ 🏪 MANAJEMEN TOKO                       │
+│    • Toko A - Pusat (4 karyawan)       │
+│    • Toko B (3 karyawan)               │
+│    • Toko C (2 karyawan)               │
+│    • Toko D (3 karyawan)               │
+│    [+ Tambah Toko Baru]                │
+│                                         │
+│ ⚙️ PENGATURAN SISTEM                    │
+│    ├─ Auto-Rolling Shift: [ON/OFF]      │
+│    ├─ Hari Rolling: [Minggu]            │
+│    ├─ Auto-Backup: [ON/OFF]             │
+│    ├─ Minimum Penjaga: [1]              │
+│    ├─ Notifikasi: [ON/OFF]              │
+│    └─ Dark Mode: [ON/OFF]               │
+│                                         │
+│ 🔔 NOTIFIKASI                           │
+│    ├─ Alpha/Tidak Masuk: [ON]           │
+│    ├─ Keterlambatan: [ON]               │
+│    ├─ Request Izin: [ON]              │
+│    └─ Rolling Shift: [ON]               │
+│                                         │
+│ 📊 BACKUP & EXPORT                      │
+│    ├─ [Export Database]                 │
+│    ├─ [Backup ke Cloud]                 │
+│    └─ [Reset Data] ⚠️                   │
+│                                         │
+│ ℹ️ TENTANG                              │
+│    Absensi Pro v3.0                     │
+│    by Nafis Group                       │
+└─────────────────────────────────────────┘
+```
+
+---
+
+### 5.9 SCREEN 9: QUICK ACTION MENU (FAB)
+
+```
+┌─────────────────────────────────────────┐
+│                                         │
+│         [+ ABSENSI MANUAL]              │
+│              [+ IZIN/CUTI]              │
+│    [+ LEMBUR]  [🎯 CENTER FAB]  [+ CHAT]│
+│           [+ KARYAWAN BARU]             │
+│         [+ JADWAL MANUAL]               │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+---
+
+### 5.10 SCREEN 10: AUTO-BACKUP DIALOG
+
+```
+┌─────────────────────────────────────────┐
+│ ⚠️ PERINGATAN KEBUTUHAN BACKUP          │
+├─────────────────────────────────────────┤
+│                                         │
+│    Toko C - Shift Siang                 │
+│    Karyawan: Fani (Sakit)               │
+│                                         │
+│    Status: KURANG 1 PENJAGA            │
+│                                         │
+│    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━     │
+│                                         │
+│    SOLUSI OTOMATIS:                     │
+│                                         │
+│    ┌─────────────────────────────┐      │
+│    │ 👤 Gita (Toko D - Siang)   │      │
+│    │ ✅ Tersedia (OFF hari ini) │      │
+│    │ 📍 Toko D → Toko C         │      │
+│    │ ⏰ 12:30 - 21:30           │      │
+│    └─────────────────────────────┘      │
+│                                         │
+│    [❌ BATAL]        [✅ SETUJU]        │
+│                                         │
+│    [🔍 Cari Karyawan Lain]              │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## 6. KOMPONEN UI KHUSUS
+
+### 6.1 Status Badge System
+```
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│   🟢 HADIR   │ │   🟡 IZIN    │ │   🔴 ALPHA   │
+│  07:02:15   │ │   SAKIT     │ │  TIDAK MASUK │
+└─────────────┘ └─────────────┘ └─────────────┘
+
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│   ⏳ MENUNGGU│ │   ⚪ LIBUR   │ │   🟠 LEMBUR  │
+│  13:00:00   │ │    OFF      │ │  22:30:00   │
+└─────────────┘ └─────────────┘ └─────────────┘
+```
+
+### 6.2 Live Pulse Indicator
+```
+Animasi lingkaran hijau berdenyut di pojok kanan atas
+untuk menandakan data real-time sedang aktif
+```
+
+### 6.3 Toast Notifications
+```
+┌─────────────────────────────────┐
+│ ✅ Berhasil                      │
+│ Auto-backup telah diterapkan    │
+│         [TUTUP]                 │
+└─────────────────────────────────┘
+
+┌─────────────────────────────────┐
+│ ⚠️ Perhatian                     │
+│ Toko C membutuhkan 1 penjaga    │
+│      [LIHAT] [TUTUP]            │
+└─────────────────────────────────┘
+```
+
+---
+
+## 7. FLOW & INTERAKSI PENTING
+
+### 7.1 Flow Auto-Backup (Sistem Darurat)
+
+```
+[Deteksi: Karyawan tidak masuk/Alpha]
+         ↓
+[Sistem cek kebutuhan toko]
+         ↓
+[Cari karyawan available dari toko lain]
+         ↓
+[Hitung: Apakah toko asal masih ≥1 penjaga?]
+         ↓
+    ├─ YA → Tampilkan usulan backup
+    │         ↓
+    │    [Admin tap SETUJU]
+    │         ↓
+    │    [Update jadwal real-time]
+    │    [Notifikasi ke karyawan]
+    │    [Notifikasi ke grup chat]
+    │
+    └─ TIDAK → Cari karyawan lain
+              ↓
+         [Jika tidak ada → Alert admin manual]
+```
+
+### 7.2 Flow Rolling Shift
+
+```
+[Trigger: Minggu malam 23:59]
+         ↓
+[Sistem generate jadwal minggu depan]
+         ↓
+[Swap Pagi ↔ Siang untuk setiap karyawan]
+         ↓
+[Tampilkan preview ke admin]
+         ↓
+[Admin bisa edit manual dalam 24 jam]
+         ↓
+[Auto-publish Sabtu malam]
+         ↓
+[Notifikasi ke semua karyawan]
+         ↓
+[Update di aplikasi karyawan]
+```
+
+### 7.3 Flow Absensi Real-time
+
+```
+[Karyawan tap "Absensi" di aplikasi]
+         ↓
+[Camera selfie + GPS location]
+         ↓
+[Data masuk ke server]
+         ↓
+[Push ke Admin App (real-time)]
+         ↓
+[Update dashboard + activity feed]
+         ↓
+[Notifikasi toast ke admin]
+```
+
+---
+
+## 8. FITUR SPESIAL UNTUK KASUS OWNER
+
+### 8.1 Smart Conflict Detector
+```
+Sistem otomatis mendeteksi:
+- Dua karyawan dijadwalkan di shift yang sama
+- Karyawan dijadwalkan di dua toko berbeda
+- Shift overlap (pagi + siang di hari sama)
+- Karyawan tidak mendapat jadwal
+- Toko tanpa penjaga minimum
+```
+
+### 8.2 Minimum Guard Enforcer
+```
+RULE: Setiap toko HARUS memiliki minimum 1 penjaga per shift
+
+CONTOH:
+Toko A Pagi: Budi, Andi (2 orang)
+Jika Budi cuti → Andi tetap 1 penjaga ✅
+Jika Andi juga cuti → Sistem BLOCK dan cari backup
+```
+
+### 8.3 Cross-Store Worker Pool
+```
+DATABASE: Pool karyawan yang bisa dipindah antar toko
+
+PRIORITAS PEMILIHAN BACKUP:
+1. Karyawan dari toko dengan karyawan berlebih
+2. Karyawan yang sedang OFF/Libur
+3. Karyawan dengan jarak toko terdekat
+4. Karyawan dengan skill/posisi sama
+```
+
+### 8.4 Full Month Work Tracker
+```
+Karena tidak ada libur mingguan:
+- Sistem track 30/31 hari kerja per bulan
+- Cuti mengurangi hari kerja
+- Alpha = tidak dibayar
+- Lembur = dihitung per jam
+- Gaji otomatis dihitung berdasarkan kehadiran
+```
+
+---
+
+## 9. TEKNOLOGI & INTEGRASI
+
+### 9.1 Tech Stack
+```
+Frontend: Kotlin (Android Native)
+Backend:  Google Apps Script (Spreadsheet)
+Database: Google Sheets (Master Data)
+Real-time: Firebase Cloud Messaging (FCM)
+Storage: Google Drive (Foto & Dokumen)
+Maps: Google Maps API (Lokasi absensi)
+Chat: Firebase Realtime Database
+```
+
+### 9.2 Data Structure (Sheet)
+
+```
+Sheet 1: KARYAWAN
+┌────┬─────────────┬────────┬─────────┬──────────┬─────────┐
+│ ID │    NAMA     │  TOKO  │  SHIFT  │   NO_HP  │ STATUS  │
+├────┼─────────────┼────────┼─────────┼──────────┼─────────┤
+│ 1  │Budi Santoso │ Toko A │  Pagi   │081234... │ Aktif   │
+│ 2  │Andi Wijaya  │ Toko A │  Pagi   │081235... │ Aktif   │
+└────┴─────────────┴────────┴─────────┴──────────┴─────────┘
+
+Sheet 2: JADWAL (Per Minggu)
+┌────┬────────┬────────┬─────────┬──────────┬──────────┐
+│ ID │ TANGGAL│  TOKO  │  SHIFT  │KARYAWAN_1│KARYAWAN_2│
+├────┼────────┼────────┼─────────┼──────────┼──────────┤
+│ 1  │26/05/26│ Toko A │  Pagi   │   Budi   │   Andi   │
+│ 2  │26/05/26│ Toko A │  Siang  │   Rina   │   Siti   │
+└────┴────────┴────────┴─────────┴──────────┴──────────┘
+
+Sheet 3: ABSENSI_LOG
+┌────┬────────┬────────┬─────────┬──────────┬──────────┬─────────┐
+│ ID │TANGGAL │ WAKTU  │KARYAWAN │  TOKO    │  TIPE    │  FOTO   │
+├────┼────────┼────────┼─────────┼──────────┼──────────┼─────────┤
+│ 1  │26/05/26│07:02:15│  Budi   │ Toko A   │  MASUK   │ [URL]   │
+└────┴────────┴────────┴─────────┴──────────┴──────────┴─────────┘
+
+Sheet 4: IZIN_CUTI
+┌────┬────────┬──────────┬─────────┬─────────┬──────────┬────────┐
+│ ID │KARYAWAN│ TANGGAL  │  JENIS  │ ALASAN  │  STATUS  │APPROVED│
+├────┼────────┼──────────┼─────────┼─────────┼──────────┼────────┤
+│ 1  │  Fani  │26/05/26  │  Sakit  │ Demam   │ Approved │ Admin  │
+└────┴────────┴──────────┴─────────┴─────────┴──────────┴────────┘
+
+Sheet 5: CHAT_MESSAGES
+┌────┬────────┬──────────┬─────────┬──────────┬──────────┐
+│ ID │  FROM  │   TO     │ MESSAGE │ TIMESTAMP│   TYPE   │
+├────┼────────┼──────────┼─────────┼──────────┼──────────┤
+│ 1  │ Admin  │  Group   │ Jadwal  │17:15:00  │  text    │
+└────┴────────┴──────────┴─────────┴──────────┴──────────┘
+```
+
+---
+
+## 10. MOCKUP VISUAL REFERENCE
+
+### 10.1 Beranda Dashboard
+```
+┌─────────────────────────────────────────┐
+│ ████████████████████████████  17:26   │
+│ ██ 👤 Absensi Pro Admin     ██ [🔔][⚙️]│
+│ ██ Selamat Datang, Boss!    ██        │
+│ ████████████████████████████          │
+├─────────────────────────────────────────┤
+│ ┌────────┐ ┌────────┐ ┌────────┐      │
+│ │  👥 13 │ │  ✅ 11 │ │  ⚠️ 2  │      │
+│ │KARYAWAN│ │  HADIR │ │ ISSUE  │      │
+│ │  Total │ │  Hari  │ │  Hari  │      │
+│ └────────┘ └────────┘ └────────┘      │
+├─────────────────────────────────────────┤
+│ 🏪 TOKO A - PUSAT         [🟢 LIVE]   │
+│ ┌─────────────────────────────────┐     │
+│ │ 📷 [Foto Toko]                  │     │
+│ │ Pagi: Budi ✅ Andi ✅           │     │
+│ │ Siang: Rina ⏳ [KOSONG] ⚠️      │     │
+│ │ [Lihat Detail →]                │     │
+│ └─────────────────────────────────┘     │
+│                                         │
+│ 🏪 TOKO B                   [🟢 LIVE]   │
+│ ┌─────────────────────────────────┐     │
+│ │ Pagi: Caca ✅                   │     │
+│ │ Siang: Hani ⏳ Iwan ⏳          │     │
+│ └─────────────────────────────────┘     │
+│                                         │
+│ 🏪 TOKO C                   [🔴 ALERT]  │
+│ ┌─────────────────────────────────┐     │
+│ │ Pagi: Dedi ✅                   │     │
+│ │ Siang: [KOSONG] 🔴🔴🔴          │     │
+│ │ [⚠️ BUTUH BACKUP!] [Setuju]    │     │
+│ └─────────────────────────────────┘     │
+│                                         │
+│ 🏪 TOKO D                   [🟢 LIVE]   │
+│ ┌─────────────────────────────────┐     │
+│ │ Pagi: Eka ✅                    │     │
+│ │ Siang: Gita ⏳ Joko ⏳          │     │
+│ └─────────────────────────────────┘     │
+├─────────────────────────────────────────┤
+│ 📢 NOTIFIKASI TERBARU                   │
+│ • Fani (Toko C) sakit - butuh backup   │
+│ • Rolling shift minggu depan siap      │
+│ • Budi terlambat 15 menit hari ini     │
+├─────────────────────────────────────────┤
+│ 🏠  📅  🎯  💬  ⚙️                      │
+│Home Sched Abs  Chat More               │
+└─────────────────────────────────────────┘
+```
+
+### 10.2 Chat Group
+```
+┌─────────────────────────────────────────┐
+│ 💬 OBROLAN GROUP (13 Anggota)  [👥][📎] │
+├─────────────────────────────────────────┤
+│ 📌 PINNED: Jadwal minggu depan sudah    │
+│    diupdate. Cek aplikasi masing-masing! │
+├─────────────────────────────────────────┤
+│                                         │
+│     ┌──────────────────┐                │
+│     │ 👤 Admin         │                │
+│     │ Jadwal minggu      │                │
+│     │ depan sudah        │                │
+│     │ diupdate ya!       │                │
+│     │ ✅✅ 17:15         │                │
+│     └──────────────────┘                │
+│                                         │
+│ ┌──────────────────┐                    │
+│ │ 👤 Budi - Toko A │                    │
+│ │ Siap bos! 🙏      │                    │
+│ │ 17:16             │                    │
+│ └──────────────────┘                    │
+│                                         │
+│ ┌──────────────────┐                    │
+│ │ 📢 SISTEM        │                    │
+│ │ ROLLING SHIFT    │                    │
+│ │ Minggu depan:    │                    │
+│ │ • Budi → Siang   │                    │
+│ │ • Rina → Pagi    │                    │
+│ │ 17:20            │                    │
+│ └──────────────────┘                    │
+│                                         │
+├─────────────────────────────────────────┤
+│ [😊] [🎤] Ketik pesan...     [📎] [📷] │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## 11. RESPONSIVE & ADAPTIVE DESIGN
+
+### 11.1 Tablet Layout (7-10 inch)
+```
+┌─────────────────────────────────────────────────────────┐
+│ HEADER                                                  │
+├─────────────────────┬───────────────────────────────────┤
+│                     │                                   │
+│   SIDEBAR           │         MAIN CONTENT              │
+│   NAVIGATION        │         (Dashboard/Schedule/      │
+│                     │          Chat/Settings)           │
+│   🏠 Beranda        │                                   │
+│   📅 Jadwal         │         [Cards expand wider]      │
+│   🎯 Absensi        │         [More data visible]       │
+│   💬 Chat           │         [Side-by-side panels]     │
+│   📊 Rekap          │                                   │
+│   ⚙️ Pengaturan     │                                   │
+│                     │                                   │
+└─────────────────────┴───────────────────────────────────┘
+```
+
+---
+
+## 12. ANIMATIONS & MICRO-INTERACTIONS
+
+### 12.1 Loading States
+```
+Skeleton Loading: Shimmer effect pada cards saat data loading
+Pull-to-Refresh: Circular progress dengan warna primary
+Image Loading: Blur placeholder → Fade in
+```
+
+### 12.2 Transitions
+```
+Screen Navigation: Slide horizontal (left/right)
+Modal/Bottom Sheet: Slide up with backdrop fade
+Card Expand: Height animation with content fade
+FAB Menu: Staggered scale-in for menu items
+Toast: Slide down from top + auto-dismiss slide up
+```
+
+### 12.3 Feedback
+```
+Button Tap: Scale down 0.95 → Scale up 1.0 (spring)
+Success: Green checkmark animation + haptic light
+Error: Red shake animation + haptic heavy
+Notification: Badge bounce + pulse ring
+```
+
+---
+
+## 13. ACCESSIBILITY
+
+```
+- Content Descriptions untuk semua icon
+- Touch targets minimum 48dp
+- Color contrast ratio ≥ 4.5:1
+- Support screen readers (TalkBack)
+- Font scaling support (100%-200%)
+- High contrast mode support
+```
+
+---
+
+## 14. SECURITY & PRIVACY
+
+```
+- Tanpa login = Device binding (UUID)
+- Data encrypted at rest (AES-256)
+- Foto absensi watermark dengan timestamp
+- Location spoofing detection
+- Admin action logging (audit trail)
+- Auto-lock setelah 5 menit tidak aktif
+```
+
+---
+
+## 15. RINGKASAN FITUR UTAMA
+
+| No | Fitur | Status |
+|----|-------|--------|
+| 1 | Dashboard Real-time 4 Toko | ✅ |
+| 2 | Auto-Backup Karyawan (Sistem Darurat) | ✅ |
+| 3 | Rolling Shift Otomatis Mingguan | ✅ |
+| 4 | Minimum 1 Penjaga Enforcer | ✅ |
+| 5 | Absensi Monitor Live Feed | ✅ |
+| 6 | Group Chat 13 Karyawan | ✅ |
+| 7 | Manajemen Izin/Cuti/Sakit | ✅ |
+| 8 | Rekap & Export (Excel/PDF) | ✅ |
+| 9 | Tanpa Login (Single Device) | ✅ |
+| 10 | Dark Mode | ✅ |
+| 11 | Notifikasi Push | ✅ |
+| 12 | Multi-Toko Management | ✅ |
+
+---
+
+## 16. IMPLEMENTATION PRIORITY
+
+### Phase 1 (MVP - Week 1-2)
+1. Dashboard Beranda
+2. Monitor Absensi Real-time
+3. Manajemen Karyawan Dasar
+4. Group Chat
+
+### Phase 2 (Week 3-4)
+5. Jadwal Shift Management
+6. Auto-Backup System
+7. Rolling Shift Automation
+8. Rekap & Export
+
+### Phase 3 (Week 5-6)
+9. Advanced Analytics
+10. Dark Mode
+11. Push Notifications
+12. Settings & Configuration
+
+---
+
+**Document Version:** 1.0
+**Created:** 26 Mei 2026
+**For:** Absensi Pro - Admin Control Application
+**By:** Nafis Group

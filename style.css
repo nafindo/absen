@@ -3302,4 +3302,175 @@
             background: var(--primary);
             border-radius: 50%;
         }
+
+        /* ===== SIDEBAR & KEUANGAN ===== */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -285px;
+            width: 280px;
+            height: 100%;
+            background: white;
+            z-index: 2500;
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar.active {
+            left: 0;
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            z-index: 2400;
+            display: none;
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s ease;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .sidebar-header {
+            padding: 24px 20px 18px;
+            border-bottom: 1.5px solid #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-close-btn {
+            background: #f1f5f9;
+            border: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+
+        .sidebar-close-btn:hover {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .sidebar-menu {
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .sidebar-item {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: none;
+            background: none;
+            text-align: left;
+            font-size: 14.5px;
+            font-weight: 750;
+            color: #475569;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .sidebar-item svg {
+            transition: stroke 0.2s;
+        }
+
+        .sidebar-item:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+        .sidebar-item.active {
+            background: #f3e5f5;
+            color: #4A148C;
+        }
+
+        .sidebar-item.active svg {
+            stroke: #4A148C;
+        }
+
+        /* Full Width Modal for Financial Screens */
+        .modal-sheet.full-width {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: 100% !important;
+            max-height: 100vh !important;
+            border-radius: 0 !important;
+            margin-bottom: 0 !important;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .keuangan-screen {
+            animation: popIn 0.3s ease-out;
+        }
+        
+        .kasbon-card {
+            background: white;
+            border-radius: 16px;
+            border: 1.5px solid #f1f5f9;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.015);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .kasbon-card:hover {
+            border-color: #cbd5e1;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.03);
+        }
+
+        .badge-status {
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 8px;
+            display: inline-block;
+            text-transform: uppercase;
+        }
+
+        .badge-status.pending {
+            background: #FFF3E0;
+            color: #FF9500;
+        }
+
+        .badge-status.approved {
+            background: #E6F4EA;
+            color: #137333;
+        }
+
+        .badge-status.rejected {
+            background: #FCE8E6;
+            color: #C5221F;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
 

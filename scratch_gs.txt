@@ -1,0 +1,101 @@
+> function getDashboardData(data) {
+    const today = formatDate(new Date());
+    const absensi = getSheetData(SHEET_NAMES.ABSENSI);
+    const karyawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN);
+    const lembur = getSheetData(SHEET_NAMES.LEMBUR);
+    const izin = getSheetData(SHEET_NAMES.IZIN_CUTI);
+  
+    const absenHariIni = absensi.filter(a => formatDate(new Date(a.Timestamp)) === today);
+    const hadir = absenHariIni.filter(a => a.Tipe === 'Masuk').length;
+    const telat = absenHariIni.filter(a => a.Status_Masuk === 'Telat').length;
+    const pendingLembur = lembur.filter(l => l.Status === 'Pending').length;
+    const pendingIzin = izin.filter(i => i.Status === 'Pending').length;
+  
+    return {
+      success: true,
+      stats: {
+        totalKaryawan: karyawan.filter(k => k.Status === 'Aktif').length,
+        hadirHariIni: hadir,
+        pendingApproval: pendingLembur + pendingIzin,
+        telatHariIni: telat
+      }
+    };
+  }
+  
+  function getMonitoringToko(data) {
+    const today = formatDate(new Date());
+    const tokoList = getSheetData(SHEET_NAMES.MASTER_TOKO) || [];
+    const absensi = getSheetData(SHEET_NAMES.ABSENSI) || [];
+    const jadwal = getSheetData(SHEET_NAMES.JADWAL_KARYAWAN) || [];
+    const karyawan = getSheetData(SHEET_NAMES.MASTER_KARYAWAN) || [];
+    const hariIni = getHariIni();
+  
+    const result = tokoList.map(t => {
+      const karyawanJadwal = jadwal.filter(j =>
+        j.ID_Toko === t.ID_Toko &&
+        (j.Hari_Berjalan || '').includes(hariIni) &&
+        j.Status === 'Aktif'
+      );
+  
+      const karyawanOnline = karyawanJadwal.map(j => {
+        const k = karyawan.find(kar => kar.ID_Karyawan === j.ID_Karyawan);
+        const absen = absensi.find(a =>
+          a.ID_Karyawan === j.ID_Karyawan &&
+          formatDate(new Date(a.Timestamp)) === today &&
+          a.Tipe === 'Masuk'
+        );
+  
+        return {
+          nama: k ? k.Nama : j.ID_Karyawan,
+          status: absen ? (absen.Status_Masuk === 'Telat' ? 'telat' : 'hadir') : 'belum',
+          menitTelat: absen ? (parseInt(absen.Menit_Telat) || 0) : 0
+        , lat: absen ? (parseFloat(String(absen.Lat_Hp).replace(/'/g, '')) || 0) : 0, lng: absen ? (parseFloat(String(absen.Long_Hp).replace(/'/g, '')) || 0) : 0
+          };
+      });
+  
+      return {
+        idToko: t.ID_Toko,
+        namaToko: t.Nama_Toko,
+        fotoUrl: t.Foto_Toko_URL || '',
+        jamBuka: formatTimeOnly(t.Jam_Buka),   // <-- FIX
+        jamTutup: formatTimeOnly(t.Jam_Tutup), // <-- FIX
+        lat: parseFloat(String(t.Lat).replace(/'/g, '')) || 0,
+          lng: parseFloat(String(t.Long).replace(/'/g, '')) || 0,
+          radius: parseInt(t.Radius_M) || 50,
+          totalKaryawan: karyawanJadwal.length,
+        totalOnline: karyawanOnline.filter(k => k.status !== 'belum').length,
+        karyawan: karyawanOnline
+      };
+    });
+  
+    return { success: true, toko: result };
+  }
+  
+  function getAbsensiHariIniLengkap(data) {
+    const { tanggal, idToko, idShift } = data || {};
+    const tgl = tanggal || formatDate(new Date());
+  
+    const absensi = getSheetData(SHEET_NAMES.ABSENSI);
+    const lembur = getSheetData(SHEET_NAMES.LEMBUR);
+  
+    let result = absensi.filter(a =>
+      formatDate(new Date(a.Timestamp)) === tgl &&
+      a.Tipe === 'Masuk'
+    );
+  
+    if (idToko) result = result.filter(a => a.ID_Toko === idToko);
+    if (idShift) result = result.filter(a => a.ID_Shift === idShift);
+  
+    result = result.map(a => {
+      const lemburData = lembur.find(l =>
+        l.ID_Karyawan === a.ID_Karyawan &&
+        l.Tanggal === tgl
+      );
+  
+      return {
+        tanggal: tgl,
+        nama: a.Nama,
+        toko: a.Nama_Toko,
+        shift: a.Nama_Shift,
+        jamMasuk: a.Jam_Masuk,
+        jamPulang: a.Jam_Pulang,

@@ -2799,7 +2799,74 @@
             }
 
             const shiftSelect = document.getElementById('selectShift');
+            const shiftId = shiftSelect.value;
             const shiftName = shiftSelect.options[shiftSelect.selectedIndex].text.split(' (')[0];
+            
+            // VALIDASI WAKTU SHIFT
+            const selectedShift = state.shiftList ? state.shiftList.find(s => s.ID_Shift === shiftId) : null;
+            if (selectedShift && selectedShift.Jam_Masuk && selectedShift.Jam_Pulang) {
+                const formatT = (t) => {
+                    if (typeof t === 'number') {
+                        const h = Math.floor(t * 24);
+                        const m = Math.round((t * 24 * 60) % 60);
+                        return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+                    }
+                    // Jika t adalah string UTC string atau ISO dari Google Sheet API
+                    if (typeof t === 'string') {
+                        if (t.includes('T')) {
+                           const d = new Date(t);
+                           return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+                        }
+                        if (t.includes(':')) return t.substring(0, 5); // misal 08:00:00 -> 08:00
+                    }
+                    return String(t);
+                };
+                
+                const sInStr = formatT(selectedShift.Jam_Masuk).split(':').map(Number);
+                const sOutStr = formatT(selectedShift.Jam_Pulang).split(':').map(Number);
+                
+                if (sInStr.length >= 2 && sOutStr.length >= 2) {
+                    const now = new Date();
+                    
+                    const shiftInDate = new Date(now);
+                    shiftInDate.setHours(sInStr[0], sInStr[1], 0, 0);
+                    
+                    const shiftOutDate = new Date(now);
+                    shiftOutDate.setHours(sOutStr[0], sOutStr[1], 0, 0);
+                    if (sOutStr[0] < sInStr[0]) {
+                        shiftOutDate.setDate(shiftOutDate.getDate() + 1); // shift malam cross midnight
+                    }
+                    
+                    // Toleransi: 30 menit awal dari jam masuk
+                    const toleransiAwalMs = 30 * 60000;
+                    
+                    const isTerlaluAwal = now.getTime() < (shiftInDate.getTime() - toleransiAwalMs);
+                    const isTelatAtauBeda = now.getTime() > shiftOutDate.getTime();
+                    
+                    if (isTerlaluAwal || isTelatAtauBeda) {
+                        const confirmLembur = await Swal.fire({
+                            title: 'Shift Tidak Sesuai!',
+                            html: `Anda absen di luar jam shift yang seharusnya.<br><br><b>Jadwal Shift:</b> ${String(sInStr[0]).padStart(2, '0')}:${String(sInStr[1]).padStart(2, '0')} - ${String(sOutStr[0]).padStart(2, '0')}:${String(sOutStr[1]).padStart(2, '0')}<br><br>Apakah Anda berniat untuk <b>Lembur / Melanjutkan Shift Ini</b>?`,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#3085d6',
+                            cancelButtonColor: '#d33',
+                            confirmButtonText: 'Ya, Lanjut Absen',
+                            cancelButtonText: 'Tidak, Batalkan'
+                        });
+                        
+                        if (!confirmLembur.isConfirmed) {
+                            const btn = document.getElementById('btnMasuk');
+                            btn.disabled = true;
+                            btn.innerHTML = '<i class="fas fa-ban"></i> Absen Terkunci';
+                            btn.style.backgroundColor = '#999';
+                            showToast('Absen dibatalkan. Menunggu jadwal shift yang sesuai.', 'info');
+                            return; // Stop execution
+                        }
+                    }
+                }
+            }
+
             const btn = document.getElementById('btnMasuk');
             btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Memproses...';
 
@@ -6136,6 +6203,256 @@
             renderLemburList();
         }
 
+        // ==================== SIDEBAR & KEUANGAN ====================
+        let activeKeuanganScreen = 'listGaji';
+        let kasbonData = [];
+
+        window.toggleSidebar = function(event) {
+            if (event) event.stopPropagation();
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        };
+
+        window.selectSidebarMenu = function(screen) {
+            document.getElementById('sideMenuGaji').classList.remove('active');
+            document.getElementById('sideMenuKasbon').classList.remove('active');
+            document.getElementById('sideMenuPengajuan').classList.remove('active');
+
+            if (screen === 'listGaji') document.getElementById('sideMenuGaji').classList.add('active');
+            else if (screen === 'listKasbon') document.getElementById('sideMenuKasbon').classList.add('active');
+            else if (screen === 'formKasbon') document.getElementById('sideMenuPengajuan').classList.add('active');
+
+            window.toggleSidebar();
+            window.openKeuanganScreen(screen);
+        };
+
+        window.openKeuanganScreen = function(screen) {
+            activeKeuanganScreen = screen;
+            
+            document.getElementById('screenListGaji').style.display = 'none';
+            document.getElementById('screenDetailGaji').style.display = 'none';
+            document.getElementById('screenListKasbon').style.display = 'none';
+            document.getElementById('screenDetailKasbon').style.display = 'none';
+            document.getElementById('screenFormKasbon').style.display = 'none';
+
+            const backBtn = document.getElementById('keuanganBackBtn');
+            const titleEl = document.getElementById('keuanganTitle');
+
+            if (screen === 'listGaji') {
+                titleEl.textContent = 'Riwayat Slip Gaji';
+                backBtn.style.visibility = 'hidden';
+                document.getElementById('screenListGaji').style.display = 'block';
+                window.loadSlipGajiList();
+            } else if (screen === 'detailGaji') {
+                titleEl.textContent = 'Detail Slip Gaji';
+                backBtn.style.visibility = 'visible';
+                document.getElementById('screenDetailGaji').style.display = 'block';
+            } else if (screen === 'listKasbon') {
+                titleEl.textContent = 'Riwayat Kasbon';
+                backBtn.style.visibility = 'hidden';
+                document.getElementById('screenListKasbon').style.display = 'block';
+                window.loadKasbonList();
+            } else if (screen === 'detailKasbon') {
+                titleEl.textContent = 'Detail Kasbon';
+                backBtn.style.visibility = 'visible';
+                document.getElementById('screenDetailKasbon').style.display = 'block';
+            } else if (screen === 'formKasbon') {
+                titleEl.textContent = 'Pengajuan Kasbon';
+                backBtn.style.visibility = 'hidden';
+                document.getElementById('screenFormKasbon').style.display = 'block';
+            }
+
+            openModal('modalKeuangan');
+        };
+
+        window.backKeuanganScreen = function() {
+            if (activeKeuanganScreen === 'detailGaji') {
+                window.openKeuanganScreen('listGaji');
+            } else if (activeKeuanganScreen === 'detailKasbon') {
+                window.openKeuanganScreen('listKasbon');
+            }
+        };
+
+        // ==================== SLIP GAJI KARYAWAN ====================
+        let slipGajiData = [];
+
+        function formatRupiah(value) {
+            if (value === undefined || value === null || isNaN(Number(value))) return 'Rp 0';
+            const num = Number(value);
+            return 'Rp ' + num.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+
+        window.loadSlipGajiList = async function() {
+            if (!state.user || !state.user.id) { showToast('Login dulu!', 'error'); return; }
+            const container = document.getElementById('slipGajiContainer');
+            container.innerHTML = '<div style="text-align: center; color: #64748b; padding: 20px 0; font-weight: 700;">Memuat slip gaji...</div>';
+            
+            try {
+                const res = await apiCall('getSlipGaji', { idKaryawan: state.user.id });
+                if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+                    slipGajiData = res.data.filter(s => (s.statusSlip || '').toLowerCase() === 'published');
+                    if (slipGajiData.length > 0) {
+                        renderSlipGajiList();
+                    } else {
+                        container.innerHTML = '<div style="text-align: center; color: #64748b; padding: 30px 10px; font-weight: 600;">Belum ada slip gaji yang dirilis oleh Admin.</div>';
+                    }
+                } else {
+                    container.innerHTML = '<div style="text-align: center; color: #64748b; padding: 30px 10px; font-weight: 600;">Belum ada slip gaji yang dirilis oleh Admin.</div>';
+                }
+            } catch (e) {
+                container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px 0; font-weight: 600;">Gagal memuat data slip gaji</div>';
+            }
+        };
+
+        function renderSlipGajiList() {
+            const container = document.getElementById('slipGajiContainer');
+            const months = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            
+            container.innerHTML = slipGajiData.map((s, index) => {
+                const namaBulan = months[parseInt(s.bulan)] || s.bulan;
+                const totalGaji = parseFloat(s.totalBersih || 0);
+
+                return `
+                <div class="data-list-item" onclick="viewSlipGajiDetail(${index})" style="margin-bottom: 12px; border-radius: 16px; border: 1.5px solid #f1f5f9; background: white; padding: 14px 18px; box-shadow: 0 4px 10px rgba(0,0,0,0.02); display: flex; align-items: center; transition: all 0.2s; cursor: pointer;">
+                    <div class="data-list-icon" style="background: #F3E5F5; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #5856D6;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                    </div>
+                    <div class="data-list-text" style="flex: 1; padding-left: 12px;">
+                        <h4 style="margin: 0 0 4px 0; font-size: 14.5px; font-weight: 800; color: #1e293b;">Periode ${namaBulan} ${s.tahun}</h4>
+                        <p style="margin: 0; font-size: 13px; font-weight: 700; color: #15803d;">${formatRupiah(totalGaji)}</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 4px;">
+                        <div class="data-list-chevron" style="color: #94a3b8; display: flex; align-items: center;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        window.viewSlipGajiDetail = function(index) {
+            const s = slipGajiData[index];
+            if (!s) return;
+
+            const container = document.getElementById('gajiDetailContainer');
+            const months = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            const namaBulan = months[parseInt(s.bulan)] || s.bulan;
+
+            const gp = parseFloat(s.gajiPokok || 0);
+            const jamLembur = parseFloat(s.jamLembur || 0);
+            const rateLembur = parseFloat(s.tarifLembur || 0);
+            const totalLembur = parseFloat(s.totalLembur || (jamLembur * rateLembur) || 0);
+            const bonus = parseFloat(s.bonus || 0);
+            const transport = parseFloat(s.uangTransport || 0);
+            const tunjangan = parseFloat(s.tunjangan || 0);
+            const kasbon = parseFloat(s.kasbon || 0);
+            const potonganLain = parseFloat(s.potonganLain || 0);
+            
+            const totalGaji = parseFloat(s.totalBersih || (gp + totalLembur + bonus + transport + tunjangan - kasbon - potonganLain));
+
+            let html = `
+            <div style="background: white; border-radius: 20px; padding: 24px; border: 1.5px solid #edf2f7; margin-bottom: 20px; max-width: 600px; margin: 0 auto 20px auto; box-shadow: 0 4px 20px rgba(0,0,0,0.015);">
+                <div style="text-align: center; margin-bottom: 16px;">
+                    <div style="font-size: 11px; font-weight: 850; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Rincian Slip Gaji Karyawan</div>
+                    <div style="font-size: 22px; font-weight: 900; color: #0f172a; margin-top: 4px;">${namaBulan} ${s.tahun}</div>
+                </div>
+                <hr style="border: none; border-top: 1.5px dashed #cbd5e1; margin: 16px 0;">
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                    <!-- Penerimaan -->
+                    <div style="font-size: 11.5px; font-weight: 850; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;">PENERIMAAN</div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 14px;">
+                        <div>
+                            <div style="font-weight: 750; color: #334155;">Gaji Pokok</div>
+                            ${s.ketGajiPokok ? `<div style="font-size: 12px; color: #64748b; font-weight: 600; margin-top: 2px;">${s.ketGajiPokok}</div>` : ''}
+                        </div>
+                        <div style="font-weight: 750; color: #334155;">${formatRupiah(gp)}</div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 14px;">
+                        <div>
+                            <div style="font-weight: 750; color: #334155;">Uang Lembur</div>
+                            <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-top: 2px;">${jamLembur} jam x ${formatRupiah(rateLembur)}${s.ketLembur ? `<br>${s.ketLembur}` : ''}</div>
+                        </div>
+                        <div style="font-weight: 750; color: #334155;">${formatRupiah(totalLembur)}</div>
+                    </div>
+
+                    ${bonus > 0 ? `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 14px;">
+                        <div>
+                            <div style="font-weight: 750; color: #334155;">Bonus</div>
+                            ${s.ketBonus ? `<div style="font-size: 12px; color: #64748b; font-weight: 600; margin-top: 2px;">${s.ketBonus}</div>` : ''}
+                        </div>
+                        <div style="font-weight: 750; color: #334155;">${formatRupiah(bonus)}</div>
+                    </div>` : ''}
+
+                    ${transport > 0 ? `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 14px;">
+                        <div>
+                            <div style="font-weight: 750; color: #334155;">Uang Transport</div>
+                            ${s.ketUangTransport ? `<div style="font-size: 12px; color: #64748b; font-weight: 600; margin-top: 2px;">${s.ketUangTransport}</div>` : ''}
+                        </div>
+                        <div style="font-weight: 750; color: #334155;">${formatRupiah(transport)}</div>
+                    </div>` : ''}
+
+                    ${tunjangan > 0 ? `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 14px;">
+                        <div>
+                            <div style="font-weight: 750; color: #334155;">Tunjangan</div>
+                            ${s.ketTunjangan ? `<div style="font-size: 12px; color: #64748b; font-weight: 600; margin-top: 2px;">${s.ketTunjangan}</div>` : ''}
+                        </div>
+                        <div style="font-weight: 750; color: #334155;">${formatRupiah(tunjangan)}</div>
+                    </div>` : ''}
+
+                    <!-- Potongan -->
+                    ${(kasbon > 0 || potonganLain > 0) ? `
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 6px 0;">
+                    <div style="font-size: 11.5px; font-weight: 850; color: #ef4444; text-transform: uppercase; letter-spacing: 0.5px;">POTONGAN</div>
+                    ` : ''}
+
+                    ${kasbon > 0 ? `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 14px;">
+                        <div>
+                            <div style="font-weight: 750; color: #ef4444;">Kasbon / Pinjaman</div>
+                            ${s.ketKasbon ? `<div style="font-size: 12px; color: #64748b; font-weight: 600; margin-top: 2px;">${s.ketKasbon}</div>` : ''}
+                        </div>
+                        <div style="font-weight: 750; color: #ef4444;">- ${formatRupiah(kasbon)}</div>
+                    </div>` : ''}
+
+                    ${potonganLain > 0 ? `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 14px;">
+                        <div>
+                            <div style="font-weight: 750; color: #ef4444;">Potongan Lain-lain</div>
+                            ${s.ketPotonganLain ? `<div style="font-size: 12px; color: #64748b; font-weight: 600; margin-top: 2px;">${s.ketPotonganLain}</div>` : ''}
+                        </div>
+                        <div style="font-weight: 750; color: #ef4444;">- ${formatRupiah(potonganLain)}</div>
+                    </div>` : ''}
+
+                    <!-- Keterangan Umum -->
+                    ${s.keterangan ? `
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 6px 0;">
+                    <div style="font-size: 13px; color: #475569; font-weight: 600; background: #f1f5f9; padding: 12px 16px; border-radius: 12px; line-height: 1.5;">
+                        <span style="font-weight: 800; color: #334155; display: block; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;">Keterangan:</span>
+                        ${s.keterangan}
+                    </div>` : ''}
+                </div>
+            </div>
+
+            <!-- TOTAL GAJI BERSIH CARD -->
+            <div style="background: linear-gradient(135deg, #10b981, #059669); border-radius: 20px; padding: 20px; color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 10px 20px rgba(16,185,129,0.15); max-width: 600px; margin: 0 auto;">
+                <div>
+            // Transisi ke screen detail
+            document.getElementById('gajiListScreen').style.display = 'none';
+            document.getElementById('gajiDetailScreen').style.display = 'block';
+        };
+
+        window.backToGajiList = function() {
+            document.getElementById('gajiDetailScreen').style.display = 'none';
+            document.getElementById('gajiListScreen').style.display = 'block';
+        };
+
         // ==================== TUGAS ====================
         let tugasData = [];
         let tugasFilter = 'semua';
@@ -6171,9 +6488,16 @@
         function renderTugasItems() {
             const container = document.getElementById('tugasList');
             let filtered = tugasData;
-            if (tugasFilter !== 'semua') {
-                filtered = tugasData.filter(t => (t.status || '').toLowerCase() === tugasFilter);
+            
+            // DEFAULT FILTER IS 'baru'
+            const currentFilter = (tugasFilter === 'semua') ? 'baru' : tugasFilter;
+            
+            if (currentFilter === 'baru') {
+                filtered = tugasData.filter(t => t.status !== 'Selesai');
+            } else if (currentFilter === 'riwayat') {
+                filtered = tugasData.filter(t => t.status === 'Selesai');
             }
+            
             if (filtered.length === 0) {
                 container.innerHTML = '<div class="history-empty">Tidak ada tugas untuk filter ini</div>';
                 return;
@@ -6219,23 +6543,31 @@
                 <div class="tugas-card" style="position: relative; background: var(--surface); border-radius: 16px; padding: 16px 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.03); margin-bottom: 12px; border: 1px solid #e2e8f0; ${cardStyle} transition: all 0.25s;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px;">
                         <div style="font-size: 16px; font-weight: 800; color: #0f172a; line-height: 1.35; flex: 1;">${escapeHtml(t.judul)}</div>
-                        <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 8px; letter-spacing: 0.5px;
-                            background: ${priLower === 'high' ? '#fee2e2' : priLower === 'medium' ? '#fef3c7' : '#d1fae5'};
-                            color: ${priLower === 'high' ? '#b91c1c' : priLower === 'medium' ? '#b45309' : '#047857'}; flex-shrink: 0;">
-                            ${priLabel}
-                        </span>
+                        <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                            ${parseFloat(t.tunjanganRp) > 0 ? `
+                            <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 8px; letter-spacing: 0.5px;
+                                background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0;">
+                                💰 Rp${parseFloat(t.tunjanganRp).toLocaleString('id-ID')}
+                            </span>
+                            ` : ''}
+                            <span style="font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 8px; letter-spacing: 0.5px;
+                                background: ${priLower === 'high' ? '#fee2e2' : priLower === 'medium' ? '#fef3c7' : '#d1fae5'};
+                                color: ${priLower === 'high' ? '#b91c1c' : priLower === 'medium' ? '#b45309' : '#047857'};">
+                                ${priLabel}
+                            </span>
+                        </div>
                     </div>
                     <div style="font-size: 13.5px; line-height: 1.5; color: #475569; margin-bottom: 16px; font-weight: 500; white-space: pre-line;">${escapeHtml(t.deskripsi || '')}</div>
                     
                     <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #e2e8f0; padding-top: 12px; gap: 10px;">
                         ${deadlineHtml}
                         ${!isDone ? `
-                            <button class="tugas-btn selesai" onclick="selesaikanTugas('${t.id}')" 
+                            <button class="tugas-btn selesai" onclick="bukaModalSelesaikanTugas('${t.id}')" 
                                 style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-size: 12.5px; font-weight: 800; padding: 8px 16px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.25); transition: all 0.2s;">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="flex-shrink:0;">
                                     <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
-                                Selesai
+                                Klik Selesai
                             </button>
                         ` : `
                             <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #059669; font-weight: 800; background: #d1fae5; padding: 4px 10px; border-radius: 20px;">
@@ -6257,15 +6589,73 @@
             renderTugasItems();
         }
 
-        async function selesaikanTugas(idTugas) {
+        let selectedTugasIdForSelesai = null;
+        let tugasFotoBase64 = null;
+
+        function bukaModalSelesaikanTugas(idTugas) {
+            selectedTugasIdForSelesai = idTugas;
+            document.getElementById('tugasKeteranganInput').value = '';
+            resetTugasFoto();
+            openModal('modalSelesaikanTugas');
+        }
+
+        function resetTugasFoto(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            tugasFotoBase64 = null;
+            document.getElementById('tugasFotoInput').value = '';
+            document.getElementById('tugasFotoPreviewContainer').style.display = 'none';
+        }
+
+        async function previewTugasFoto(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                try {
+                    tugasFotoBase64 = await compressImage(file, 0.7, 1024);
+                    document.getElementById('tugasFotoPreview').src = tugasFotoBase64;
+                    document.getElementById('tugasFotoPreviewContainer').style.display = 'block';
+                } catch (e) {
+                    showToast('Gagal memproses foto', 'error');
+                }
+            }
+        }
+
+        async function submitSelesaikanTugas() {
             if (!state.user || !state.user.id) return;
+            
+            if (!tugasFotoBase64) {
+                showToast('Foto bukti wajib dilampirkan!', 'error');
+                return;
+            }
+            
+            const keterangan = document.getElementById('tugasKeteranganInput').value;
+            
+            showLoading('Mengirim laporan tugas...');
             try {
-                await apiCall('updateTugasStatus', { idTugas: idTugas, status: 'Selesai', idKaryawan: state.user.id });
+                const payload = {
+                    idTugas: selectedTugasIdForSelesai,
+                    status: 'Selesai',
+                    idKaryawan: state.user.id,
+                    fotoBase64: tugasFotoBase64.split(',')[1],
+                    keterangan: keterangan
+                };
+                
+                await apiCall('updateTugasStatus', payload);
+                
                 showToast('Tugas diselesaikan!', 'success');
+                closeModal('modalSelesaikanTugas');
                 renderTugasList();
             } catch (e) {
-                showToast('Gagal update tugas', 'error');
+                showToast('Gagal update tugas: ' + e.message, 'error');
+            } finally {
+                hideLoading();
             }
+        }
+        
+        async function selesaikanTugas(idTugas) {
+            bukaModalSelesaikanTugas(idTugas);
         }
 
         // ==================== BERITA ====================
@@ -6532,6 +6922,15 @@
                     if (document.getElementById('statHadir')) document.getElementById('statHadir').textContent = totalHadir;
                     if (document.getElementById('statAlpa')) document.getElementById('statAlpa').textContent = alpa;
                     if (document.getElementById('statTelat')) document.getElementById('statTelat').textContent = totalTelat;
+                    
+                    if (document.getElementById('statUangTransport')) {
+                        const ut = res.uangTransport || 0;
+                        document.getElementById('statUangTransport').textContent = formatRupiah(ut);
+                    }
+                    if (document.getElementById('statKetTransport')) {
+                        const tt = res.totalTugasLuarToko || 0;
+                        document.getElementById('statKetTransport').textContent = tt + 'x hadir di luar toko';
+                    }
                     
                     const pctHadir = Math.min(100, Math.round((totalHadir / totalWorkingDaysInMonth) * 100));
                     const pctAlpa = Math.min(100, Math.round((alpa / totalWorkingDaysInMonth) * 100));

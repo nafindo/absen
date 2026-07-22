@@ -18,6 +18,29 @@
 
 <body>
 
+    <!-- Left Sidebar Menu -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2 style="font-size: 18px; font-weight: 900; color: #1E293B; margin: 0; letter-spacing: -0.5px;">Menu Keuangan</h2>
+            <button class="sidebar-close-btn" onclick="toggleSidebar(event)">&#10005;</button>
+        </div>
+        <div class="sidebar-menu">
+            <button class="sidebar-item" id="sideMenuGaji" onclick="selectSidebarMenu('listGaji')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="stroke: #475569;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                Riwayat Slip Gaji
+            </button>
+            <button class="sidebar-item" id="sideMenuKasbon" onclick="selectSidebarMenu('listKasbon')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="stroke: #475569;"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                Riwayat Kasbon
+            </button>
+            <button class="sidebar-item" id="sideMenuPengajuan" onclick="selectSidebarMenu('formKasbon')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="stroke: #475569;"><path d="M12 5v14M5 12h14"></path></svg>
+                Pengajuan Kasbon
+            </button>
+        </div>
+    </div>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(event)"></div>
+
     <!-- Overtime Viewport Glow Aura -->
     <div class="overtime-screen-glow"></div>
 
@@ -71,8 +94,11 @@
     <div id="appContent" style="display:none;">
 
         <!-- Header -->
-        <div class="app-header">
-            <div class="app-header-left" onclick="toggleProfilePopover(event)" style="cursor: pointer;">
+        <div class="app-header" style="display: flex; align-items: center;">
+            <button class="header-menu-btn" onclick="toggleSidebar(event)" style="background: rgba(255, 255, 255, 0.15); border: none; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; width: 40px; height: 40px; border-radius: 50%; outline: none; margin-right: 8px; backdrop-filter: blur(4px);">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <div class="app-header-left" onclick="toggleProfilePopover(event)" style="cursor: pointer; display: flex; align-items: center; flex: 1;">
                 <div class="header-avatar" id="headerAvatar">
                     <span id="headerAvatarText">B</span>
                     <img id="headerAvatarImg" src="" style="display:none;" alt="">
@@ -184,6 +210,23 @@
                 </div>
             </div>
 
+            <!-- Uang Transport Ringkas Card -->
+            <div class="card" style="margin-top: 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 12px; font-weight: 600; opacity: 0.9;">Estimasi Uang Transport Bulan Ini</div>
+                        <div id="statUangTransport" style="font-size: 20px; font-weight: 800; margin-top: 4px;">Rp 0</div>
+                        <div id="statKetTransport" style="font-size: 11px; opacity: 0.8; margin-top: 2px;">0x hadir di luar toko</div>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 12px;">
+                        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="1" x2="12" y2="23"></line>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
             <!-- Menu Utama -->
             <div class="section-label">Menu Utama</div>
             <div class="menu-grid">
@@ -275,7 +318,7 @@
                     <div class="menu-label" style="font-weight: 700; color: #C2185B;">Tuker Shift</div>
                     <div class="menu-badge hidden" id="badgeTukerShift">0</div>
                 </button>
-                <button class="menu-item" onclick="showToast('Fitur Info Gaji segera hadir!', 'info')">
+                <button class="menu-item" onclick="toggleSidebar(event)">
                     <div class="menu-icon" style="background:#F3E5F5; box-shadow: 0 4px 10px rgba(88, 86, 214, 0.15);">
                         <svg viewBox="0 0 24 24" fill="none" stroke="#5856D6" stroke-width="2.5" stroke-linecap="round"
                             stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(88,86,214,0.1));">
@@ -818,13 +861,46 @@
                 </div>
                 <div class="modal-body">
                     <div class="filter-chips">
-                        <div class="filter-chip active" onclick="filterTugas('semua', this)">Semua</div>
-                        <div class="filter-chip" onclick="filterTugas('pending', this)">Pending</div>
-                        <div class="filter-chip" onclick="filterTugas('selesai', this)">Selesai</div>
+                        <div class="filter-chip active" onclick="filterTugas('baru', this)">Tugas Baru</div>
+                        <div class="filter-chip" onclick="filterTugas('riwayat', this)">Riwayat</div>
                     </div>
                     <div id="tugasList">
                         <div class="history-empty">Memuat tugas...</div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Selesaikan Tugas -->
+        <div class="modal-overlay" id="modalSelesaikanTugas" onclick="closeModalOnOverlay(event, 'modalSelesaikanTugas')">
+            <div class="modal-sheet" style="max-width: 400px;">
+                <div class="modal-header">
+                    <h2>Selesaikan Tugas</h2><button class="modal-close" onclick="closeModal('modalSelesaikanTugas')">&#10005;</button>
+                </div>
+                <div class="modal-body" style="padding: 16px 20px 24px;">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px;">Foto Bukti (Wajib)</label>
+                        <div class="file-upload-wrapper" style="position: relative; width: 100%;">
+                            <input type="file" id="tugasFotoInput" accept="image/*" capture="environment" style="display: none;" onchange="previewTugasFoto(this)">
+                            <div class="file-upload-btn" onclick="document.getElementById('tugasFotoInput').click()" style="display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 14px 16px; border: 2px dashed #CBD5E1; border-radius: 16px; background: #F8FAFC; color: #64748B; font-size: 14px; font-weight: 700; cursor: pointer;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                                <span>Pilih Foto Bukti</span>
+                            </div>
+                        </div>
+                        <div id="tugasFotoPreviewContainer" style="display: none; margin-top: 16px; position: relative; border-radius: 16px; overflow: hidden; border: 2px solid #E2E8F0; width: 100%; aspect-ratio: 16/9; max-height: 260px; background: #F8FAFC;">
+                            <img id="tugasFotoPreview" src="" style="width: 100%; height: 100%; object-fit: contain; display: block; margin: 0 auto;">
+                            <button type="button" onclick="resetTugasFoto(event)" style="position: absolute; top: 10px; right: 10px; background: rgba(15, 23, 42, 0.75); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; backdrop-filter: blur(4px); font-weight: bold;">&#10005;</button>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label" style="font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px;">Keterangan (Opsional)</label>
+                        <textarea id="tugasKeteranganInput" rows="3" placeholder="Masukkan keterangan tambahan jika ada..." style="width: 100%; border-radius: 16px; border: 2px solid #E2E8F0; padding: 14px 16px; font-size: 15px; font-weight: 500; font-family: inherit; resize: vertical; box-sizing: border-box;"></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="submitSelesaikanTugas()" style="width: 100%; height: 50px; border-radius: 16px; font-weight: 800; font-size: 16px;">Kirim Laporan Selesai</button>
                 </div>
             </div>
         </div>
@@ -1082,6 +1158,70 @@
                     </svg>
                     Kirim Pengajuan Lembur
                 </button>
+    </div>
+
+    <!-- Modal Keuangan (Full Width) -->
+    <div class="modal-overlay" id="modalKeuangan" onclick="closeModalOnOverlay(event, 'modalKeuangan')">
+        <div class="modal-sheet full-width" style="overflow-y: auto; background: #F8FAFC; display: flex; flex-direction: column;">
+            
+            <!-- Keuangan Header -->
+            <div class="modal-header" style="padding: 20px 24px; background: white; border-bottom: 1.5px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button id="keuanganBackBtn" onclick="backKeuanganScreen()" style="background: #F1F5F9; border: none; font-size: 13px; font-weight: 700; color: #475569; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; transition: all 0.2s;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    </button>
+                    <h2 style="font-size: 20px; font-weight: 900; color: #1E293B; margin: 0; letter-spacing: -0.5px;" id="keuanganTitle">Rincian Keuangan</h2>
+                </div>
+                <button class="modal-close" onclick="closeModal('modalKeuangan')" style="background: #F1F5F9; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">&#10005;</button>
+            </div>
+            
+            <div class="modal-body" style="padding: 24px; flex: 1; background: #F8FAFC;">
+                
+                <!-- SCREEN: LIST SLIP GAJI -->
+                <div id="screenListGaji" class="keuangan-screen" style="display: none;">
+                    <div id="slipGajiContainer">
+                        <div style="text-align: center; color: #64748b; padding: 20px 0;">Memuat slip gaji...</div>
+                    </div>
+                </div>
+
+                <!-- SCREEN: DETAIL SLIP GAJI -->
+                <div id="screenDetailGaji" class="keuangan-screen" style="display: none;">
+                    <div id="gajiDetailContainer"></div>
+                </div>
+
+                <!-- SCREEN: LIST KASBON -->
+                <div id="screenListKasbon" class="keuangan-screen" style="display: none;">
+                    <div id="kasbonContainer">
+                        <!-- List kasbon per month will render here -->
+                    </div>
+                </div>
+
+                <!-- SCREEN: DETAIL KASBON -->
+                <div id="screenDetailKasbon" class="keuangan-screen" style="display: none;">
+                    <div id="kasbonDetailContainer" style="background: white; border-radius: 20px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.02); max-width: 600px; margin: 0 auto; border: 1.5px solid #f1f5f9;">
+                        <!-- Detail of single kasbon application -->
+                    </div>
+                </div>
+
+                <!-- SCREEN: FORM PENGAJUAN KASBON -->
+                <div id="screenFormKasbon" class="keuangan-screen" style="display: none;">
+                    <div style="background: white; border-radius: 20px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.02); max-width: 600px; margin: 0 auto; border: 1.5px solid #f1f5f9;">
+                        <h3 style="font-size: 18px; font-weight: 850; color: #1E293B; margin-bottom: 20px; border-bottom: 1.5px solid #F1F5F9; padding-bottom: 12px; letter-spacing: -0.5px;">Form Pengajuan Kasbon</h3>
+                        
+                        <div class="form-group" style="margin-bottom: 16px;">
+                            <label class="form-label" style="font-weight: 700; color: #475569; font-size: 12px; margin-bottom: 8px;">Jumlah Pengajuan (Rp)</label>
+                            <input type="number" id="inputKasbonNominal" class="form-select" placeholder="Contoh: 500000" style="background-image: none; padding-right: 16px;" required>
+                        </div>
+                        
+                        <div class="form-group" style="margin-bottom: 20px;">
+                            <label class="form-label" style="font-weight: 700; color: #475569; font-size: 12px; margin-bottom: 8px;">Keperluan Kasbon / Alasan</label>
+                            <textarea id="inputKasbonAlasan" class="form-input" placeholder="Tuliskan alasan pengajuan kasbon secara lengkap..." style="min-height: 120px;" required></textarea>
+                        </div>
+                        
+                        <button class="btn btn-primary" onclick="submitPengajuanKasbon()" style="width: 100%; margin: 0; min-height: 50px;">Kirim Pengajuan Kasbon</button>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>

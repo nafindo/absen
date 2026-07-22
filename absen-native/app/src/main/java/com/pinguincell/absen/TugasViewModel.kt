@@ -15,7 +15,7 @@ class TugasViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
-    private val _filter = MutableStateFlow("Semua")
+    private val _filter = MutableStateFlow("Tugas Baru")
     val filter: StateFlow<String> = _filter
 
     fun setFilter(newFilter: String) {
@@ -25,29 +25,24 @@ class TugasViewModel : ViewModel() {
     private var isLooping = false
 
     fun loadTugas(idKaryawan: String, idToko: String) {
-        if (isLooping) return
-        isLooping = true
         viewModelScope.launch {
             _isLoading.value = false
-            while(true) {
-                val list = com.pinguincell.absen.api.CacheManager.getCache<List<TugasItem>>("tugas_list")
-                val filteredList = list?.filter { 
-                    val kat = it.kategori ?: "Rutin"
-                    val isTokoMatched = (it.idToko == idToko || it.idToko == "ALL")
-                    val isKaryawanMatched = (it.ditugaskanKe == idKaryawan || it.ditugaskanKe == "ALL")
+            val list = com.pinguincell.absen.api.CacheManager.getCache<List<TugasItem>>("tugas_list")
+            val filteredList = list?.filter { 
+                val kat = it.kategori?.trim()?.lowercase() ?: "rutin"
+                val isTokoMatched = (it.idToko?.trim() == idToko.trim() || it.idToko?.trim()?.uppercase() == "ALL" || it.idToko?.trim() == "-")
+                val isKaryawanMatched = (it.ditugaskanKe?.trim() == idKaryawan.trim() || it.ditugaskanKe?.trim()?.uppercase() == "ALL")
 
-                    when (kat) {
-                        "Rutin" -> true
-                        "Toko" -> isTokoMatched
-                        "Individu" -> isKaryawanMatched
-                        "Urgensi" -> isTokoMatched && isKaryawanMatched
-                        else -> false
-                    }
-                } ?: emptyList()
-                
-                _tugasState.value = TugasResponse(success = true, error = null, data = filteredList)
-                kotlinx.coroutines.delay(2000)
-            }
+                when (kat) {
+                    "rutin" -> true
+                    "toko" -> isTokoMatched
+                    "individu" -> isKaryawanMatched
+                    "penempatan" -> isTokoMatched && isKaryawanMatched
+                    else -> false
+                }
+            } ?: emptyList()
+            
+            _tugasState.value = TugasResponse(success = true, error = null, data = filteredList)
         }
     }
 
@@ -84,7 +79,7 @@ class TugasViewModel : ViewModel() {
         }
     }
 
-    fun submitTugasLog(idTugas: String, idKaryawan: String, idToko: String, fotoBukti: String, catatan: String, onResult: (Boolean, String?) -> Unit) {
+    fun submitTugasLog(idTugas: String, idKaryawan: String, idToko: String, fotoBukti: String, catatan: String, lat: Double? = null, lng: Double? = null, onResult: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.instance.submitTugasLog(
@@ -93,7 +88,9 @@ class TugasViewModel : ViewModel() {
                         idKaryawan = idKaryawan,
                         idToko = idToko,
                         fotoBukti = fotoBukti,
-                        catatan = catatan
+                        catatan = catatan,
+                        lat = lat,
+                        lng = lng
                     )
                 )
                 if (response.success) {
@@ -119,6 +116,41 @@ class TugasViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 onResult(false, e.message ?: "Terjadi kesalahan")
+            }
+        }
+    }
+
+    private fun loadTugasDirect(idKaryawan: String, idToko: String) {
+        val list = com.pinguincell.absen.api.CacheManager.getCache<List<TugasItem>>("tugas_list")
+        val filteredList = list?.filter { 
+            val kat = it.kategori?.trim()?.lowercase() ?: "rutin"
+            val isTokoMatched = (it.idToko?.trim() == idToko.trim() || it.idToko?.trim()?.uppercase() == "ALL" || it.idToko?.trim() == "-")
+            val isKaryawanMatched = (it.ditugaskanKe?.trim() == idKaryawan.trim() || it.ditugaskanKe?.trim()?.uppercase() == "ALL")
+
+            when (kat) {
+                "rutin" -> true
+                "toko" -> isTokoMatched
+                "individu" -> isKaryawanMatched
+                "penempatan" -> isTokoMatched && isKaryawanMatched
+                else -> false
+            }
+        } ?: emptyList()
+        _tugasState.value = TugasResponse(success = true, error = null, data = filteredList)
+    }
+
+    fun forceRefreshTugas(idKaryawan: String, idToko: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val res = RetrofitClient.instance.getTugasList(TugasRequest(idKaryawan = idKaryawan, idToko = idToko))
+                if (res.success && res.data != null) {
+                    com.pinguincell.absen.api.CacheManager.saveCache("tugas_list", res.data)
+                    loadTugasDirect(idKaryawan, idToko)
+                }
+            } catch (e: Exception) {
+                // Silent catch
+            } finally {
+                _isLoading.value = false
             }
         }
     }

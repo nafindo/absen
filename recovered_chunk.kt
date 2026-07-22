@@ -1,0 +1,1 @@
+"python -c \"\nwith open(r'd:\\absen\\recovered_lines.txt', 'r', encoding='utf-8') as f:\n    lines = f.readlines()\n    for i, line in enumerate(lines):\n        if 'class MainActivity' in line:\n            print(f'Line {i+1}: {line.strip()}')\n        if 'fun UpdateScreen' in line:\n            print(f'Line {i+1}: {line.strip()}')\n\""

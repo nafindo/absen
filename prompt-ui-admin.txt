@@ -1,0 +1,933 @@
+ Berikut adalah **Prompt Engineering Step-by-Step** untuk setiap laman aplikasi **Absensi Pro — Admin Dashboard**. Setiap prompt dirancang agar AI (Claude, ChatGPT, Gemini, dll) dapat menghasilkan kode Kotlin/Jetpack Compose yang siap implementasi.
+
+---
+
+# 🎯 PROMPT ENGINEERING: Absensi Pro Admin Dashboard
+
+## Format Prompt Universal
+
+```
+Konteks: [Deskripsi singkat aplikasi]
+Tugas: [Apa yang harus dibuat]
+Backend: [API endpoint yang tersedia]
+Data Model: [Struktur data dari API]
+Spesifikasi UI: [Detail visual & interaksi]
+State Management: [Flow data]
+Error Handling: [Kasus error yang harus ditangani]
+Output: [Format output yang diharapkan]
+```
+
+---
+
+## 1️⃣ LAMAN: SPLASH & LOGIN
+
+### Prompt A: Splash Screen
+
+```markdown
+## KONTEKS
+Buat Splash Screen untuk aplikasi Android native "Absensi Pro — Admin Dashboard" 
+menggunakan Jetpack Compose. Aplikasi ini adalah dashboard admin untuk sistem 
+absensi karyawan multi-toko berbasis Google Apps Script.
+
+## TUGAS
+Buatkan composable `SplashScreen` yang:
+1. Menampilkan logo aplikasi (placeholder composable)
+2. Menampilkan nama aplikasi "Absensi Pro" dengan subtitle "Admin Dashboard"
+3. Menampilkan versi aplikasi "v3.0"
+4. Memiliki animasi fade-in + scale-up logo selama 800ms
+5. Auto-navigate ke LoginScreen setelah 2 detik menggunakan LaunchedEffect
+6. Cek session: jika user sudah login (SharedPreferences), navigate ke Dashboard
+
+## SPESIFIKASI UI
+- Background: Gradient dari Color(0xFF1A73E8) ke Color(0xFF1557B0)
+- Logo: Box 120dp dengan icon Shield (Icons.Default.Security) berwarna putih
+- Typography: 
+  - Nama App: 28sp, Bold, White
+  - Subtitle: 16sp, Medium, White.copy(alpha=0.8f)
+  - Versi: 12sp, Regular, White.copy(alpha=0.6f)
+- Alignment: Semua elemen center secara vertical & horizontal
+
+## STATE MANAGEMENT
+- Gunakan `remember` untuk animasi alpha (Animatable)
+- Gunakan `remember` untuk animasi scale (Animatable)
+- LaunchedEffect(Unit) untuk trigger animasi & delay
+
+## OUTPUT
+Berikan kode Kotlin lengkap dengan:
+1. Composable function `SplashScreen(navController: NavController)`
+2. Preview function `@Preview`
+3. Tidak ada hardcoded string, gunakan stringResource
+```
+
+### Prompt B: Login Screen
+
+```markdown
+## KONTEKS
+Buat Login Screen untuk Admin Dashboard aplikasi Absensi Pro. 
+Admin login menggunakan ID Karyawan + PIN 4 digit.
+
+## TUGAS
+Buatkan composable `LoginScreen` yang:
+1. Header dengan tombol back (opsional) dan judul "Selamat Datang Admin! 👋"
+2. Input field ID Karyawan (text field biasa)
+3. Input field PIN 4 digit dengan visual dot (••••) bukan plaintext
+4. Checkbox "Ingat Saya"
+5. Tombol "MASUK" dengan full width
+6. Link "Lupa PIN?"
+7. Validasi form sebelum submit
+8. Loading state saat API call
+
+## BACKEND API
+```json
+POST {scriptUrl}
+{
+  "action": "login",
+  "idKaryawan": "ADM001",
+  "pin": "1234",
+  "deviceId": "android-uuid",
+  "deviceName": "Samsung A54",
+  "force": false
+}
+```
+Response sukses:
+```json
+{
+  "success": true,
+  "user": {
+    "id": "ADM001",
+    "nama": "Budi Admin",
+    "jabatan": "Admin",
+    "tokoDefault": "T001",
+    "shiftDefault": "S001",
+    "noHP": "08123456789",
+    "email": "budi@email.com",
+    "fotoProfil": "https://..."
+  },
+  "modeJadwal": "LOCKED"
+}
+```
+Response gagal (device beda):
+```json
+{
+  "success": false,
+  "requireDeviceConfirmation": true,
+  "message": "Akun Anda sudah login di perangkat: Samsung A12..."
+}
+```
+
+## SPESIFIKASI UI
+- Background: Color(0xFFF8F9FA)
+- Card container dengan padding 24dp, corner 16dp, elevation 2dp
+- Input field: OutlinedTextField dengan shape RoundedCornerShape(12.dp)
+- PIN input: Numeric keyboard, max 4 karakter, visual transformation ke dot
+- Tombol MASUK: height 52dp, background Color(0xFF1A73E8), text white bold
+- Error: Snackbar merah dengan shake animation pada input
+
+## STATE MANAGEMENT
+Gunakan ViewModel pattern:
+- `var idKaryawan by mutableStateOf("")`
+- `var pin by mutableStateOf("")`
+- `var isLoading by mutableStateOf(false)`
+- `var errorMessage by mutableStateOf<String?>(null)`
+- `var showDeviceDialog by mutableStateOf(false)`
+
+## ERROR HANDLING
+1. ID Karyawan kosong → error "ID Karyawan wajib diisi"
+2. PIN kurang dari 4 → error "PIN harus 4 digit"
+3. Network error → Snackbar "Koneksi terputus, coba lagi"
+4. Response `requireDeviceConfirmation` → tampilkan AlertDialog konfirmasi
+5. Login gagal → Snackbar dengan pesan dari API
+
+## OUTPUT
+1. `LoginScreen(navController: NavController, viewModel: LoginViewModel = hiltViewModel())`
+2. `LoginViewModel` class lengkap
+3. `DeviceConfirmationDialog` composable
+4. Preview untuk semua state (default, loading, error)
+```
+
+---
+
+## 2️⃣ LAMAN: DASHBOARD UTAMA (HOME)
+
+### Prompt C: Dashboard Screen (Utama)
+
+```markdown
+## KONTEKS
+Buat Dashboard Home Screen untuk Admin yang menampilkan ringkasan seluruh 
+informasi absensi hari ini secara sekilas.
+
+## TUGAS
+Buatkan composable `DashboardScreen` yang terdiri dari beberapa section:
+
+### SECTION 1: Header Profile
+- Card dengan background gradient Primary → PrimaryDark
+- Avatar karyawan (AsyncImage, 56dp, circle)
+- Nama admin + tanggal hari ini (format: "Senin, 29 Mei 2026")
+- Icon notifikasi dengan Badge (jumlah pending approval)
+
+### SECTION 2: Stats Summary (4 card grid)
+- Hadir: icon People, color Green, value dari API
+- Telat: icon Schedule, color Yellow, value dari API  
+- Izin: icon Description, color Blue, value dari API
+- Cuti: icon Warning, color Red, value dari API
+
+### SECTION 3: Monitoring Toko (Horizontal scroll)
+- Card per toko dengan:
+  - Foto toko (80dp, rounded 12dp)
+  - Nama toko
+  - Jam buka-tutup
+  - Progress bar online (online/total karyawan)
+  - Indikator jumlah yang telat (jika ada)
+
+### SECTION 4: Aktivitas Terbaru (Vertical list, max 5 item)
+- List absensi terbaru hari ini
+- Status indicator (dot: green=ontime, yellow=telat, blue=pending)
+- Nama karyawan, waktu, toko, status chip
+
+### SECTION 5: Menu Cepat (Grid 2x4)
+- Icon button: Karyawan, Toko, Jadwal, Laporan, Approval, Lembur, Chat, Settings
+
+## BACKEND API
+```json
+// Dashboard Stats
+POST {action: "getDashboardData"}
+Response: {
+  "success": true,
+  "stats": {
+    "totalKaryawan": 24,
+    "hadirHariIni": 20,
+    "pendingApproval": 5,
+    "telatHariIni": 3
+  }
+}
+
+// Monitoring Toko
+POST {action: "getMonitoringToko"}
+Response: {
+  "success": true,
+  "toko": [
+    {
+      "idToko": "T001",
+      "namaToko": "Toko Pusat",
+      "fotoUrl": "https://...",
+      "jamBuka": "08:00",
+      "jamTutup": "22:00",
+      "totalKaryawan": 8,
+      "totalOnline": 5,
+      "karyawan": [
+        {"nama": "Andi", "status": "hadir", "menitTelat": 0},
+        {"nama": "Budi", "status": "telat", "menitTelat": 10}
+      ]
+    }
+  ]
+}
+```
+
+## SPESIFIKASI UI
+- Pull-to-refresh menggunakan `rememberPullRefreshState`
+- LazyColumn untuk scrollable content
+- Card elevation: 2dp default, 4dp on press
+- Shimmer loading untuk semua section saat initial load
+- Empty state jika tidak ada data
+
+## STATE MANAGEMENT
+```kotlin
+data class DashboardUiState(
+    val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
+    val stats: DashboardStats? = null,
+    val tokoList: List<TokoMonitor> = emptyList(),
+    val recentActivities: List<ActivityItem> = emptyList(),
+    val error: String? = null
+)
+```
+
+## REAL-TIME
+- Subscribe Pusher channel "pinguin-chat", event "absen-alert"
+- Saat ada event baru, tambahkan ke `recentActivities` (prepend, max 10)
+- Update stats count secara real-time
+
+## OUTPUT
+1. `DashboardScreen` composable lengkap
+2. `DashboardViewModel` dengan semua logic
+3. Sub-composable: `HeaderProfileCard`, `StatsSummaryCard`, `TokoMonitoringCard`, `ActivityFeedItem`, `QuickMenuGrid`
+4. Data class untuk semua model
+5. Preview untuk loading, success, empty, error states
+```
+
+---
+
+## 3️⃣ LAMAN: MONITORING TOKO
+
+### Prompt D: Monitoring Toko Screen
+
+```markdown
+## KONTEKS
+Buat Monitoring Toko Screen untuk melihat status karyawan real-time per toko 
+dengan tampilan Map dan List.
+
+## TUGAS
+Buatkan composable `MonitoringTokoScreen` dengan:
+
+### MODE MAP:
+- Google Map (gunakan placeholder jika tidak ada API key)
+- Marker untuk setiap toko
+- Info window saat marker di-tap (nama toko, online count)
+- Tombol switch ke List mode
+
+### MODE LIST:
+- Search bar untuk filter nama toko
+- Card per toko (sama seperti dashboard tapi lebih detail)
+- Expandable section: "Karyawan Online" & "Karyawan Offline"
+- Avatar grid (max 5 visible, +n untuk sisanya)
+- Status indicator: 🟢 Online/Ontime, 🟡 Online/Telat, ⚪ Offline
+
+### DETAIL BOTTOM SHEET:
+Saat toko card di-tap atau avatar karyawan di-tap:
+- BottomSheet dengan detail karyawan:
+  - Foto profil, nama, jabatan
+  - Jadwal hari ini (toko + shift + jam)
+  - Status absensi (masuk/pulang/belum)
+  - Lokasi terakhir (jarak dari toko)
+  - Tombol Telepon & Chat
+
+## BACKEND API
+```json
+POST {action: "getMonitoringToko"}
+// Response sama seperti di Prompt C
+
+POST {action: "getKaryawanJadwalByDate", idKaryawan: "K001", tanggal: "2026-05-29"}
+Response: {
+  "success": true,
+  "libur": false,
+  "idToko": "T001",
+  "namaToko": "Toko Pusat",
+  "idShift": "S001",
+  "namaShift": "Pagi",
+  "jamMasuk": "08:00",
+  "jamPulang": "17:00"
+}
+```
+
+## SPESIFIKASI UI
+- Toggle Map/List: Segmented button (Material 3)
+- Search: Debounce 300ms
+- Avatar grid: 40dp each, overlap -8dp
+- Bottom sheet: ModalBottomSheet dengan peek height 50%
+- Animation: Slide up bottom sheet, fade in avatar
+
+## OUTPUT
+1. `MonitoringTokoScreen` dengan Map & List mode
+2. `TokoDetailBottomSheet` composable
+3. `KaryawanDetailBottomSheet` composable
+4. ViewModel dengan filter logic
+5. Preview untuk kedua mode
+```
+
+---
+
+## 4️⃣ LAMAN: MANAJEMEN KARYAWAN
+
+### Prompt E: Karyawan List Screen
+
+```markdown
+## KONTEKS
+Buat Manajemen Karyawan Screen untuk CRUD data karyawan dengan tampilan card 
+yang modern.
+
+## TUGAS
+Buatkan composable `KaryawanListScreen` yang:
+
+1. Search bar dengan filter real-time
+2. Filter chip: Semua / Aktif / Nonaktif
+3. List karyawan dalam bentuk Card:
+   - Foto profil (60dp, circle)
+   - Nama + ID Karyawan
+   - Nomor HP
+   - Toko + Shift (badge)
+   - Status (Aktif/Nonaktif chip)
+   - Action buttons: Edit (icon), Delete (icon), Jadwal (icon)
+4. FAB untuk tambah karyawan baru
+5. Swipe to delete (dengan konfirmasi)
+
+## BACKEND API
+```json
+POST {action: "getKaryawanList"}
+Response: {
+  "success": true,
+  "data": [
+    {
+      "ID_Karyawan": "K001",
+      "Nama": "Andi Wijaya",
+      "PIN": "1234",
+      "Jabatan": "Karyawan",
+      "Tanggal_Masuk": "2024-01-15",
+      "Status": "Aktif",
+      "No_HP": "08123456789",
+      "Email": "andi@email.com",
+      "Toko_Default": "T001",
+      "Shift_Default": "S001",
+      "Foto_Profil": "https://..."
+    }
+  ]
+}
+```
+
+## SPESIFIKASI UI
+- Card: padding 16dp, corner 12dp, elevation 1dp
+- Avatar: AsyncImage dengan placeholder & error
+- Status chip: Aktif = green, Nonaktif = gray
+- Swipe: reveal delete button (red background, white icon)
+- Empty state: Icon person_off + "Belum ada karyawan"
+- Loading: Shimmer card (5 items)
+
+## OUTPUT
+1. `KaryawanListScreen` lengkap
+2. `KaryawanCard` composable
+3. `KaryawanViewModel` dengan filter & search logic
+4. `SwipeToDelete` wrapper composable
+5. Preview
+```
+
+### Prompt F: Form Tambah/Edit Karyawan
+
+```markdown
+## KONTEKS
+Buat Form Tambah/Edit Karyawan dengan validasi lengkap.
+
+## TUGAS
+Buatkan composable `KaryawanFormScreen` yang menerima parameter 
+`karyawanId: String?` (null = tambah, ada = edit):
+
+### INPUT FIELDS:
+1. Foto Profil: Circular image picker (tap untuk pilih gallery/camera)
+2. Nama Lengkap: Text field, required
+3. PIN: 4 digit numeric, required
+4. Jabatan: Dropdown (Admin, Owner, Karyawan)
+5. Nomor HP: Text field dengan prefix +62
+6. Email: Text field dengan validasi format
+7. Toko Default: Dropdown (fetch dari API getTokoList)
+8. Shift Default: Dropdown (fetch dari API getShiftByToko)
+9. Tanggal Masuk: Date picker
+
+### VALIDASI:
+- Nama: min 3 karakter
+- PIN: exact 4 digit
+- Email: valid format (opsional)
+- HP: min 10 digit
+- Semua field bertanda * wajib diisi
+
+## BACKEND API
+```json
+// Tambah
+POST {action: "saveKaryawan", nama: "...", pin: "...", ...}
+
+// Edit
+POST {action: "updateKaryawan", idKaryawan: "K001", nama: "...", ...}
+
+// Upload Foto
+POST {action: "uploadFotoProfil", fotoBase64: "data:image/jpeg;base64,...", idKaryawan: "K001"}
+```
+
+## SPESIFIKASI UI
+- Form dalam LazyColumn dengan section grouping
+- Input: OutlinedTextField dengan error message
+- Dropdown: ExposedDropdownMenuBox (Material 3)
+- Date picker: MaterialDatePicker dialog
+- Tombol Simpan: disabled sampai form valid, loading saat submit
+- Success: Auto navigate back dengan Snackbar "Berhasil disimpan"
+
+## OUTPUT
+1. `KaryawanFormScreen` composable
+2. `KaryawanFormViewModel` dengan validation logic
+3. `ImagePicker` helper (gallery + camera)
+4. `DatePickerField` reusable composable
+5. Preview untuk mode tambah & edit
+```
+
+---
+
+## 5️⃣ LAMAN: MANAJEMEN JADWAL
+
+### Prompt G: Jadwal Mingguan Screen
+
+```markdown
+## KONTEKS
+Buat Jadwal Karyawan Screen dengan sistem template mingguan (rolling shift).
+
+## TUGAS
+Buatkan composable `JadwalScreen` yang:
+
+1. Pilih Karyawan: Dropdown/search
+2. Pilih Template Minggu: Minggu 1/2/3/4 (chip selectable)
+3. Tampilan 7 hari (Senin-Minggu) dalam vertical list:
+   - Hari + Tanggal
+   - Status: Libur / Kerja
+   - Jika kerja: Toko + Shift + Jam
+   - Action: Edit / Delete per hari
+4. Tombol "Tambah Jadwal" per hari
+5. Tombol "Simpan Template" & "Terapkan ke Periode"
+
+## BACKEND API
+```json
+POST {action: "getJadwalKaryawan", idKaryawan: "K001"}
+Response: {
+  "success": true,
+  "data": [
+    {
+      "ID_Jadwal": "J001",
+      "ID_Karyawan": "K001",
+      "ID_Toko": "T001",
+      "Nama_Toko": "Toko Pusat",
+      "ID_Shift": "S001",
+      "Nama_Shift": "Pagi",
+      "Hari_Berjalan": "Senin,Selasa,Rabu,Kamis,Jumat",
+      "Tanggal_Mulai": "2026-01-01",
+      "Tanggal_Selesai": "2026-12-31",
+      "Status": "Aktif"
+    }
+  ]
+}
+
+POST {action: "saveJadwalKaryawan", idKaryawan: "K001", idToko: "T001", ...}
+POST {action: "updateJadwalKaryawan", idJadwal: "J001", ...}
+POST {action: "deleteJadwalKaryawan", idJadwal: "J001"}
+```
+
+## SPESIFIKASI UI
+- Hari card: height 80dp, corner 12dp
+- Libur: background gray, icon beach_access, text "Libur"
+- Kerja: background white, icon store + schedule
+- Edit mode: Inline form (dropdown toko + shift)
+- Template selector: Horizontal scroll chips
+- Dialog "Terapkan ke Periode": Date range picker
+
+## OUTPUT
+1. `JadwalScreen` composable
+2. `JadwalViewModel` dengan template logic
+3. `HariCard` composable (libur/kerja mode)
+4. `JadwalFormDialog` composable
+5. `PeriodeDialog` untuk apply template
+6. Preview
+```
+
+---
+
+## 6️⃣ LAMAN: APPROVAL CENTER
+
+### Prompt H: Approval Center Screen
+
+```markdown
+## KONTEKS
+Buat Approval Center untuk admin menyetujui/menolak pengajuan lembur, izin, 
+dan tukar shift.
+
+## TUGAS
+Buatkan composable `ApprovalScreen` dengan:
+
+1. Tab layout: Lembur | Izin | Tukar Shift (dengan badge count)
+2. List pengajuan pending per tab:
+   - Card dengan foto pengaju, nama, detail pengajuan
+   - Foto bukti (jika ada, expandable)
+   - Tombol Setuju (green) & Tolak (red) per card
+3. Dialog konfirmasi sebelum approve/reject
+4. Real-time update saat ada pengajuan baru (Pusher)
+
+## BACKEND API
+```json
+POST {action: "getPendingApprovals"}
+Response: {
+  "success": true,
+  "data": [
+    {
+      "tipe": "lembur",
+      "id": "L001",
+      "nama": "Andi Wijaya",
+      "toko": "Toko Pusat",
+      "detail": "Lembur stok",
+      "waktu": "2026-05-29"
+    },
+    {
+      "tipe": "izin",
+      "id": "I001",
+      "nama": "Budi Santoso",
+      "detail": "Cuti | 29/05 s/d 30/05 (2 hari)",
+      "waktu": "2026-05-29"
+    }
+  ]
+}
+
+POST {action: "approveLembur", idLembur: "L001", status: "Approved", approvedBy: "ADM001"}
+POST {action: "approveIzin", idIzin: "I001", status: "Rejected", approvedBy: "ADM001"}
+POST {action: "approveTukerShift", idTuker: "TS001", idKaryawan: "ADM001"}
+POST {action: "rejectTukerShift", idTuker: "TS001", idKaryawan: "ADM001"}
+```
+
+## SPESIFIKASI UI
+- Tab: ScrollableTabRow dengan indicator animasi
+- Card: Padding 16dp, corner 12dp
+- Foto bukti: Thumbnail 80dp, tap untuk fullscreen
+- Tombol: OutlinedButton (Tolak, red border) & Button (Setuju, green bg)
+- Dialog: AlertDialog dengan judul "Konfirmasi", pesan detail, tombol Batal/Setuju
+- Success: Card di-remove dengan fade out animation
+
+## OUTPUT
+1. `ApprovalScreen` composable
+2. `ApprovalViewModel` dengan tab management
+3. `ApprovalCard` composable (reusable untuk 3 tipe)
+4. `KonfirmasiDialog` composable
+5. `ImagePreviewDialog` untuk foto bukti
+6. Preview
+```
+
+---
+
+## 7️⃣ LAMAN: LAPORAN & ANALITIK
+
+### Prompt I: Laporan Screen
+
+```markdown
+## KONTEKS
+Buat Laporan Screen untuk melihat dan export data absensi.
+
+## TUGAS
+Buatkan composable `LaporanScreen` dengan:
+
+1. Filter Section:
+   - Mode: Harian / Mingguan / Bulanan / Tahunan (chip)
+   - Date picker (single/range)
+   - Dropdown: Toko, Shift, Karyawan
+2. Statistik Card:
+   - Pie chart (placeholder composable) untuk distribusi status
+   - Ringkasan angka: Hadir, Telat, Izin, Cuti
+3. Trend Chart:
+   - Bar/Line chart placeholder untuk trend mingguan
+4. Data Table:
+   - List absensi dengan detail per karyawan
+   - Expandable untuk melihat foto & lokasi
+5. Export: FAB menu (Excel, PDF)
+
+## BACKEND API
+```json
+POST {
+  "action": "getLaporanAbsensi",
+  "mode": "harian",
+  "tanggal": "2026-05-29",
+  "idToko": "T001",
+  "idShift": "S001",
+  "idKaryawan": "K001"
+}
+Response: {
+  "success": true,
+  "mode": "harian",
+  "data": [
+    {
+      "tanggal": "2026-05-29",
+      "nama": "Andi Wijaya",
+      "toko": "Toko Pusat",
+      "shift": "Pagi",
+      "jamMasuk": "08:02",
+      "jamPulang": "17:05",
+      "durasiKerja": "9j 03m",
+      "durasiLembur": "1j 30m",
+      "status": "Ontime",
+      "menitTelat": 0,
+      "fotoMasuk": "https://...",
+      "fotoPulang": "https://..."
+    }
+  ]
+}
+```
+
+## SPESIFIKASI UI
+- Filter: Card dengan padding 16dp, corner 12dp
+- Chart: Canvas composable sederhana (placeholder)
+- Table: LazyColumn dengan sticky header
+- Row: Alternating background (white/light gray)
+- Expand: AnimatedVisibility untuk detail foto
+- Export: DropdownMenu dari FAB
+
+## OUTPUT
+1. `LaporanScreen` composable
+2. `LaporanViewModel` dengan filter state
+3. `FilterSection` composable
+4. `StatistikCard` dengan pie chart
+5. `TrendChart` composable
+6. `AbsensiTable` dengan expandable row
+7. Preview
+```
+
+---
+
+## 8️⃣ LAMAN: CHAT
+
+### Prompt J: Chat Screen
+
+```markdown
+## KONTEKS
+Buat Chat Screen untuk komunikasi antar admin dan karyawan.
+
+## TUGAS
+Buatkan composable `ChatScreen` dengan:
+
+1. Header: Judul "Pesan" + online indicator
+2. Message List (bubble style):
+   - Sent: align right, Primary color bubble
+   - Received: align left, Surface color bubble
+   - Image messages: thumbnail dengan tap to fullscreen
+   - Reply feature: quoted message
+   - Timestamp: 10px, gray
+3. Input Area:
+   - Text field dengan icon attachment
+   - Tombol kirim (icon send)
+4. Real-time: Pusher new-message event
+
+## BACKEND API
+```json
+POST {action: "getChatMessages", limit: 50, offset: 0}
+Response: {
+  "success": true,
+  "data": [
+    {
+      "idPesan": "CH001",
+      "idKaryawan": "K001",
+      "nama": "Andi Wijaya",
+      "pesan": "Halo admin",
+      "tipe": "text",
+      "fileUrl": "",
+      "replyTo": "",
+      "waktu": "2026-05-29 08:30:00",
+      "sender_foto": "https://..."
+    }
+  ]
+}
+
+POST {action: "sendChatMessage", idKaryawan: "ADM001", nama: "Admin", pesan: "...", tipe: "text"}
+```
+
+## SPESIFIKASI UI
+- Bubble: max width 80%, padding 12dp, corner 16dp (tail untuk sent)
+- Avatar: 32dp circle, show untuk received messages
+- Reply: Card kecil di atas bubble dengan border left 4dp Primary
+- Image: Rounded 8dp, max height 200dp, tap untuk fullscreen
+- Input: Card dengan corner 24dp, icon attachment (image/file)
+
+## OUTPUT
+1. `ChatScreen` composable
+2. `ChatViewModel` dengan pagination
+3. `MessageBubble` composable (text/image/reply)
+4. `ChatInput` composable
+5. `ImagePreviewDialog` untuk fullscreen image
+6. Preview
+```
+
+---
+
+## 9️⃣ LAMAN: PENGATURAN
+
+### Prompt K: Settings Screen
+
+```markdown
+## KONTEKS
+Buat Settings Screen untuk pengaturan aplikasi admin.
+
+## TUGAS
+Buatkan composable `SettingsScreen` dengan grouping:
+
+### AKUN
+- Profil Saya (navigate)
+- Ganti PIN (dialog)
+- Notifikasi (toggle)
+
+### APLIKASI
+- Tema: Radio (Light / Dark / System)
+- Bahasa: Dropdown (Indonesia / English)
+- GPS Validation: Dropdown (STRICT / LENIENT / OFF)
+
+### MANAJEMEN DATA
+- Manajemen Toko (navigate)
+- Manajemen Shift (navigate)
+- Jenis Izin (navigate)
+- Pengaturan Gaji (navigate)
+
+### SISTEM
+- Sinkronisasi Manual (button dengan last sync time)
+- Cadangkan Data (button)
+- Hapus Cache (button dengan confirm dialog)
+
+### TENTANG
+- Versi app
+- Copyright
+
+### LOGOUT
+- Button merah dengan confirm dialog
+
+## BACKEND API
+```json
+POST {action: "getSettingGlobal"}
+POST {action: "updateSettingGlobal", parameter: "THEME", value: "DARK"}
+```
+
+## SPESIFIKASI UI
+- Group: Section dengan title 12sp uppercase gray
+- Item: ListItem dengan icon, title, subtitle, trailing (arrow/toggle/text)
+- Divider antar group
+- Dialog: Material AlertDialog untuk confirm
+
+## OUTPUT
+1. `SettingsScreen` composable
+2. `SettingsViewModel`
+3. `SettingsGroup` & `SettingsItem` reusable
+4. `GantiPinDialog` composable
+5. `ConfirmDialog` reusable
+6. Preview
+```
+
+---
+
+## 🔟 NAVIGASI & SHARED COMPONENTS
+
+### Prompt L: Navigation & Bottom Bar
+
+```markdown
+## KONTEKS
+Buat Navigation system untuk seluruh aplikasi dengan Bottom Navigation Bar 
+dan FAB quick action.
+
+## TUGAS
+Buatkan:
+
+1. `AdminNavHost`: NavHost dengan semua route
+2. `AdminBottomBar`: BottomAppBar dengan:
+   - Home, Monitor, Report, Profile (icon + label)
+   - FAB center: Add button dengan dropdown menu
+3. `QuickActionMenu`: Dropdown dari FAB:
+   - Tambah Karyawan
+   - Tambah Toko
+   - Tambah Tugas
+   - Tambah Berita
+4. `TopAppBar`: Variasi untuk setiap screen dengan back button & actions
+
+## ROUTE DEFINITION
+```kotlin
+sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
+    object Splash : Screen("splash", "", Icons.Default.Home)
+    object Login : Screen("login", "", Icons.Default.Home)
+    object Dashboard : Screen("home", "Beranda", Icons.Default.Home)
+    object Monitor : Screen("monitor", "Monitor", Icons.Default.LocationOn)
+    object Report : Screen("report", "Laporan", Icons.Default.Assessment)
+    object Profile : Screen("profile", "Profil", Icons.Default.Person)
+    object KaryawanList : Screen("karyawan", "Karyawan", Icons.Default.People)
+    object KaryawanForm : Screen("karyawan_form", "Form Karyawan", Icons.Default.PersonAdd)
+    object TokoList : Screen("toko", "Toko", Icons.Default.Store)
+    object Jadwal : Screen("jadwal", "Jadwal", Icons.Default.CalendarToday)
+    object Approval : Screen("approval", "Persetujuan", Icons.Default.CheckCircle)
+    object Chat : Screen("chat", "Pesan", Icons.Default.Chat)
+    object Settings : Screen("settings", "Pengaturan", Icons.Default.Settings)
+}
+```
+
+## OUTPUT
+1. `AdminNavHost` dengan NavHostController
+2. `AdminBottomBar` composable
+3. `AdminTopAppBar` composable
+4. `QuickActionMenu` composable
+5. `MainScreen` yang menggabungkan NavHost + BottomBar + TopAppBar
+6. Preview
+```
+
+---
+
+## 1️⃣1️⃣ SHARED COMPONENTS
+
+### Prompt M: Reusable Components Library
+
+```markdown
+## KONTEKS
+Buat library reusable components yang digunakan di seluruh aplikasi.
+
+## TUGAS
+Buatkan file `Components.kt` dengan:
+
+1. `LoadingButton`: Button dengan loading indicator
+2. `EmptyState`: Illustrasi + text + action button
+3. `ErrorState`: Error icon + message + retry button
+4. `ShimmerCard`: Placeholder loading card
+5. `StatusChip`: Chip dengan warna dinamis
+6. `SearchBar`: OutlinedTextField dengan search icon & clear
+7. `InfoRow`: Row dengan icon + label + value
+8. `ConfirmDialog`: AlertDialog reusable
+9. `ImagePicker`: Composable untuk pilih gallery/camera
+10. `DatePickerField`: OutlinedTextField dengan date picker dialog
+
+## SPESIFIKASI
+- Semua composable harus fully customizable via parameters
+- Support dark mode
+- Material 3 design
+- Preview untuk setiap component
+
+## OUTPUT
+File `Components.kt` lengkap dengan 10 composable, preview, dan dokumentasi penggunaan.
+```
+
+---
+
+## 1️⃣2️⃣ THEME & STYLING
+
+### Prompt N: App Theme
+
+```markdown
+## KONTEKS
+Buat Theme & Color system untuk aplikasi Absensi Pro.
+
+## TUGAS
+Buatkan file `Theme.kt` dan `Color.kt` dengan:
+
+### COLOR.KT:
+- Primary, PrimaryDark, PrimaryLight
+- Secondary, SecondaryLight
+- Error, Warning, Info, Success
+- Background, Surface, SurfaceVariant
+- TextPrimary, TextSecondary, TextTertiary
+- Divider, Border
+
+### THEME.KT:
+- LightColorScheme
+- DarkColorScheme
+- AppTheme composable
+- Typography (Material 3)
+- Shapes (small, medium, large)
+
+## OUTPUT
+1. `Color.kt` dengan semua color definition
+2. `Theme.kt` dengan light/dark theme
+3. `Type.kt` dengan typography
+4. Preview untuk light & dark mode
+```
+
+---
+
+## 📋 CHECKLIST PENGERJAAN
+
+```
+□ 1. Setup Project (Gradle, Dependencies, DI)
+□ 2. Theme & Color System (Prompt N)
+□ 3. Shared Components (Prompt M)
+□ 4. Navigation System (Prompt L)
+□ 5. Splash & Login (Prompt A, B)
+□ 6. Dashboard (Prompt C)
+□ 7. Monitoring Toko (Prompt D)
+□ 8. Karyawan CRUD (Prompt E, F)
+□ 9. Jadwal (Prompt G)
+□ 10. Approval (Prompt H)
+□ 11. Laporan (Prompt I)
+□ 12. Chat (Prompt J)
+□ 13. Settings (Prompt K)
+□ 14. Integrasi API & Testing
+□ 15. Real-time (Pusher + FCM)
+□ 16. Polish & Animation
+```
+
+---
+
+Setiap prompt di atas sudah **self-contained** dan bisa langsung di-copy-paste ke AI code generator. Prompt dirancang dengan **konteks lengkap, spesifikasi detail, API contract, dan output expectation** yang jelas untuk meminimalkan revisi.

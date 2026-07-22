@@ -1,0 +1,1084 @@
+package com.pinguincell.absen
+// MISSING LINE 2
+import android.content.Context
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import java.io.File
+import android.os.Environment
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.animation.core.*
+import androidx.compose.ui.BiasAlignment
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import and
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
+// MISSING LINE 37
+    // Start Pusher Foreground Service (Disabled to remove persistent background notification)
+    /*
+    val serviceIntent = Intent(this, PusherForegroundService::class.java)
+// MISSING LINE 41
+        startForegroundService(serviceIntent)
+    } else {
+        startService(serviceIntent)
+    }
+    */
+// MISSING LINE 47
+    // Initialize Pusher Client directly in MainActivity
+    com.pinguincell.absen.admin.api.PusherManager.initPusher()
+import com.pinguincell.absen.api.LoginRequest
+    // Check & Register Firebase Token
+    com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+        if (!task.isSuccessful) {
+            android.util.Log.w("FCM_TOKEN_DEBUG", "Fetching FCM registration token failed", task.exception)
+            android.widget.Toast.makeText(this, "FCM Admin Gagal: ${task.exception?.message}", android.widget.Toast.LENGTH_LONG).show()
+        if (!task.isSuccessful) {
+            android.util.Log.w("FCM_TOKEN_DEBUG", "Fetching FCM registration token failed", task.exception)
+            android.widget.Toast.makeText(this, "FCM Admin Gagal: ${task.exception?.message}", android.widget.Toast.LENGTH_LONG).show()
+            return@addOnCompleteListener
+        }
+        val token = task.result
+        android.util.Log.d("FCM_TOKEN_DEBUG", "FCM Token berhasil: $token")
+        android.widget.Toast.makeText(this, "FCM Admin Sukses!", android.widget.Toast.LENGTH_SHORT).show()
+        val userId = prefs.getString("userId", null)
+        // Send token to server
+        val prefs = getSharedPreferences("AbsenLogin", android.content.Context.MODE_PRIVATE)
+        val userId = prefs.getString("userId", null)
+        if (userId != null) {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    com.pinguincell.absen.admin.api.RetrofitClient.instance.registerFCMToken(
+                        com.pinguincell.absen.admin.api.RegisterFCMTokenRequest(
+                            idKaryawan = userId,
+                            token = token
+                        )
+                    )
+                    android.util.Log.d("FCM_TOKEN_DEBUG", "FCM Admin Token berhasil dikirim ke server")
+                } catch (e: Exception) {
+                    android.util.Log.e("FCM_TOKEN_DEBUG", "Gagal register admin token on launch", e)
+                }
+            }
+        } else {
+            android.util.Log.d("FCM_TOKEN_DEBUG", "Belum login, FCM token admin ditunda")
+        }
+    }
+      AbsenAdminTheme { Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { AdminMainScreen() } }
+    enableEdgeToEdge()
+    setContent {
+      AbsenAdminTheme { Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { AdminMainScreen() } }
+    }
+  }
+}
+// MISSING LINE 93
+// MISSING LINE 94
+// MISSING LINE 95
+// MISSING LINE 96
+// MISSING LINE 97
+// MISSING LINE 98
+// MISSING LINE 99
+// MISSING LINE 100
+// MISSING LINE 101
+// MISSING LINE 102
+// MISSING LINE 103
+// MISSING LINE 104
+// MISSING LINE 105
+// MISSING LINE 106
+// MISSING LINE 107
+// MISSING LINE 108
+// MISSING LINE 109
+// MISSING LINE 110
+// MISSING LINE 111
+// MISSING LINE 112
+// MISSING LINE 113
+// MISSING LINE 114
+// MISSING LINE 115
+// MISSING LINE 116
+// MISSING LINE 117
+// MISSING LINE 118
+// MISSING LINE 119
+// MISSING LINE 120
+// MISSING LINE 121
+// MISSING LINE 122
+// MISSING LINE 123
+                            coroutineScope.launch {
+                                // If the URL is just a github pages root, let's just use it, but typically it should be an APK.
+                                // If it fails to download (e.g., HTML response), it will show error.
+                                com.pinguincell.absen.api.ApkDownloader.downloadApk(context, updateUrl).collect {
+                                    downloadState = it
+                                    if (it is com.pinguincell.absen.api.ApkDownloader.DownloadState.Success) {
+                                        com.pinguincell.absen.api.ApkDownloader.installApk(context, it.file)
+                                    }
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Unduh & Install", color = Color.White)
+                    }
+                }
+                is com.pinguincell.absen.api.ApkDownloader.DownloadState.Downloading -> {
+                    Text("Mengunduh... ${state.progress}%", fontSize = 14.sp, color = Color(0xFF3B82F6))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { state.progress / 100f },
+                        modifier = Modifier.fillMaxWidth().height(8.dp),
+                        color = Color(0xFF3B82F6),
+                    )
+                }
+                is com.pinguincell.absen.api.ApkDownloader.DownloadState.Success -> {
+// MISSING LINE 151
+// MISSING LINE 152
+// MISSING LINE 153
+// MISSING LINE 154
+// MISSING LINE 155
+// MISSING LINE 156
+// MISSING LINE 157
+// MISSING LINE 158
+// MISSING LINE 159
+// MISSING LINE 160
+// MISSING LINE 161
+// MISSING LINE 162
+// MISSING LINE 163
+                        downloadState = com.pinguincell.absen.api.ApkDownloader.DownloadState.Idle
+                        val f = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "update.apk")
+                        if (f.exists()) f.delete()
+                    }) {
+                        Text("Download Ulang", color = Color.Gray, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+// MISSING LINE 175
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        installSplashScreen()
+// MISSING LINE 180
+        // --- Play sound and vibrate on startup ---
+        try {
+            val vibrator = getSystemService(android.content.Context.VIBRATOR_SERVICE) as android.os.Vibrator
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator.vibrate(android.os.VibrationEffect.createOneShot(300, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(300)
+            }
+            val autoStartHelper = com.pinguincell.absen.utils.AutoStartHelper(this)
+            val soundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+            val r = android.media.RingtoneManager.getRingtone(applicationContext, soundUri)
+            r.play()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        // ------------------------------------------
+                android.widget.Toast.makeText(this, "FCM Gagal: ${task.exception?.message}", android.widget.Toast.LENGTH_LONG).show()
+        com.pinguincell.absen.sync.AppLifecycleObserver.init()
+        com.pinguincell.absen.api.NotificationHelper.initChannels(this)
+            val token = task.result
+        // Battery Optimization & AutoStart (PRD FCM)
+        val batteryHelper = com.pinguincell.absen.utils.BatteryOptimizationHelper(this)
+        if (!batteryHelper.isBatteryOptimizationIgnored()) {
+            batteryHelper.requestBatteryOptimizationWhitelist()
+            val prefs = getSharedPreferences("AbsenLogin", android.content.Context.MODE_PRIVATE)
+            // Also show autostart guide
+            val autoStartHelper = com.pinguincell.absen.utils.AutoStartHelper(this)
+            autoStartHelper.showAutoStartGuide()
+        }
+                        com.pinguincell.absen.api.RetrofitClient.instance.registerFCMToken(
+        // Cek Firebase Token
+        com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                android.util.Log.w("FCM_TOKEN_DEBUG", "Fetching FCM registration token failed", task.exception)
+                android.widget.Toast.makeText(this, "FCM Gagal: ${task.exception?.message}", android.widget.Toast.LENGTH_LONG).show()
+                return@addOnCompleteListener
+            }
+            val token = task.result
+            android.util.Log.d("FCM_TOKEN_DEBUG", "FCM Token berhasil: $token")
+            android.widget.Toast.makeText(this, "FCM Sukses!", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            // Send token to server
+            val prefs = getSharedPreferences("AbsenLogin", android.content.Context.MODE_PRIVATE)
+            val userId = prefs.getString("userId", null)
+            if (userId != null) {
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    try {
+                        com.pinguincell.absen.api.RetrofitClient.instance.registerFCMToken(
+                            com.pinguincell.absen.api.RegisterFCMTokenRequest(
+                                idKaryawan = userId,
+                                token = token
+                            )
+                        )
+                        android.util.Log.d("FCM_TOKEN_DEBUG", "FCM Token berhasil dikirim ke server")
+                    } catch (e: Exception) {
+                        android.util.Log.e("FCM_TOKEN_DEBUG", "Gagal mengirim token FCM ke server", e)
+                    }
+                }
+            }
+        }
+        // Initialize CacheManager and OutboxManager
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                androidx.core.app.ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 101)
+            }
+        }
+                var updateRequired by remember { mutableStateOf(false) }
+        // Pusher telah dinonaktifkan sepenuhnya. Rute notifikasi menggunakan FCM sesuai PRD.
+                val lifecycleOwner = LocalLifecycleOwner.current
+        // Initialize CacheManager and OutboxManager
+        com.pinguincell.absen.api.CacheManager.init(this)
+        com.pinguincell.absen.api.OutboxManager.init(this)
+        setContent {
+            MaterialTheme {
+                var isCheckingUpdate by remember { mutableStateOf(true) }
+                var updateRequired by remember { mutableStateOf(false) }
+                var updateUrl by remember { mutableStateOf("https://nafindo.github.io/absen/") }
+                val lifecycleOwner = LocalLifecycleOwner.current
+                            val serverVerStr = response.latestVersion.replace(Regex("[^0-9]"), "")
+                // Function to check update
+                suspend fun doCheckUpdate() {
+                    try {
+                        val response = RetrofitClient.instance.checkUpdate(CheckUpdateRequest())
+                        if (response.success && response.latestVersion != null) {
+                            val currentVersion = BuildConfig.VERSION_NAME
+                            if (serverVerInt > currentVerInt) {
+                            // Normalisasi string versi dengan menghapus karakter selain angka
+                            val serverVerStr = response.latestVersion.replace(Regex("[^0-9]"), "")
+                            val currentVerStr = currentVersion.replace(Regex("[^0-9]"), "")
+                        }
+                            val serverVerInt = serverVerStr.toIntOrNull() ?: 0
+                            val currentVerInt = currentVerStr.toIntOrNull() ?: 0
+                    } finally {
+                            // Update hanya jika
+                    }
+                }
+// MISSING LINE 278
+                // Check on Resume
+                DisposableEffect(lifecycleOwner) {
+                    val observer = LifecycleEventObserver { _, event ->
+                        if (event == Life
+// MISSING LINE 283
+// MISSING LINE 284
+// MISSING LINE 285
+// MISSING LINE 286
+// MISSING LINE 287
+// MISSING LINE 288
+// MISSING LINE 289
+                    onDispose {
+                        lifecycleOwner.lifecycle.removeObserver(observer)
+                    }
+                }
+// MISSING LINE 294
+                // Check Periodically (every 10 minutes)
+                LaunchedEffect(Unit) {
+                    doCheckUpdate() // Initial check
+                    while(true) {
+                        delay(10 * 60 * 1000L) // 10 minutes
+                        doCheckUpdate()
+                    }
+                }
+// MISSING LINE 303
+                if (isCheckingUpdate) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color.White), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xFF3B82F6))
+                    }
+                    return@MaterialTheme
+                }
+// MISSING LINE 310
+                if (updateRequired) {
+                    UpdateScreen(updateUrl = updateUrl)
+                    return@MaterialTheme
+                }
+                val context = LocalContext.current
+                val prefs = remember { context.getSharedPreferences("AbsenLogin", Context.MODE_PRIVATE) }
+                var loggedInUser by remember {
+                    val savedId = prefs.getString("userId", null)
+                    if (savedId != null) {
+                        mutableStateOf<User?>(User(
+// MISSING LINE 321
+// MISSING LINE 322
+// MISSING LINE 323
+// MISSING LINE 324
+// MISSING LINE 325
+// MISSING LINE 326
+// MISSING LINE 327
+// MISSING LINE 328
+// MISSING LINE 329
+// MISSING LINE 330
+// MISSING LINE 331
+// MISSING LINE 332
+// MISSING LINE 333
+// MISSING LINE 334
+// MISSING LINE 335
+// MISSING LINE 336
+// MISSING LINE 337
+// MISSING LINE 338
+// MISSING LINE 339
+// MISSING LINE 340
+// MISSING LINE 341
+// MISSING LINE 342
+// MISSING LINE 343
+// MISSING LINE 344
+// MISSING LINE 345
+// MISSING LINE 346
+// MISSING LINE 347
+// MISSING LINE 348
+// MISSING LINE 349
+                                    .background(Color.Black.copy(alpha = 0.3f))
+                            )
+// MISSING LINE 352
+                            LoginScreen(onLoginSuccess = { user ->
+                                val oldId = prefs.getString("userId", null)
+                                if (oldId != null && oldId != user.id) {
+                                    // Clear data from previous user
+                                    com.pinguincell.absen.api.CacheManager.clearCache()
+                                }
+                                prefs.edit()
+                                    .putString("userId", user.id)
+                                    .putString("userNama", user.nama)
+                                    .putString("userJabatan", user.jabatan)
+                                    .putString("userToko", user.tokoDefault)
+                                    .putString("userShift", user.shiftDefault)
+                                    .putString("userFoto", user.fotoProfil)
+                                    .putString("userFaceId", user.faceId)
+                                    .apply()
+                                loggedInUser = user
+// MISSING LINE 369
+                                    .putString("userNama", user.nama)
+                                    .putString("userJabatan", user.jabatan)
+                                    .putString("userToko", user.tokoDefault)
+                                    .putString("userShift", user.shiftDefault)
+                                    .putString("userFoto", user.fotoProfil)
+                                    .putString("userFaceId", user.faceId)
+                                    .apply()
+                                loggedInUser = user
+                                                        idKaryawan = user.id,
+                                // Fetch and send FCM Token on login
+                                com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { tokenTask ->
+                                    if (tokenTask.isSuccessful) {
+                                        val fcmToken = tokenTask.result
+                                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                            try {
+                                                com.pinguincell.absen.api.RetrofitClient.instance.registerFCMToken(
+                                                    com.pinguincell.absen.api.RegisterFCMTokenRequest(
+                                                        idKaryawan = user.id,
+                                                        token = fcmToken
+                                                    )
+                                                )
+                                                android.util.Log.d("FCM_TOKEN_DEBUG", "FCM Token dikirim saat login")
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("FCM_TOKEN_DEBUG", "Gagal kirim FCM Token saat login", e)
+                                            }
+                                        }
+                                    }
+                                }
+                            })
+                        }
+                    }
+                } else {
+                    val context = LocalContext.current
+                    val chatViewModel = androidx.compose.runtime.remember {
+                        ChatViewModel(context.applicationContext as android.app.Application, loggedInUser!!.id, loggedInUser!!.nama)
+                    }
+                    val unreadChatCount by chatViewModel.unreadCount.collectAsState()
+                    val navController = rememberNavController()
+                            if (com.pinguincell.absen.sync.AppLifecycleObserver.isForeground) {
+                    LaunchedEffect(navController) {
+                        navController.addOnDestinationChangedListener { _, destination, _ ->
+                            com.pinguincell.absen.sync.AppLifecycleObserver.currentScreen = destination.route ?: "home"
+                        }
+                    }
+// MISSING LINE 414
+                    LaunchedEffect(Unit) {
+                        com.pinguincell.absen.api.PusherManager.chatEvents.collect { event ->
+                            if (com.pinguincell.absen.sync.AppLifecycleObserver.isForeground) {
+                                if (event.eventName == "new-message") {
+                                    com.pinguincell.absen.api.NotificationHelper.playNotificationSound(context)
+                                    if (com.pinguincell.absen.sync.AppLifecycleObserver.currentScreen != "chat") {
+                                        android.widget.Toast.makeText(context, "Ada pesan chat baru!", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                        }
+                    NavHost(navController = navController, startDestination = "home") {
+                        composable("home") {
+                            HomeScreen(
+                        composable("tugas") {
+                            TugasScreen(
+                                idKaryawan = loggedInUser!!.id,
+                                idToko = loggedInUser!!.tokoDefault ?: "",
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+                        // Removed duplicated izin routes
+                        composable("lembur") {
+                            LemburScreen(
+                                idKaryawan = loggedInUser?.id ?: "",
+                                onNavigateBack = { navController.popBackStack() },
+                                onNavigateToAjukanLembur = { navController.navigate("ajukan_lembur") }
+                            )
+                        }
+                        composable("ajukan_lembur") {
+                            AjukanLemburScreen(
+                                idKaryawan = loggedInUser?.id ?: "",
+                                nama = loggedInUser?.nama ?: "",
+                                onNavigateBack = { navController.popBackStack() }
+// MISSING LINE 451
+// MISSING LINE 452
+// MISSING LINE 453
+// MISSING LINE 454
+// MISSING LINE 455
+// MISSING LINE 456
+// MISSING LINE 457
+// MISSING LINE 458
+// MISSING LINE 459
+// MISSING LINE 460
+// MISSING LINE 461
+// MISSING LINE 462
+// MISSING LINE 463
+// MISSING LINE 464
+// MISSING LINE 465
+// MISSING LINE 466
+// MISSING LINE 467
+// MISSING LINE 468
+// MISSING LINE 469
+                                AjukanIzinViewModel(loggedInUser!!.id, loggedInUser!!.nama)
+                            }
+                            AjukanIzinScreen(onBack = { navController.popBackStack() }, viewModel = ajukanIzinViewModel)
+                                onBack = { navController.popBackStack() },
+                                onAjukanIzin = { navController.navigate("ajukan_izin") },
+                                viewModel = izinViewModel
+                            )
+                        }
+                        composable("ajukan_izin") {
+                            val ajukanIzinViewModel = androidx.compose.runtime.remember {
+                                AjukanIzinViewModel(loggedInUser!!.id, loggedInUser!!.nama)
+                            }
+                            AjukanIzinScreen(onBack = { navController.popBackStack() }, viewModel = ajukanIzinViewModel)
+                        }
+                        composable("tukar_shift") {
+                            TukarShiftScreen(
+                                idKaryawan = loggedInUser?.id ?: "",
+                                namaKaryawan = loggedInUser?.nama ?: "",
+                                fotoUrl = loggedInUser?.fotoProfil ?: "",
+                                onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable("rekap") {
+                            val rekapViewModel = androidx.compose.runtime.remember {
+                                RekapViewModel(loggedInUser!!.id)
+                            }
+                            RekapScreen(onNavigateBack = { navController.popBackStack() }, viewModel = rekapViewModel)
+                        }
+                        composable("verify_gaji") {
+                            val faceIdStr = loggedInUser!!.faceId
+                            if (faceIdStr.isNullOrEmpty()) {
+                                LaunchedEffect(Unit) {
+                                    Toast.makeText(context, "Anda harus mendaftar Face ID 3D terlebih dahulu!", Toast.LENGTH_LONG).show()
+                                    navController.popBackStack()
+                                }
+                            } else {
+                                val profileEmbedding = remember(faceIdStr) {
+                                      try {
+                                          val bytes = android.util.Base64.decode(faceIdStr, android.util.Base64.NO_WRAP)
+                                          val buffer = java.nio.ByteBuffer.wrap(bytes)
+                                          val floatArray = FloatArray(bytes.size / 4)
+                                          for (i in floatArray.indices) {
+                                              floatArray[i] = buffer.getFloat()
+                                          }
+                                          floatArray
+                                    } catch (e: Exception) {
+                                        null
+                                    }
+                                }
+                                    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+                                var isVerified by remember { mutableStateOf(false) }
+// MISSING LINE 521
+                                if (isVerified) {
+                                    LaunchedEffect(Unit) {
+// MISSING LINE 524
+// MISSING LINE 525
+// MISSING LINE 526
+// MISSING LINE 527
+// MISSING LINE 528
+// MISSING LINE 529
+// MISSING LINE 530
+// MISSING LINE 531
+// MISSING LINE 532
+// MISSING LINE 533
+// MISSING LINE 534
+// MISSING LINE 535
+// MISSING LINE 536
+// MISSING LINE 537
+// MISSING LINE 538
+// MISSING LINE 539
+// MISSING LINE 540
+// MISSING LINE 541
+// MISSING LINE 542
+// MISSING LINE 543
+// MISSING LINE 544
+// MISSING LINE 545
+// MISSING LINE 546
+// MISSING LINE 547
+// MISSING LINE 548
+// MISSING LINE 549
+// MISSING LINE 550
+// MISSING LINE 551
+// MISSING LINE 552
+// MISSING LINE 553
+// MISSING LINE 554
+// MISSING LINE 555
+// MISSING LINE 556
+// MISSING LINE 557
+// MISSING LINE 558
+// MISSING LINE 559
+// MISSING LINE 560
+// MISSING LINE 561
+// MISSING LINE 562
+// MISSING LINE 563
+// MISSING LINE 564
+                        composable("chat") {
+                                }
+                            }
+                        }
+                        composable("gaji") {
+                            val gajiViewModel = androidx.compose.runtime.remember {
+                                GajiViewModel(loggedInUser!!.id)
+                            }
+                            GajiScreen(onNavigateBack = { navController.popBackStack() }, viewModel = gajiViewModel)
+                        }
+                        composable("chat") {
+                            ChatScreen(onNavigateBack = { navController.popBackStack() }, viewModel = chatViewModel, loggedInUserId = loggedInUser!!.id)
+                        }
+                        composable("face_registration") {
+                            com.pinguincell.absen.ui.screens.FaceRegistrationScreen(
+                                user = loggedInUser!!,
+                                onBack = { navController.popBackStack() },
+                                onSuccess = { base64 ->
+                                    val updatedUser = loggedInUser!!.copy(faceId = base64)
+                                    loggedInUser = updatedUser
+                                    prefs.edit().putString("userFaceId", base64).apply()
+                                    navController.popBackStack()
+                                    Toast.makeText(context, "Face ID tersimpan", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+// MISSING LINE 596
+    override fun onDestroy() {
+        super.onDestroy()
+        PusherManager.disconnect()
+    }
+// MISSING LINE 601
+// MISSING LINE 602
+// MISSING LINE 603
+// MISSING LINE 604
+// MISSING LINE 605
+// MISSING LINE 606
+// MISSING LINE 607
+// MISSING LINE 608
+// MISSING LINE 609
+// MISSING LINE 610
+    val model = Build.MODEL
+    return if (model.startsWith(manufacturer, ignoreCase = true)) {
+        model.uppercase()
+    } else {
+        "${manufacturer.uppercase()} $model"
+    }
+}
+// MISSING LINE 618
+// MISSING LINE 619
+// MISSING LINE 620
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
+@Composable
+fun LoginScreen(onLoginSuccess: (User) -> Unit) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+// MISSING LINE 626
+    val primaryColor = Color(0xFF0D8ABC)
+    val bgGradient = Brush.linearGradient(
+        colors = listOf(Color(0xFF0D8ABC).copy(alpha = 0.4f), Color(0xFF065473).copy(alpha = 0.75f))
+    )
+    val cardShape = RoundedCornerShape(24.dp)
+// MISSING LINE 632
+    var idKaryawan by remember { mutableStateOf("") }
+    var selectedNama by remember { mutableStateOf("") }
+    var pin by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+// MISSING LINE 638
+    var showForceDialog by remember { mutableStateOf(false) }
+    var forceMessage by remember { mutableStateOf("") }
+// MISSING LINE 641
+    var karyawanList by remember { mutableStateOf<List<KaryawanItem>>(emptyList()) }
+    var isKaryawanLoading by remember { mutableStateOf(true) }
+    var expanded by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+// MISSING LINE 647
+    LaunchedEffect(Unit) {
+        val cacheKey = "karyawan_list"
+        val cacheData = com.pinguincell.absen.api.CacheManager.getCache<com.pinguincell.absen.api.KaryawanListResponse>(cacheKey)
+// MISSING LINE 651
+// MISSING LINE 652
+// MISSING LINE 653
+// MISSING LINE 654
+// MISSING LINE 655
+// MISSING LINE 656
+// MISSING LINE 657
+// MISSING LINE 658
+// MISSING LINE 659
+// MISSING LINE 660
+// MISSING LINE 661
+// MISSING LINE 662
+// MISSING LINE 663
+// MISSING LINE 664
+// MISSING LINE 665
+// MISSING LINE 666
+// MISSING LINE 667
+// MISSING LINE 668
+// MISSING LINE 669
+// MISSING LINE 670
+// MISSING LINE 671
+// MISSING LINE 672
+// MISSING LINE 673
+// MISSING LINE 674
+// MISSING LINE 675
+// MISSING LINE 676
+// MISSING LINE 677
+// MISSING LINE 678
+// MISSING LINE 679
+// MISSING LINE 680
+// MISSING LINE 681
+// MISSING LINE 682
+// MISSING LINE 683
+// MISSING LINE 684
+// MISSING LINE 685
+// MISSING LINE 686
+// MISSING LINE 687
+// MISSING LINE 688
+// MISSING LINE 689
+// MISSING LINE 690
+// MISSING LINE 691
+// MISSING LINE 692
+// MISSING LINE 693
+// MISSING LINE 694
+// MISSING LINE 695
+// MISSING LINE 696
+// MISSING LINE 697
+// MISSING LINE 698
+// MISSING LINE 699
+// MISSING LINE 700
+// MISSING LINE 701
+// MISSING LINE 702
+// MISSING LINE 703
+// MISSING LINE 704
+// MISSING LINE 705
+// MISSING LINE 706
+// MISSING LINE 707
+// MISSING LINE 708
+// MISSING LINE 709
+// MISSING LINE 710
+// MISSING LINE 711
+// MISSING LINE 712
+// MISSING LINE 713
+// MISSING LINE 714
+// MISSING LINE 715
+// MISSING LINE 716
+// MISSING LINE 717
+// MISSING LINE 718
+// MISSING LINE 719
+// MISSING LINE 720
+// MISSING LINE 721
+// MISSING LINE 722
+// MISSING LINE 723
+// MISSING LINE 724
+// MISSING LINE 725
+// MISSING LINE 726
+// MISSING LINE 727
+// MISSING LINE 728
+// MISSING LINE 729
+// MISSING LINE 730
+// MISSING LINE 731
+// MISSING LINE 732
+// MISSING LINE 733
+// MISSING LINE 734
+// MISSING LINE 735
+// MISSING LINE 736
+// MISSING LINE 737
+// MISSING LINE 738
+// MISSING LINE 739
+// MISSING LINE 740
+// MISSING LINE 741
+// MISSING LINE 742
+// MISSING LINE 743
+// MISSING LINE 744
+// MISSING LINE 745
+// MISSING LINE 746
+// MISSING LINE 747
+// MISSING LINE 748
+// MISSING LINE 749
+// MISSING LINE 750
+// MISSING LINE 751
+// MISSING LINE 752
+// MISSING LINE 753
+// MISSING LINE 754
+// MISSING LINE 755
+// MISSING LINE 756
+// MISSING LINE 757
+// MISSING LINE 758
+// MISSING LINE 759
+// MISSING LINE 760
+// MISSING LINE 761
+// MISSING LINE 762
+// MISSING LINE 763
+// MISSING LINE 764
+            // Login Card
+            Card(
+                shape = cardShape,
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    if (errorMessage != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFFFF2F2), RoundedCornerShape(12.dp))
+                                .border(1.dp, Color(0xFFFFD6D6), RoundedCornerShape(12.dp))
+                                .padding(12.dp)
+                        ) {
+                            Text(errorMessage!!, color = Color(0xFFFF3B30), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                        "NAMA KARYAWAN",
+                    Text(
+                        "NAMA KARYAWAN",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF8B95A5),
+                        letterSpacing = 0.8.sp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Box(
+                    // Custom Dropdown / BottomSheet for Karyawan Selection
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+// MISSING LINE 801
+// MISSING LINE 802
+// MISSING LINE 803
+// MISSING LINE 804
+// MISSING LINE 805
+// MISSING LINE 806
+// MISSING LINE 807
+// MISSING LINE 808
+// MISSING LINE 809
+// MISSING LINE 810
+// MISSING LINE 811
+// MISSING LINE 812
+// MISSING LINE 813
+// MISSING LINE 814
+// MISSING LINE 815
+// MISSING LINE 816
+// MISSING LINE 817
+// MISSING LINE 818
+// MISSING LINE 819
+// MISSING LINE 820
+// MISSING LINE 821
+// MISSING LINE 822
+// MISSING LINE 823
+// MISSING LINE 824
+// MISSING LINE 825
+// MISSING LINE 826
+// MISSING LINE 827
+// MISSING LINE 828
+// MISSING LINE 829
+// MISSING LINE 830
+// MISSING LINE 831
+// MISSING LINE 832
+// MISSING LINE 833
+// MISSING LINE 834
+// MISSING LINE 835
+// MISSING LINE 836
+// MISSING LINE 837
+// MISSING LINE 838
+// MISSING LINE 839
+// MISSING LINE 840
+// MISSING LINE 841
+// MISSING LINE 842
+// MISSING LINE 843
+// MISSING LINE 844
+// MISSING LINE 845
+// MISSING LINE 846
+// MISSING LINE 847
+// MISSING LINE 848
+// MISSING LINE 849
+// MISSING LINE 850
+// MISSING LINE 851
+// MISSING LINE 852
+// MISSING LINE 853
+// MISSING LINE 854
+// MISSING LINE 855
+// MISSING LINE 856
+// MISSING LINE 857
+// MISSING LINE 858
+// MISSING LINE 859
+// MISSING LINE 860
+// MISSING LINE 861
+// MISSING LINE 862
+// MISSING LINE 863
+// MISSING LINE 864
+// MISSING LINE 865
+// MISSING LINE 866
+// MISSING LINE 867
+// MISSING LINE 868
+// MISSING LINE 869
+// MISSING LINE 870
+// MISSING LINE 871
+// MISSING LINE 872
+// MISSING LINE 873
+// MISSING LINE 874
+// MISSING LINE 875
+// MISSING LINE 876
+// MISSING LINE 877
+// MISSING LINE 878
+// MISSING LINE 879
+// MISSING LINE 880
+// MISSING LINE 881
+// MISSING LINE 882
+// MISSING LINE 883
+// MISSING LINE 884
+// MISSING LINE 885
+// MISSING LINE 886
+// MISSING LINE 887
+// MISSING LINE 888
+// MISSING LINE 889
+// MISSING LINE 890
+// MISSING LINE 891
+// MISSING LINE 892
+// MISSING LINE 893
+// MISSING LINE 894
+// MISSING LINE 895
+// MISSING LINE 896
+// MISSING LINE 897
+// MISSING LINE 898
+// MISSING LINE 899
+// MISSING LINE 900
+// MISSING LINE 901
+// MISSING LINE 902
+// MISSING LINE 903
+// MISSING LINE 904
+// MISSING LINE 905
+// MISSING LINE 906
+// MISSING LINE 907
+// MISSING LINE 908
+// MISSING LINE 909
+// MISSING LINE 910
+// MISSING LINE 911
+// MISSING LINE 912
+// MISSING LINE 913
+// MISSING LINE 914
+// MISSING LINE 915
+// MISSING LINE 916
+// MISSING LINE 917
+// MISSING LINE 918
+// MISSING LINE 919
+// MISSING LINE 920
+// MISSING LINE 921
+// MISSING LINE 922
+// MISSING LINE 923
+// MISSING LINE 924
+// MISSING LINE 925
+// MISSING LINE 926
+// MISSING LINE 927
+// MISSING LINE 928
+// MISSING LINE 929
+// MISSING LINE 930
+// MISSING LINE 931
+// MISSING LINE 932
+// MISSING LINE 933
+// MISSING LINE 934
+// MISSING LINE 935
+// MISSING LINE 936
+// MISSING LINE 937
+// MISSING LINE 938
+// MISSING LINE 939
+// MISSING LINE 940
+// MISSING LINE 941
+// MISSING LINE 942
+// MISSING LINE 943
+// MISSING LINE 944
+// MISSING LINE 945
+// MISSING LINE 946
+// MISSING LINE 947
+// MISSING LINE 948
+// MISSING LINE 949
+// MISSING LINE 950
+// MISSING LINE 951
+// MISSING LINE 952
+// MISSING LINE 953
+// MISSING LINE 954
+// MISSING LINE 955
+// MISSING LINE 956
+// MISSING LINE 957
+// MISSING LINE 958
+// MISSING LINE 959
+// MISSING LINE 960
+// MISSING LINE 961
+// MISSING LINE 962
+// MISSING LINE 963
+// MISSING LINE 964
+// MISSING LINE 965
+// MISSING LINE 966
+// MISSING LINE 967
+// MISSING LINE 968
+// MISSING LINE 969
+// MISSING LINE 970
+// MISSING LINE 971
+// MISSING LINE 972
+// MISSING LINE 973
+// MISSING LINE 974
+// MISSING LINE 975
+// MISSING LINE 976
+// MISSING LINE 977
+// MISSING LINE 978
+// MISSING LINE 979
+// MISSING LINE 980
+// MISSING LINE 981
+// MISSING LINE 982
+// MISSING LINE 983
+// MISSING LINE 984
+// MISSING LINE 985
+// MISSING LINE 986
+// MISSING LINE 987
+// MISSING LINE 988
+// MISSING LINE 989
+// MISSING LINE 990
+// MISSING LINE 991
+// MISSING LINE 992
+// MISSING LINE 993
+// MISSING LINE 994
+// MISSING LINE 995
+// MISSING LINE 996
+// MISSING LINE 997
+// MISSING LINE 998
+// MISSING LINE 999
+// MISSING LINE 1000
+// MISSING LINE 1001
+// MISSING LINE 1002
+// MISSING LINE 1003
+// MISSING LINE 1004
+// MISSING LINE 1005
+// MISSING LINE 1006
+// MISSING LINE 1007
+// MISSING LINE 1008
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                scaleX = 1.3f
+                scaleY = 1.3f
+                translationX = offsetX
+                translationY = offsetY
+            }
+    )
+}
+// MISSING LINE 1019
+data class Snowflake(
+    var x: Float,
+    var y: Float,
+    var radius: Float,
+    var speed: Float,
+    var drift: Float
+)
+// MISSING LINE 1027
+@Composable
+fun SnowAnimation() {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val screenWidth = with(density) { configuration.screenWidthDp.dp.toPx() }
+    val screenHeight = with(density) { configuration.screenHeightDp.dp.toPx() }
+// MISSING LINE 1034
+    val snowflakes = remember {
+        List(50) {
+            Snowflake(
+                x = kotlin.random.Random.nextFloat() * screenWidth,
+                y = kotlin.random.Random.nextFloat() * screenHeight,
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val screenWidth = with(density) { configuration.screenWidthDp.dp.toPx() }
+    val screenHeight = with(density) { configuration.screenHeightDp.dp.toPx() }
+        }
+    val snowflakes = remember {
+        List(50) {
+            Snowflake(
+                x = kotlin.random.Random.nextFloat() * screenWidth,
+                y = kotlin.random.Random.nextFloat() * screenHeight,
+                radius = kotlin.random.Random.nextFloat() * 5f + 2f,
+                speed = kotlin.random.Random.nextFloat() * 3f + 1f,
+                drift = (kotlin.random.Random.nextFloat() - 0.5f) * 2f
+            )
+        }
+    }
+// MISSING LINE 1056
+    var time by remember { mutableStateOf(0f) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            androidx.compose.runtime.withFrameMillis { time = it.toFloat() }
+            snowflakes.forEach { flake ->
+                flake.y += flake.speed
+                flake.x += flake.drift
+                if (flake.y > screenHeight) {
+                    flake.y = -10f
+                    flake.x = kotlin.random.Random.nextFloat() * screenWidth
+                }
+                if (flake.x > screenWidth + 10f) flake.x = -10f
+                if (flake.x < -10f) flake.x = screenWidth + 10f
+            }
+        }
+    }
+// MISSING LINE 1073
+    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+        val trigger = time // Trigger recomposition
+        snowflakes.forEach { flake ->
+            drawCircle(
+                color = Color.White.copy(alpha = 0.8f),
+                radius = flake.radius,
+                center = androidx.compose.ui.geometry.Offset(flake.x, flake.y)
+            )
+        }
+    }
+}

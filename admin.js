@@ -47,7 +47,7 @@ function showPage(page) {
   
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(el => { 
-    if(el.getAttribute('onclick')?.includes(page)) el.classList.add('active'); 
+    if(el.getAttribute('data-page') === page) el.classList.add('active'); 
   });
 
   const titles = {
