@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Absensi Khusus</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            min-height: 100vh;
+            background: var(--card);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        /* Views */
+        .view {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            padding: 24px;
+            animation: fadeIn 0.3s ease;
+        }
+        .view.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Headers */
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+            margin-top: 20px;
+        }
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+        .header p {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+        .form-control {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.2s;
+            background: var(--bg);
+        }
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+        }
+        .form-control[readonly] {
+            background: #e2e8f0;
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+        .btn-primary:active {
+            background: var(--primary-dark);
+            transform: scale(0.98);
+        }
+
+        /* Dashboard specific */
+        .card {
+            background: var(--bg);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+        .card-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+        .user-info h2 {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+        .schedule-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+        .schedule-item {
+            text-align: center;
+        }
+        .schedule-item .time {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .camera-container {
+            width: 100%;
+            aspect-ratio: 3/4;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 20px;
+        }
+        #camera-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .camera-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border: 2px dashed rgba(255,255,255,0.5);
+            border-radius: 16px;
+            margin: 10px;
+            pointer-events: none;
+        }
+
+        .location-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--border);
+        }
+        .status-dot.active { background: var(--success); }
+        .status-dot.error { background: var(--danger); }
+
+        /* Loader Overlay */
+        .loader-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+        }
+        .loader-overlay.active {
+            display: flex;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: bottom 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000;
+            white-space: nowrap;
+        }
+        .toast.show { bottom: 30px; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <!-- LOADER -->
+    <div class="loader-overlay" id="global-loader">
+        <div class="spinner"></div>
+        <p id="loader-text" style="font-weight: 500; color: var(--text-muted);">Memuat...</p>
+    </div>
+
+    <!-- LOGIN VIEW -->
+    <div class="view active" id="view-login">
+        <div class="header">
+            <h1>Absensi Khusus</h1>
+            <p>Akses Darurat (PWA)</p>
+        </div>
+
+        <div class="form-group">
+            <label>ID Karyawan</label>
+            <input type="text" class="form-control" id="inp-id" value="K20260529094053711" readonly>
+            <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">ID ini dikunci khusus untuk Anda.</p>
+        </div>
+
+        <div class="form-group">
+            <label>PIN (6 Angka)</label>
+            <input type="password" class="form-control" id="inp-pin" placeholder="Masukkan PIN Anda" inputmode="numeric" maxlength="6">
+        </div>
+
+        <button class="btn btn-primary" onclick="doLogin()" style="margin-top: 20px;">
+            Masuk Aplikasi
+        </button>
+    </div>
+
+    <!-- DASHBOARD VIEW -->
+    <div class="view" id="view-dashboard">
+        <div class="header" style="text-align: left; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1 style="font-size: 20px;" id="lbl-nama">Memuat...</h1>
+                <p id="lbl-jabatan">Karyawan</p>
+            </div>
+            <button onclick="doLogout()" style="background: none; border: none; color: var(--danger); font-weight: 600; padding: 8px;">Logout</button>
+        </div>
+
+        <div class="card user-info">
+            <div class="card-title">Jadwal Hari Ini</div>
+            <h2 id="lbl-toko">-</h2>
+            <p style="color: var(--text-muted);" id="lbl-shift">-</p>
+            
+            <div class="schedule-info">
+                <div class="schedule-item">
+                    <div style="font-size: 12px; color: var(--text-muted);">Masuk</div>
+                    <div class="time" id="lbl-jam-masuk">--:--</div>
+                </div>
+                <div class="schedule-item">
+                    <div style="font-size: 12px; color: var(--text-muted);">Pulang</div>
+                    <div class="time" id="lbl-jam-pulang">--:--</div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn btn-primary" id="btn-buka-kamera" onclick="openAbsenView()">
+            Buka Kamera Absen
+        </button>
+    </div>
+
+    <!-- ABSEN CAMERA VIEW -->
+    <div class="view" id="view-absen">
+        <div class="header" style="text-align: left; margin-bottom: 20px; margin-top: 0; display: flex; align-items: center; gap: 12px;">
+            <button onclick="backToDashboard()" style="background: none; border: none; font-size: 24px; color: var(--text-main); padding: 4px;">&larr;</button>
+            <h1 style="font-size: 20px; margin: 0;">Ambil Foto</h1>
+        </div>
+
+        <div class="camera-container">
+            <video id="camera-preview" autoplay playsinline></video>
+            <div class="camera-overlay"></div>
+            <canvas id="camera-canvas" style="display: none;"></canvas>
+        </div>
+
+        <div class="location-status">
+            <div class="status-dot" id="gps-dot"></div>
+            <span id="gps-text">Mencari Lokasi GPS...</span>
+        </div>
+
+        <button class="btn btn-primary" id="btn-jepret" onclick="takePhotoAndSubmit()" disabled style="background: var(--text-muted);">
+            Mohon Tunggu GPS...
+        </button>
+    </div>
+
+</div>
+
+<div class="toast" id="toast">Notifikasi</div>
+
+<script>
+    // Konfigurasi
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxDyDhOWjdbi1dO9HBbcSEZumOkBGlg2Z4UzJ-YqcirnX7u487kUUOYota52PV-5BlN/exec';
+    const HARDCODED_ID = 'K20260529094053711';
+    
+    // State
+    let userData = null;
+    let jadwalData = null;
+    let currentLocation = null;
+    let videoStream = null;
+    let absenType = 'Masuk'; // 'Masuk' atau 'Pulang'
+
+    // DOM Elements
+    const views = {
+        login: document.getElementById('view-login'),
+        dashboard: document.getElementById('view-dashboard'),
+        absen: document.getElementById('view-absen')
+    };
+    
+    const loader = document.getElementById('global-loader');
+    const loaderText = document.getElementById('loader-text');
+    const toastEl = document.getElementById('toast');
+
+    // Initialization
+    window.onload = () => {
+        const savedUser = localStorage.getItem('absenKhususUser');
+        if (savedUser) {
+            userData = JSON.parse(savedUser);
+            if (userData.id === HARDCODED_ID) {
+                showView('dashboard');
+                loadDashboardData();
+            } else {
+                localStorage.removeItem('absenKhususUser');
+            }
+        }
+    };
+
+    // UI Helpers
+    function showView(viewName) {
+        Object.values(views).forEach(v => v.classList.remove('active'));
+        views[viewName].classList.add('active');
+    }
+
+    function showLoader(text = 'Memuat...') {
+        loaderText.innerText = text;
+        loader.classList.add('active');
+    }
+
+    function hideLoader() {
+        loader.classList.remove('active');
+    }
+
+    function showToast(msg) {
+        toastEl.innerText = msg;
+        toastEl.classList.add('show');
+        setTimeout(() => { toastEl.classList.remove('show'); }, 3000);
+    }
+
+    // Network Request Wrapper (Menggunakan no-cors bypass/text-plain trick atau redirect)
+    // GAS biasanya membutuhkan Redirect Follow. Fetch defaultnya follow redirect.
+    async function apiCall(payload) {
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                // Kita gunakan text/plain agar tidak trigger CORS preflight OPTIONS yang kadang ditolak GAS
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('API Error:', error);
+            throw error;
+        }
+    }
+
+    // Actions
+    async function doLogin() {
+        const pin = document.getElementById('inp-pin').value;
+        if (pin.length < 4) {
+            showToast('PIN tidak valid');
+            return;
+        }
+
+        showLoader('Mencoba Login...');
+        try {
+            const res = await apiCall({
+                action: 'login',
+                idKaryawan: HARDCODED_ID,
+                pin: pin,
+                deviceId: 'PWA-Khusus-Web',
+                deviceName: navigator.userAgent.substring(0, 50),
+                force: true
+            });
+
+            if (res.success && res.user) {
+                userData = res.user;
+                localStorage.setItem('absenKhususUser', JSON.stringify(userData));
+                showToast('Login Berhasil!');
+                document.getElementById('inp-pin').value = '';
+                showView('dashboard');
+                loadDashboardData();
+            } else {
+                showToast(res.error || res.message || 'Login Gagal');
+            }
+        } catch (e) {
+            showToast('Gagal terhubung ke server');
+        } finally {
+            hideLoader();
+        }
+    }
+
+    function doLogout() {
+        localStorage.removeItem('absenKhususUser');
+        userData = null;
+        jadwalData = null;
+        showView('login');
+    }
+
+    async function loadDashboardData() {
+        showLoader('Mengambil Jadwal...');
+        try {
+            document.getElementById('lbl-nama').innerText = userData.nama || userData.Nama || 'Karyawan';
+            
+            const res = await apiCall({
+                action: 'getJadwalHariIni',
+                idKaryawan: HARDCODED_ID
+            });
+
+            if (res.success && res.jadwal) {
+                jadwalData = res;
+                document.getElementById('lbl-toko').innerText = res.jadwal.namaToko || '-';
+                document.getElementById('lbl-shift').innerText = res.jadwal.namaShift || '-';
+                document.getElementById('lbl-jam-masuk').innerText = res.jadwal.jamMasuk || '--:--';
+                document.getElementById('lbl-jam-pulang').innerText = res.jadwal.jamPulang || '--:--';
+
+                // Tentukan tombol Absen Masuk atau Pulang
+                const btnKamera = document.getElementById('btn-buka-kamera');
+                if (!res.absen || !res.absen.jamMasuk) {
+                    absenType = 'Masuk';
+                    btnKamera.innerText = 'Buka Kamera (Absen Masuk)';
+                    btnKamera.style.background = 'var(--primary)';
+                } else if (!res.absen.jamPulang) {
+                    absenType = 'Pulang';
+                    btnKamera.innerText = 'Buka Kamera (Absen Pulang)';
+                    btnKamera.style.background = '#f59e0b'; // Orange
+                } else {
+                    absenType = 'Selesai';
+                    btnKamera.innerText = 'Sudah Selesai Absen Hari Ini';
+                    btnKamera.style.background = 'var(--success)';
+                    btnKamera.disabled = true;
+                }
+            } else {
+                document.getElementById('lbl-toko').innerText = 'Libur / Tidak ada jadwal';
+                document.getElementById('btn-buka-kamera').style.display = 'none';
+            }
+        } catch (e) {
+            showToast('Gagal mengambil jadwal');
+        } finally {
+            hideLoader();
+        }
+    }
+
+    async function openAbsenView() {
+        if (!jadwalData || !jadwalData.jadwal) {
+            showToast('Data jadwal belum siap');
+            return;
+        }
+        showView('absen');
+        startLocationTracking();
+        startCamera();
+        
+        const btnJepret = document.getElementById('btn-jepret');
+        btnJepret.innerText = 'Mohon Tunggu GPS...';
+        btnJepret.disabled = true;
+        btnJepret.style.background = 'var(--text-muted)';
+    }
+
+    function backToDashboard() {
+        stopCamera();
+        stopLocationTracking();
+        showView('dashboard');
+    }
+
+    // Camera
+    async function startCamera() {
+        const video = document.getElementById('camera-preview');
+        try {
+            // Meminta kamera depan (user)
+            videoStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: "user" }, 
+                audio: false 
+            });
+            video.srcObject = videoStream;
+        } catch (err) {
+            console.error(err);
+            showToast('Gagal mengakses kamera. Berikan izin di browser Anda!');
+        }
+    }
+
+    function stopCamera() {
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            videoStream = null;
+        }
+    }
+
+    // Geolocation
+    let watchId = null;
+    function startLocationTracking() {
+        const dot = document.getElementById('gps-dot');
+        const txt = document.getElementById('gps-text');
+        
+        if (!navigator.geolocation) {
+            txt.innerText = 'GPS tidak didukung browser ini';
+            dot.className = 'status-dot error';
+            return;
+        }
+
+        watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                currentLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                    accuracy: position.coords.accuracy
+                };
+                txt.innerText = 'Akurasi GPS: ' + Math.round(position.coords.accuracy) + 'm';
+                
+                // Allow absen jika akurasi di bawah 1000m
+                if (position.coords.accuracy <= 1000) {
+                    dot.className = 'status-dot active';
+                    const btn = document.getElementById('btn-jepret');
+                    btn.disabled = false;
+                    btn.style.background = absenType === 'Masuk' ? 'var(--primary)' : '#f59e0b';
+                    btn.innerText = `Jepret & Absen ${absenType}`;
+                } else {
+                    dot.className = 'status-dot error';
+                    txt.innerText = 'Akurasi lemah (' + Math.round(position.coords.accuracy) + 'm), cari sinyal GPS...';
+                }
+            },
+            (error) => {
+                dot.className = 'status-dot error';
+                txt.innerText = 'Izin Lokasi Ditolak / Gagal';
+                showToast('Nyalakan GPS / Izinkan Lokasi di Browser');
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }
+
+    function stopLocationTracking() {
+        if (watchId !== null) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+        currentLocation = null;
+    }
+
+    // Capture & Submit
+    async function takePhotoAndSubmit() {
+        if (!currentLocation) {
+            showToast('Lokasi GPS belum dikunci!');
+            return;
+        }
+
+        const video = document.getElementById('camera-preview');
+        const canvas = document.getElementById('camera-canvas');
+        const context = canvas.getContext('2d');
+
+        // Sesuaikan ukuran canvas dengan ukuran asli video
+        canvas.width = video.videoWidth || 480;
+        canvas.height = video.videoHeight || 640;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Kompresi ke JPEG dengan kualitas 0.6 (hemat kuota & upload cepat)
+        const photoBase64 = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+
+        showLoader(`Mengirim Absen ${absenType}...`);
+        stopCamera();
+        stopLocationTracking();
+
+        try {
+            let payload = {};
+            if (absenType === 'Masuk') {
+                payload = {
+                    action: 'absenMasuk',
+                    idKaryawan: HARDCODED_ID,
+                    nama: userData.nama || userData.Nama || '',
+                    idToko: jadwalData.jadwal.idToko,
+                    namaToko: jadwalData.jadwal.namaToko,
+                    idShift: jadwalData.jadwal.idShift,
+                    namaShift: jadwalData.jadwal.namaShift,
+                    lat: currentLocation.lat,
+                    lng: currentLocation.lng,
+                    fotoBase64: photoBase64,
+                    isEncrypted: false
+                };
+            } else {
+                payload = {
+                    action: 'absenPulang',
+                    idKaryawan: HARDCODED_ID,
+                    nama: userData.nama || userData.Nama || '',
+                    lat: currentLocation.lat,
+                    lng: currentLocation.lng,
+                    fotoBase64: photoBase64,
+                    isEncrypted: false
+                };
+            }
+
+            const res = await apiCall(payload);
+            
+            if (res.success) {
+                showToast(`Absen ${absenType} Berhasil!`);
+                setTimeout(() => {
+                    hideLoader();
+                    showView('dashboard');
+                    loadDashboardData();
+                }, 1500);
+            } else {
+                showToast(res.error || res.message || `Gagal Absen ${absenType}`);
+                hideLoader();
+                // Buka kembali kamera agar bisa mencoba ulang
+                startCamera();
+                startLocationTracking();
+            }
+
+        } catch (e) {
+            showToast('Gagal terhubung, periksa internet Anda');
+            hideLoader();
+            startCamera();
+            startLocationTracking();
+        }
+    }
+
+</script>
+</body>
+</html>
