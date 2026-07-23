@@ -139,6 +139,7 @@ function doPost(e) {
       case 'getMyApprovals': return jsonResponse(getMyApprovals(data));
 
       // === CRUD TOKO ===
+      case 'getPosGeneralSummary': return jsonResponse(getPosGeneralSummary());
       case 'uploadFotoToko': return jsonResponse(uploadFotoToko(data));
       case 'getTokoList': return jsonResponse(getTokoList());
       case 'saveToko': return jsonResponse(saveToko(data));
@@ -435,7 +436,7 @@ const COL_JADWAL = {
 function getDefaultHeaders(sheetName) {
   const headers = {
     'MASTER_KARYAWAN': ['ID_Karyawan', 'Nama', 'PIN', 'Jabatan', 'Tanggal_Masuk', 'Status', 'No_HP', 'Email', 'Toko_Default', 'Shift_Default', 'Foto_Profil', 'FCM_Token', 'Device_ID', 'Device_Name', 'Alamat_Lengkap', 'Kontak_Darurat', 'Nama_Kontak_Darurat', 'Foto_KTP', 'NIK', 'Tempat_Lahir', 'Tanggal_Lahir', 'Jenis_Kelamin', 'RT_RW', 'Desa', 'Kecamatan', 'Agama', 'Status_Kawin', 'Kewarganegaraan', 'Profil_Lengkap'],
-    'MASTER_TOKO': ['ID_Toko', 'Nama_Toko', 'Alamat', 'Lat', 'Long', 'Radius_M', 'Jam_Buka', 'Jam_Tutup', 'Foto_Toko_URL', 'Status'],
+    'MASTER_TOKO': ['ID_Toko', 'Nama_Toko', 'Alamat', 'Lat', 'Long', 'Radius_M', 'Jam_Buka', 'Jam_Tutup', 'Foto_Toko_URL', 'Status', 'ID_Sheet_POS'],
     'SHIFT_TOKO': ['ID_Shift', 'ID_Toko', 'Nama_Toko', 'Nama_Shift', 'Jam_Masuk', 'Jam_Pulang', 'Toleransi_Masuk_Menit', 'Status'],
     'JADWAL_KARYAWAN': ['ID_Jadwal', 'ID_Karyawan', 'Nama', 'ID_Toko', 'Nama_Toko', 'ID_Shift', 'Nama_Shift', 'Hari_Berjalan', 'Tanggal_Mulai', 'Tanggal_Selesai', 'Status'],
     'ABSENSI': ['Timestamp', 'ID_Karyawan', 'Nama', 'ID_Toko', 'Nama_Toko', 'ID_Shift', 'Nama_Shift', 'Tipe', 'Jam_Masuk', 'Jam_Pulang', 'Jam_Kerja', 'Status_Masuk', 'Menit_Telat', 'Foto_URL', 'Lat_Hp', 'Long_Hp', 'Jarak_M', 'Status_GPS', 'Face_Detected', 'Foto_Pulang_URL'],
@@ -926,7 +927,8 @@ function absenMasuk(data) {
   const sudahMasukHariIni = absensi.find(a =>
     a.ID_Karyawan === idKaryawan &&
     (a.Timestamp instanceof Date ? formatDate(a.Timestamp) : formatDate(new Date(a.Timestamp))) === today &&
-    a.Tipe === 'Masuk'
+    a.Tipe === 'Masuk' &&
+    String(a.ID_Shift) === String(idShift)
   );
 
   if (sudahMasukHariIni) {
@@ -1191,7 +1193,7 @@ function absenPulang(data) {
   let durasiMs = 0;
   let durasiLemburMs = 0;
   
-  const isTelat = R_IN > S_IN;
+  const isTelat = recordMasuk.Status_Masuk === 'Telat';
   const isPulangAwal = R_OUT < S_OUT;
 
   if (isTelat) {
@@ -3072,6 +3074,84 @@ function getPendingApprovals(data) {
   return { success: true, data: result };
 }
 // ==================== CRUD TOKO ====================
+
+function getPosGeneralSummary() {
+  const tokos = getSheetData(SHEET_NAMES.MASTER_TOKO).filter(t => t.Status === 'Aktif' && t.ID_Sheet_POS);
+  
+  const today = formatDate(new Date());
+  let overallTotalTransaksi = 0;
+  let overallTotalNominal = 0;
+  let overallTotalLaba = 0;
+  
+  const storeStats = [];
+  
+  for (const toko of tokos) {
+    let trxCount = 0;
+    let trxNominal = 0;
+    let trxLaba = 0;
+    
+    try {
+      const posSpreadsheet = SpreadsheetApp.openById(toko.ID_Sheet_POS);
+      const riwayatSheet = posSpreadsheet.getSheetByName('Riwayat_Transaksi');
+      
+      if (riwayatSheet) {
+        // Read raw values to be faster
+        const data = riwayatSheet.getDataRange().getValues();
+        if (data.length > 1) {
+          const headers = data[0];
+          // Find indices
+          const tsIdx = headers.indexOf('Timestamp');
+          const statusIdx = headers.indexOf('Status');
+          const totalHargaIdx = headers.indexOf('Total_Harga');
+          const totalLabaIdx = headers.indexOf('Total_Laba');
+          
+          if (tsIdx > -1 && statusIdx > -1) {
+            for (let i = 1; i < data.length; i++) {
+              const row = data[i];
+              const rowTs = row[tsIdx];
+              const rowDate = rowTs instanceof Date ? formatDate(rowTs) : formatDate(new Date(rowTs));
+              
+              if (rowDate === today && row[statusIdx] === 'Selesai') {
+                 trxCount++;
+                 if (totalHargaIdx > -1) trxNominal += (Number(row[totalHargaIdx]) || 0);
+                 if (totalLabaIdx > -1) trxLaba += (Number(row[totalLabaIdx]) || 0);
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore errors for invalid sheets
+      Logger.log("Error reading POS sheet for toko " + toko.Nama_Toko + ": " + e.message);
+    }
+    
+    overallTotalTransaksi += trxCount;
+    overallTotalNominal += trxNominal;
+    overallTotalLaba += trxLaba;
+    
+    storeStats.push({
+      idToko: toko.ID_Toko,
+      namaToko: toko.Nama_Toko,
+      fotoUrl: toko.Foto_Toko_URL,
+      idSheetPos: toko.ID_Sheet_POS,
+      transaksiHariIni: trxCount,
+      nominalHariIni: trxNominal,
+      labaHariIni: trxLaba
+    });
+  }
+  
+  return {
+    success: true,
+    data: {
+      overall: {
+        totalTransaksi: overallTotalTransaksi,
+        totalNominal: overallTotalNominal,
+        totalLaba: overallTotalLaba
+      },
+      stores: storeStats
+    }
+  };
+}
 function getTokoList() {
   return { success: true, data: getSheetData(SHEET_NAMES.MASTER_TOKO) };
 }
@@ -3091,7 +3171,7 @@ function saveToko(data) {
 }
 
 function updateToko(data) {
-  const { idToko, nama, alamat, lat, lng, radius, jamBuka, jamTutup, fotoUrl, status } = data;
+  const { idToko, nama, alamat, lat, lng, radius, jamBuka, jamTutup, fotoUrl, status, idSheetPos } = data;
 
   const sheet = getSheet(SHEET_NAMES.MASTER_TOKO);
   const allData = sheet.getDataRange().getValues();
@@ -3113,7 +3193,7 @@ function updateToko(data) {
       if (jamTutup !== undefined) sheet.getRange(i + 1, 8).setValue(jamTutup);
       if (fotoUrl !== undefined) sheet.getRange(i + 1, 9).setValue(fotoUrl);
       if (status !== undefined) sheet.getRange(i + 1, 10).setValue(status);
-      if (data.idSheetPos !== undefined) sheet.getRange(i + 1, 11).setValue(data.idSheetPos);
+      if (idSheetPos !== undefined) sheet.getRange(i + 1, 11).setValue(idSheetPos);
       return { success: true, message: 'Toko berhasil diupdate' };
     }
   }
